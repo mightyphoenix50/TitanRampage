@@ -1,0 +1,1171 @@
+--!strict
+--[[
+    DestructionHUD.client.luau
+    Client UI controller for Titan Rampage.
+    Responsibility:
+    - Real-time HUD updates for Level, XP progress bar, Cash, Points, and Combo.
+    - Full Ravager Upgrade Matrix UI panel with live affordability tracking.
+    - Floating damage numbers, destruction billboards, and level-up banners.
+    - City Progress HUD tracker (Buildings count, percentage, progress bar, live timer).
+    - City Completion Screen with run statistics, rewards accounting, and Rebuild City button.
+--]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local MainUI = script.Parent :: ScreenGui
+
+local ConfigFolder = ReplicatedStorage:WaitForChild("Config")
+local RemotesFolder = ReplicatedStorage:WaitForChild("Remotes")
+local SharedFolder = ReplicatedStorage:WaitForChild("Shared")
+
+local UpgradeConfig = require(ConfigFolder:WaitForChild("UpgradeConfig") :: ModuleScript)
+local AudioController = require(SharedFolder:WaitForChild("AudioController") :: ModuleScript)
+local DestructionFeedback = RemotesFolder:WaitForChild("DestructionFeedback") :: RemoteEvent
+local ProgressionUpdateRemote = RemotesFolder:WaitForChild("ProgressionUpdate") :: RemoteEvent
+local UpgradeRequestRemote = RemotesFolder:WaitForChild("UpgradeRequest") :: RemoteEvent
+local CityFeedbackRemote = RemotesFolder:WaitForChild("CityFeedback") :: RemoteEvent
+local RebuildCityRequestRemote = RemotesFolder:WaitForChild("RebuildCityRequest") :: RemoteEvent
+local CitySelectRequestRemote = RemotesFolder:WaitForChild("CitySelectRequest") :: RemoteEvent
+local TitanSelectRequestRemote = RemotesFolder:WaitForChild("TitanSelectRequest") :: RemoteEvent
+local TitanFeedbackRemote = RemotesFolder:WaitForChild("TitanFeedback") :: RemoteEvent
+
+-- UI Elements: StatsFrame
+local StatsFrame = MainUI:WaitForChild("StatsFrame") :: Frame
+local LevelLabel = StatsFrame:WaitForChild("LevelLabel") :: TextLabel
+local CashLabel = StatsFrame:WaitForChild("CashLabel") :: TextLabel
+local PointsLabel = StatsFrame:WaitForChild("PointsLabel") :: TextLabel
+local ComboLabel = StatsFrame:WaitForChild("ComboLabel") :: TextLabel
+local ComboBarBg = StatsFrame:WaitForChild("ComboBarBg") :: Frame
+local ComboBarFill = ComboBarBg:WaitForChild("ComboBarFill") :: Frame
+local UpgradesButton = StatsFrame:WaitForChild("UpgradesButton") :: TextButton
+local CitySelectButton = StatsFrame:WaitForChild("CitySelectButton") :: TextButton
+local TitanSelectButton = StatsFrame:WaitForChild("TitanSelectButton") :: TextButton
+
+local XPBarFrame = StatsFrame:WaitForChild("XPBarFrame") :: Frame
+local XPFill = XPBarFrame:WaitForChild("XPFill") :: Frame
+local XPText = XPBarFrame:WaitForChild("XPText") :: TextLabel
+
+-- UI Elements: CitySelectionPanel
+local CitySelectionPanel = MainUI:WaitForChild("CitySelectionPanel") :: Frame
+local CityHeader = CitySelectionPanel:WaitForChild("Header") :: Frame
+local CityCloseButton = CityHeader:WaitForChild("CloseButton") :: TextButton
+local CardsContainer = CitySelectionPanel:WaitForChild("CardsContainer") :: Frame
+local CardSmallTown = CardsContainer:WaitForChild("Card_SmallTown") :: Frame
+local CardMetrovale = CardsContainer:WaitForChild("Card_Metrovale") :: Frame
+
+-- UI Elements: TitanSelectionPanel
+local TitanSelectionPanel = MainUI:WaitForChild("TitanSelectionPanel") :: Frame
+local TitanHeader = TitanSelectionPanel:WaitForChild("Header") :: Frame
+local TitanCloseButton = TitanHeader:WaitForChild("CloseButton") :: TextButton
+local TitanCardsContainer = TitanSelectionPanel:WaitForChild("CardsContainer") :: Frame
+local CardRavager = TitanCardsContainer:WaitForChild("Card_Ravager") :: Frame
+local CardBrontara = TitanCardsContainer:WaitForChild("Card_Brontara") :: Frame
+
+-- UI Elements: UpgradePanel
+local UpgradePanel = MainUI:WaitForChild("UpgradePanel") :: Frame
+local HeaderFrame = UpgradePanel:WaitForChild("HeaderFrame") :: Frame
+local CloseButton = HeaderFrame:WaitForChild("CloseButton") :: TextButton
+local UpgradeList = UpgradePanel:WaitForChild("UpgradeList") :: ScrollingFrame
+
+-- UI Elements: LevelUpBanner
+local LevelUpBanner = MainUI:WaitForChild("LevelUpBanner") :: Frame
+local BannerTitle = LevelUpBanner:WaitForChild("BannerTitle") :: TextLabel
+local BannerDesc = LevelUpBanner:WaitForChild("BannerDesc") :: TextLabel
+
+-- UI Elements: CityProgressFrame
+local CityProgressFrame = MainUI:WaitForChild("CityProgressFrame") :: Frame
+local CityNameLabel = CityProgressFrame:WaitForChild("CityNameLabel") :: TextLabel
+local TimerLabel = CityProgressFrame:WaitForChild("TimerLabel") :: TextLabel
+local BuildingsLabel = CityProgressFrame:WaitForChild("BuildingsLabel") :: TextLabel
+local DestructionLabel = CityProgressFrame:WaitForChild("DestructionLabel") :: TextLabel
+local ProgressBarBg = CityProgressFrame:WaitForChild("ProgressBarBg") :: Frame
+local ProgressBarFill = ProgressBarBg:WaitForChild("ProgressBarFill") :: Frame
+
+-- UI Elements: CityCompletionScreen
+local CompletionScreen = MainUI:WaitForChild("CityCompletionScreen") :: Frame
+local ScoreCard = CompletionScreen:WaitForChild("ScoreCard") :: Frame
+local ScoreValue = ScoreCard:WaitForChild("ScoreValue") :: TextLabel
+local ScoreBadge = ScoreCard:WaitForChild("ScoreBadge") :: TextLabel
+local ScoreBreakdown = ScoreCard:WaitForChild("ScoreBreakdown") :: TextLabel
+
+local StatsCard = CompletionScreen:WaitForChild("StatsCard") :: Frame
+local CardBuildings = StatsCard:WaitForChild("BuildingsText") :: TextLabel
+local CardTime = StatsCard:WaitForChild("TimeText") :: TextLabel
+local CardCombo = StatsCard:WaitForChild("ComboText") :: TextLabel
+local CardDamage = StatsCard:WaitForChild("DamageText") :: TextLabel
+local CardPace = StatsCard:WaitForChild("PaceText") :: TextLabel
+local CardAbilities = StatsCard:WaitForChild("AbilitiesText") :: TextLabel
+
+local RewardsCard = CompletionScreen:WaitForChild("RewardsCard") :: Frame
+local RewBuildings = RewardsCard:WaitForChild("BuildingsReward") :: TextLabel
+local RewBonus = RewardsCard:WaitForChild("BonusReward") :: TextLabel
+local RewTotal = RewardsCard:WaitForChild("TotalReward") :: TextLabel
+local RebuildButton = CompletionScreen:WaitForChild("RebuildButton") :: TextButton
+
+local function formatCommas(amount: number): string
+    local formatted = tostring(math.floor(amount))
+    while true do
+        local k
+        formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", "%1,%2")
+        if k == 0 then break end
+    end
+    return formatted
+end
+
+-- Local state cache
+local localProgression = {
+    Level = 1,
+    CurrentXP = 0,
+    NextLevelXP = 500,
+    Cash = 0,
+    DestructionPoints = 0,
+    Upgrades = {} :: { [string]: number },
+}
+
+local cityState = {
+    RunStartTime = 0,
+    IsCompleted = false,
+}
+
+-- Audio tracking state
+local buildingHealthRatios: { [Instance]: number } = {}
+local lastComboMult = 1
+
+-- Throttled 3D floating damage numbers queue (Max 15 concurrent)
+local activeDamageNumbers: { { Anchor: Instance, Billboard: Instance } } = {}
+local MAX_CONCURRENT_DAMAGE_NUMBERS = 15
+
+local function spawnDamageNumber(pos: Vector3, dmg: number, combo: number, source: string?)
+    -- Throttle oldest active numbers if cap reached
+    while #activeDamageNumbers >= MAX_CONCURRENT_DAMAGE_NUMBERS do
+        local oldest = table.remove(activeDamageNumbers, 1)
+        if oldest and oldest.Anchor and oldest.Anchor.Parent then
+            oldest.Anchor:Destroy()
+        end
+    end
+
+    local isStomp = (source == "Stomp")
+    local anchorPos = pos + Vector3.new(math.random(-3, 3), 7 + math.random(0, 3), math.random(-3, 3))
+
+    local anchor = Instance.new("Part")
+    anchor.Name = "DamageAnchor"
+    anchor.Transparency = 1
+    anchor.CanCollide = false
+    anchor.CanQuery = false
+    anchor.CanTouch = false
+    anchor.Anchored = true
+    anchor.Size = Vector3.new(0.2, 0.2, 0.2)
+    anchor.Position = anchorPos
+    anchor.Parent = Workspace
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "DamageBillboard"
+    billboard.Size = if isStomp then UDim2.new(0, 160, 0, 50) else UDim2.new(0, 130, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 0, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Adornee = anchor
+    billboard.Parent = anchor
+
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(0.2, 0, 0.2, 0) -- Starts small for pop-in
+    text.Position = UDim2.new(0.4, 0, 0.4, 0)
+    text.BackgroundTransparency = 1
+    text.TextStrokeTransparency = 0.15
+    text.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+
+    if isStomp then
+        text.Text = if combo > 1 then string.format("💥 -%d (%dx)", dmg, combo) else string.format("💥 -%d", dmg)
+        text.TextColor3 = if combo >= 4 then Color3.fromRGB(255, 240, 80) elseif combo >= 2 then Color3.fromRGB(255, 185, 30) else Color3.fromRGB(255, 160, 15)
+        text.Font = Enum.Font.GothamBlack
+        text.TextSize = if combo >= 4 then 34 elseif combo >= 2 then 31 else 28
+    else
+        text.Text = if combo > 1 then string.format("-%d (%dx)", dmg, combo) else string.format("-%d", dmg)
+        text.TextColor3 = if combo >= 4 then Color3.fromRGB(255, 230, 60) elseif combo >= 2 then Color3.fromRGB(255, 140, 40) else Color3.fromRGB(255, 80, 40)
+        text.Font = Enum.Font.GothamBlack
+        text.TextSize = if combo >= 4 then 26 elseif combo >= 2 then 24 else 22
+    end
+    text.Parent = billboard
+
+    local entry = { Anchor = anchor, Billboard = billboard }
+    table.insert(activeDamageNumbers, entry)
+
+    -- Pop-in scale animation (0.10s Back easing)
+    local popTween = TweenService:Create(text, TweenInfo.new(0.10, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(1, 0, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+    })
+    popTween:Play()
+
+    -- Upward float and fade out over 0.85s
+    local floatTween = TweenService:Create(billboard, TweenInfo.new(0.85, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        StudsOffset = Vector3.new(0, 4.5, 0),
+    })
+    local fadeDelay = 0.35
+    task.delay(fadeDelay, function()
+        if text and text.Parent then
+            local fadeTween = TweenService:Create(text, TweenInfo.new(0.50, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                TextTransparency = 1,
+                TextStrokeTransparency = 1,
+            })
+            fadeTween:Play()
+        end
+    end)
+    floatTween:Play()
+
+    task.delay(0.90, function()
+        local idx = table.find(activeDamageNumbers, entry)
+        if idx then
+            table.remove(activeDamageNumbers, idx)
+        end
+        if anchor and anchor.Parent then
+            anchor:Destroy()
+        end
+    end)
+end
+
+-- Registry of upgrade row UI elements
+local upgradeRows: { [string]: {
+    Row: Frame,
+    LevelText: TextLabel,
+    ValueText: TextLabel,
+    BuyButton: TextButton,
+} } = {}
+
+--[=[
+    Formats stat values according to category formatting.
+]=]
+local function formatValue(catId: string, val: number): string
+    local cat = UpgradeConfig.Categories[catId]
+    if not cat then return tostring(val) end
+    if cat.Unit == "s" then
+        return string.format("%.2fs cd", val)
+    elseif cat.Unit == "DMG" then
+        return string.format("%d DMG", math.floor(val))
+    elseif cat.Unit == "Studs" then
+        return string.format("%d Studs", math.floor(val))
+    elseif cat.Unit == "Speed" then
+        return string.format("%d Speed", math.floor(val))
+    end
+    return tostring(val)
+end
+
+--[=[
+    Populates the Upgrade Matrix rows.
+]=]
+--[=[
+    Centralized visual state engine for upgrade buttons.
+    Determines and applies visual styling across three distinct states:
+    - STATE A (AFFORDABLE): Vibrant fiery orange (#FF7814), pure white text, active.
+    - STATE B (UNAFFORDABLE): Dark slate-crimson (#382830), readable rose-white cost text (#ECD4D4), active error feedback.
+    - STATE C (MAX LEVEL): Muted charcoal (#2A3038), gold status indicator, inactive.
+]=]
+local function updateUpgradeButtonVisualState(
+    catId: string,
+    widgets: { Row: Frame, LevelText: TextLabel, ValueText: TextLabel, BuyButton: TextButton },
+    currentLevel: number,
+    catConfig: any,
+    playerCash: number,
+    playerPoints: number
+)
+    local curValue = UpgradeConfig.GetTierValue(catId, currentLevel)
+    widgets.LevelText.Text = string.format("%s (Lvl %d/%d)", catConfig.DisplayName, currentLevel, catConfig.MaxLevel)
+
+    if currentLevel >= catConfig.MaxLevel then
+        -- STATE C: MAX LEVEL (Tier 5 reached)
+        widgets.ValueText.Text = string.format("⚡ %s (MAX LEVEL)", formatValue(catId, curValue))
+        widgets.ValueText.TextColor3 = Color3.fromRGB(255, 210, 40) -- Gold
+
+        widgets.BuyButton.Text = "MAX"
+        widgets.BuyButton.BackgroundColor3 = Color3.fromRGB(42, 48, 56) -- Muted Charcoal
+        widgets.BuyButton.BackgroundTransparency = 0
+        widgets.BuyButton.TextColor3 = Color3.fromRGB(145, 155, 168) -- Muted Grey
+        widgets.BuyButton.TextTransparency = 0
+        widgets.BuyButton.Active = false
+        widgets.BuyButton.AutoButtonColor = false
+        pcall(function()
+            (widgets.BuyButton :: any).Interactable = false
+        end)
+    else
+        local nextTier = UpgradeConfig.GetNextTier(catId, currentLevel)
+        if not nextTier then return end
+
+        widgets.ValueText.Text = string.format("%s ➔ %s", formatValue(catId, curValue), formatValue(catId, nextTier.Value))
+        widgets.BuyButton.Text = string.format("UPGRADE\n$%d • %dP", nextTier.CashCost, nextTier.PointCost)
+        widgets.BuyButton.BackgroundTransparency = 0
+        widgets.BuyButton.TextTransparency = 0
+        widgets.BuyButton.Active = true
+        widgets.BuyButton.AutoButtonColor = true
+        pcall(function()
+            (widgets.BuyButton :: any).Interactable = true
+        end)
+
+        local canAfford = (playerCash >= nextTier.CashCost) and (playerPoints >= nextTier.PointCost)
+        if canAfford then
+            -- STATE A: AFFORDABLE (Visibly enabled & clickable)
+            widgets.ValueText.TextColor3 = Color3.fromRGB(180, 205, 230)
+            widgets.BuyButton.BackgroundColor3 = Color3.fromRGB(255, 120, 20) -- Vibrant Fiery Orange (#FF7814)
+            widgets.BuyButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- Crisp White
+        else
+            -- STATE B: UNAFFORDABLE (Dark slate-crimson with high-contrast readable cost text)
+            widgets.ValueText.TextColor3 = Color3.fromRGB(160, 170, 185)
+            widgets.BuyButton.BackgroundColor3 = Color3.fromRGB(56, 40, 48) -- Rich Dark Slate-Crimson
+            widgets.BuyButton.TextColor3 = Color3.fromRGB(235, 185, 185) -- Rose-tinted readable cost text
+        end
+    end
+end
+
+--[=[
+    Populates the Upgrade Matrix rows with explicit ZIndex hierarchy.
+]=]
+local function buildUpgradeMatrix()
+    UpgradeList:ClearAllChildren()
+
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.Padding = UDim.new(0, 6)
+    listLayout.Parent = UpgradeList
+
+    local totalHeight = 0
+
+    for orderIdx, catId in ipairs(UpgradeConfig.DisplayOrder) do
+        local cat = UpgradeConfig.Categories[catId]
+        if cat then
+            local row = Instance.new("Frame")
+            row.Name = "Row_" .. catId
+            row.Size = UDim2.new(1, -6, 0, 58)
+            row.BackgroundColor3 = Color3.fromRGB(24, 28, 36)
+            row.BorderSizePixel = 0
+            row.LayoutOrder = orderIdx
+            row.ZIndex = 12
+            row.Parent = UpgradeList
+
+            local rowCorner = Instance.new("UICorner")
+            rowCorner.CornerRadius = UDim.new(0, 6)
+            rowCorner.Parent = row
+
+            local rowStroke = Instance.new("UIStroke")
+            rowStroke.Color = Color3.fromRGB(45, 50, 62)
+            rowStroke.Thickness = 1
+            rowStroke.Parent = row
+
+            -- Title and Level
+            local title = Instance.new("TextLabel")
+            title.Name = "Title"
+            title.Size = UDim2.new(0.6, -10, 0, 20)
+            title.Position = UDim2.new(0, 10, 0, 6)
+            title.BackgroundTransparency = 1
+            title.Text = cat.DisplayName
+            title.TextColor3 = Color3.fromRGB(255, 255, 255)
+            title.Font = Enum.Font.GothamBold
+            title.TextSize = 13
+            title.TextXAlignment = Enum.TextXAlignment.Left
+            title.ZIndex = 13
+            title.Parent = row
+
+            -- Value / Next Value Label
+            local valLabel = Instance.new("TextLabel")
+            valLabel.Name = "ValueLabel"
+            valLabel.Size = UDim2.new(0.6, -10, 0, 18)
+            valLabel.Position = UDim2.new(0, 10, 0, 28)
+            valLabel.BackgroundTransparency = 1
+            valLabel.Text = "Loading..."
+            valLabel.TextColor3 = Color3.fromRGB(170, 180, 195)
+            valLabel.Font = Enum.Font.Gotham
+            valLabel.TextSize = 11
+            valLabel.TextXAlignment = Enum.TextXAlignment.Left
+            valLabel.ZIndex = 13
+            valLabel.Parent = row
+
+            -- Buy Button
+            local buyBtn = Instance.new("TextButton")
+            buyBtn.Name = "BuyButton"
+            buyBtn.Size = UDim2.new(0.38, -10, 0, 38)
+            buyBtn.Position = UDim2.new(0.62, 0, 0, 10)
+            buyBtn.BackgroundColor3 = Color3.fromRGB(255, 120, 20)
+            buyBtn.Text = "UPGRADE"
+            buyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            buyBtn.Font = Enum.Font.GothamBlack
+            buyBtn.TextSize = 11
+            buyBtn.ZIndex = 14
+            buyBtn.Parent = row
+
+            local btnCorner = Instance.new("UICorner")
+            btnCorner.CornerRadius = UDim.new(0, 5)
+            btnCorner.Parent = buyBtn
+
+            -- Bind upgrade request
+            buyBtn.MouseButton1Click:Connect(function()
+                local currentLevel = localProgression.Upgrades[catId] or 1
+                local nextTier = UpgradeConfig.GetNextTier(catId, currentLevel)
+                if nextTier then
+                    local canAfford = (localProgression.Cash >= nextTier.CashCost) and (localProgression.DestructionPoints >= nextTier.PointCost)
+                    if canAfford then
+                        AudioController.PlayUI("ButtonClick")
+                    else
+                        AudioController.PlayUI("UpgradeError")
+                    end
+                end
+                UpgradeRequestRemote:FireServer(catId)
+            end)
+
+            upgradeRows[catId] = {
+                Row = row,
+                LevelText = title,
+                ValueText = valLabel,
+                BuyButton = buyBtn,
+            }
+
+            totalHeight += 64
+        end
+    end
+
+    UpgradeList.CanvasSize = UDim2.new(0, 0, 0, totalHeight + 20)
+end
+
+--[=[
+    Refreshes all upgrade button states and labels using the centralized visual state engine.
+]=]
+local function updateUpgradeMatrixView()
+    local cash = localProgression.Cash or 0
+    local points = localProgression.DestructionPoints or 0
+
+    for catId, widgets in pairs(upgradeRows) do
+        local cat = UpgradeConfig.Categories[catId]
+        if cat then
+            local currentLevel = localProgression.Upgrades[catId] or 1
+            updateUpgradeButtonVisualState(catId, widgets, currentLevel, cat, cash, points)
+        end
+    end
+end
+
+--[=[
+    Updates HUD with progression data (Level, XP bar, Cash, Points).
+]=]
+local function updateHUD(data: any)
+    if not data then return end
+
+    if data.Level ~= nil then localProgression.Level = data.Level end
+    if data.CurrentXP ~= nil then localProgression.CurrentXP = data.CurrentXP end
+    if data.NextLevelXP ~= nil then localProgression.NextLevelXP = data.NextLevelXP end
+    if data.Cash ~= nil then localProgression.Cash = data.Cash end
+    if data.DestructionPoints ~= nil then localProgression.DestructionPoints = data.DestructionPoints end
+    if data.Upgrades ~= nil then localProgression.Upgrades = data.Upgrades end
+
+    -- Update UI
+    LevelLabel.Text = string.format("LVL %d", localProgression.Level)
+    CashLabel.Text = string.format("💵 Cash: $%d", localProgression.Cash)
+    PointsLabel.Text = string.format("💥 Points: %d", localProgression.DestructionPoints)
+
+    local targetRatio = math.clamp(localProgression.CurrentXP / math.max(1, localProgression.NextLevelXP), 0, 1)
+    TweenService:Create(XPFill, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(targetRatio, 0, 1, 0),
+    }):Play()
+
+    XPText.Text = string.format("XP: %d / %d", localProgression.CurrentXP, localProgression.NextLevelXP)
+
+    updateUpgradeMatrixView()
+end
+
+--[=[
+    Displays animated Level-Up banner.
+]=]
+local function showLevelUpBanner(newLevel: number)
+    BannerTitle.Text = string.format("⭐ LEVEL UP! LEVEL %d ⭐", newLevel)
+    BannerDesc.Text = "Colossal Destruction Power Surging! New Upgrades Unlocked!"
+
+    LevelUpBanner.Position = UDim2.new(0.5, 0, 0, -100)
+    LevelUpBanner.Visible = true
+
+    local dropTween = TweenService:Create(LevelUpBanner, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, 0, 0, 25),
+    })
+    dropTween:Play()
+
+    task.delay(0.5, function()
+        local pulse = TweenService:Create(LevelUpBanner, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut, 2, true), {
+            Size = UDim2.new(0, 400, 0, 74),
+        })
+        pulse:Play()
+    end)
+
+    task.delay(2.6, function()
+        local retract = TweenService:Create(LevelUpBanner, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Position = UDim2.new(0.5, 0, 0, -100),
+        })
+        retract:Play()
+    end)
+end
+
+-- Build matrix on startup and request authoritative initial sync
+buildUpgradeMatrix()
+updateUpgradeMatrixView()
+ProgressionUpdateRemote:FireServer("RequestSync")
+TitanSelectRequestRemote:FireServer("RequestSync")
+
+-- Remote Event: ProgressionUpdate
+ProgressionUpdateRemote.OnClientEvent:Connect(function(data: any)
+    if not data then return end
+
+    updateHUD(data)
+
+    if data.LeveledUp == true and data.Level then
+        AudioController.PlayLevelUp()
+        showLevelUpBanner(data.Level)
+    end
+
+    if data.Type == "UpgradeSuccess" and data.UpgradeId then
+        AudioController.PlayUI("UpgradeSuccess")
+        local rowData = upgradeRows[data.UpgradeId]
+        if rowData then
+            local flash = TweenService:Create(rowData.Row, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 1, true), {
+                BackgroundColor3 = Color3.fromRGB(30, 75, 45),
+            })
+            flash:Play()
+        end
+    elseif data.Type == "UpgradeFailed" and data.UpgradeId then
+        AudioController.PlayUI("UpgradeError")
+        local rowData = upgradeRows[data.UpgradeId]
+        if rowData then
+            local flash = TweenService:Create(rowData.Row, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 1, true), {
+                BackgroundColor3 = Color3.fromRGB(65, 25, 30),
+            })
+            flash:Play()
+        end
+    end
+end)
+
+-- Button Bindings for UpgradePanel
+UpgradesButton.MouseButton1Click:Connect(function()
+    AudioController.PlayUI("ButtonClick")
+    UpgradePanel.Visible = not UpgradePanel.Visible
+    if UpgradePanel.Visible then
+        ProgressionUpdateRemote:FireServer("RequestSync")
+        updateUpgradeMatrixView()
+    end
+end)
+
+CloseButton.MouseButton1Click:Connect(function()
+    AudioController.PlayUI("PanelToggle")
+    UpgradePanel.Visible = false
+end)
+
+-- City Selection Button & Card Bindings
+CitySelectButton.MouseButton1Click:Connect(function()
+    AudioController.PlayUI("CitySelect")
+    CitySelectionPanel.Visible = not CitySelectionPanel.Visible
+end)
+
+CityCloseButton.MouseButton1Click:Connect(function()
+    AudioController.PlayUI("PanelToggle")
+    CitySelectionPanel.Visible = false
+end)
+
+local btnSmallTown = CardSmallTown:WaitForChild("ActionButton") :: TextButton
+local btnMetrovale = CardMetrovale:WaitForChild("ActionButton") :: TextButton
+
+btnSmallTown.MouseButton1Click:Connect(function()
+    AudioController.PlayUI("CityPlay")
+    CitySelectRequestRemote:FireServer("SmallTown")
+end)
+
+btnMetrovale.MouseButton1Click:Connect(function()
+    AudioController.PlayUI("CityPlay")
+    CitySelectRequestRemote:FireServer("Metrovale")
+end)
+
+-- Titan Selection Panel & Button Bindings
+TitanSelectButton.MouseButton1Click:Connect(function()
+    AudioController.PlayUI("PanelToggle")
+    TitanSelectionPanel.Visible = not TitanSelectionPanel.Visible
+    if TitanSelectionPanel.Visible then
+        TitanSelectRequestRemote:FireServer("RequestSync")
+    end
+end)
+
+TitanCloseButton.MouseButton1Click:Connect(function()
+    AudioController.PlayUI("PanelToggle")
+    TitanSelectionPanel.Visible = false
+end)
+
+local btnRavager = CardRavager:WaitForChild("ActionButton") :: TextButton
+local btnBrontara = CardBrontara:WaitForChild("ActionButton") :: TextButton
+
+btnRavager.MouseButton1Click:Connect(function()
+    AudioController.PlayUI("ButtonClick")
+    TitanSelectRequestRemote:FireServer("Select", "Ravager")
+end)
+
+btnBrontara.MouseButton1Click:Connect(function()
+    AudioController.PlayUI("ButtonClick")
+    TitanSelectRequestRemote:FireServer("Select", "Brontara")
+end)
+
+local lastKnownTitans = { Ravager = { Unlocked = true }, Brontara = { Unlocked = false } }
+local lastKnownSelected = "Ravager"
+
+local function updateTitanSelectionView(data: any)
+    if not data then return end
+    if data.Titans then
+        lastKnownTitans = data.Titans
+    end
+    if data.SelectedTitan then
+        lastKnownSelected = data.SelectedTitan
+    elseif data.TitanId then
+        lastKnownSelected = data.TitanId
+    end
+
+    local titans = lastKnownTitans
+    local selected = lastKnownSelected
+
+    local cardList = {
+        { Id = "Ravager", Card = CardRavager, Unlocked = if titans.Ravager then titans.Ravager.Unlocked == true else true },
+        { Id = "Brontara", Card = CardBrontara, Unlocked = if titans.Brontara then titans.Brontara.Unlocked == true else false },
+    }
+
+    for _, entry in ipairs(cardList) do
+        local card = entry.Card
+        local isSelected = (selected == entry.Id)
+        local isUnlocked = entry.Unlocked
+
+        local statusLbl = card:FindFirstChild("Status") :: TextLabel?
+        local actionBtn = card:FindFirstChild("ActionButton") :: TextButton?
+        local stroke = card:FindFirstChild("CardStroke") :: UIStroke?
+
+        if statusLbl then
+            if isSelected then
+                statusLbl.Text = "⭐ ACTIVE TITAN"
+                statusLbl.TextColor3 = Color3.fromRGB(255, 230, 80)
+                statusLbl.BackgroundColor3 = Color3.fromRGB(55, 45, 20)
+            elseif isUnlocked then
+                statusLbl.Text = "✓ UNLOCKED"
+                statusLbl.TextColor3 = Color3.fromRGB(100, 255, 140)
+                statusLbl.BackgroundColor3 = Color3.fromRGB(25, 45, 35)
+            else
+                statusLbl.Text = "🔒 LOCKED"
+                statusLbl.TextColor3 = Color3.fromRGB(255, 95, 95)
+                statusLbl.BackgroundColor3 = Color3.fromRGB(45, 25, 25)
+            end
+        end
+
+        if stroke then
+            stroke.Color = if isSelected then Color3.fromRGB(255, 200, 50) else Color3.fromRGB(60, 70, 90)
+            stroke.Thickness = if isSelected then 2.5 else 1.5
+        end
+
+        if actionBtn then
+            if isSelected then
+                actionBtn.Text = "CURRENT TITAN"
+                actionBtn.BackgroundColor3 = Color3.fromRGB(40, 50, 65)
+                actionBtn.TextColor3 = Color3.fromRGB(150, 165, 185)
+                actionBtn.AutoButtonColor = false
+            elseif isUnlocked then
+                actionBtn.Text = "SELECT TITAN"
+                actionBtn.BackgroundColor3 = Color3.fromRGB(45, 140, 75)
+                actionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                actionBtn.AutoButtonColor = true
+            else
+                actionBtn.Text = "LOCKED"
+                actionBtn.BackgroundColor3 = Color3.fromRGB(35, 38, 45)
+                actionBtn.TextColor3 = Color3.fromRGB(120, 125, 135)
+                actionBtn.AutoButtonColor = false
+            end
+        end
+    end
+end
+
+TitanFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
+    if not data then return end
+    if eventType == "TitanListSync" or eventType == "TitanSelected" then
+        updateTitanSelectionView(data)
+    elseif eventType == "TitanSelectRejected" then
+        if data.Reason then
+            warn("[TitanSelect] " .. tostring(data.Reason))
+        end
+    end
+end)
+
+local function updateCitySelectionView(citiesList: { any })
+    for _, cityInfo in ipairs(citiesList) do
+        local card = if cityInfo.CityId == "SmallTown" then CardSmallTown elseif cityInfo.CityId == "Metrovale" then CardMetrovale else nil
+        if card then
+            local statusLbl = card:FindFirstChild("Status") :: TextLabel?
+            local reqLbl = card:FindFirstChild("Requirements") :: TextLabel?
+            local recBox = card:FindFirstChild("RecordsBox") :: Frame?
+            local actionBtn = card:FindFirstChild("ActionButton") :: TextButton?
+
+            if statusLbl then
+                if cityInfo.Unlocked then
+                    statusLbl.Text = if cityInfo.IsActive then "⭐ CURRENT CITY" else "✓ UNLOCKED"
+                    statusLbl.BackgroundColor3 = if cityInfo.IsActive then Color3.fromRGB(30, 80, 140) else Color3.fromRGB(18, 45, 30)
+                    statusLbl.TextColor3 = if cityInfo.IsActive then Color3.fromRGB(120, 200, 255) else Color3.fromRGB(80, 230, 120)
+                else
+                    statusLbl.Text = "🔒 LOCKED"
+                    statusLbl.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
+                    statusLbl.TextColor3 = Color3.fromRGB(255, 80, 80)
+                end
+            end
+
+            if reqLbl then
+                if cityInfo.Unlocked then
+                    reqLbl.Text = string.format("Completed %d times", cityInfo.Completions or 0)
+                    reqLbl.TextColor3 = Color3.fromRGB(140, 210, 160)
+                else
+                    reqLbl.Text = cityInfo.LockReason or "Requirements not met"
+                    reqLbl.TextColor3 = Color3.fromRGB(240, 130, 130)
+                end
+            end
+
+            if recBox then
+                local bestTimeLbl = recBox:FindFirstChild("BestTime") :: TextLabel?
+                local bestComboLbl = recBox:FindFirstChild("BestCombo") :: TextLabel?
+
+                if bestTimeLbl then
+                    local bt = cityInfo.BestTime or 0
+                    if bt > 0 then
+                        local m = math.floor(bt / 60)
+                        local s = bt % 60
+                        bestTimeLbl.Text = string.format("⏱️ Best Time: %02dm %02ds", m, s)
+                    else
+                        bestTimeLbl.Text = "⏱️ Best Time: --:--"
+                    end
+                end
+
+                if bestComboLbl then
+                    local bc = cityInfo.BestCombo or 1
+                    bestComboLbl.Text = string.format("🔥 Best Combo: %dx", bc)
+                end
+
+                local bestScoreLbl = recBox:FindFirstChild("BestScore") :: TextLabel?
+                if bestScoreLbl then
+                    local bs = cityInfo.BestScore or 0
+                    if bs > 0 then
+                        bestScoreLbl.Text = string.format("⭐ Best Score: %s", formatCommas(bs))
+                    else
+                        bestScoreLbl.Text = "⭐ Best Score: --"
+                    end
+                end
+            end
+
+            if actionBtn then
+                if cityInfo.IsActive then
+                    actionBtn.Text = "ACTIVE CITY"
+                    actionBtn.BackgroundColor3 = Color3.fromRGB(45, 50, 60)
+                    actionBtn.TextColor3 = Color3.fromRGB(160, 165, 175)
+                    actionBtn.AutoButtonColor = false
+                elseif cityInfo.Unlocked then
+                    actionBtn.Text = "SELECT & PLAY"
+                    actionBtn.BackgroundColor3 = Color3.fromRGB(255, 120, 20)
+                    actionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    actionBtn.AutoButtonColor = true
+                else
+                    actionBtn.Text = "LOCKED"
+                    actionBtn.BackgroundColor3 = Color3.fromRGB(35, 38, 45)
+                    actionBtn.TextColor3 = Color3.fromRGB(120, 125, 135)
+                    actionBtn.AutoButtonColor = false
+                end
+            end
+        end
+    end
+end
+
+-- Keybinds: U for Upgrades, M for Cities/Map
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.U then
+        UpgradePanel.Visible = not UpgradePanel.Visible
+        if UpgradePanel.Visible then
+            ProgressionUpdateRemote:FireServer("RequestSync")
+            updateUpgradeMatrixView()
+        end
+    elseif input.KeyCode == Enum.KeyCode.M then
+        CitySelectionPanel.Visible = not CitySelectionPanel.Visible
+    elseif input.KeyCode == Enum.KeyCode.T then
+        TitanSelectionPanel.Visible = not TitanSelectionPanel.Visible
+        if TitanSelectionPanel.Visible then
+            TitanSelectRequestRemote:FireServer("RequestSync")
+        end
+    end
+end)
+
+-- Remote Event: CityFeedback (Progress, Completion, Reset)
+CityFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
+    if not data then return end
+
+    if eventType == "CityListSync" then
+        if type(data) == "table" then
+            updateCitySelectionView(data)
+        end
+
+    elseif eventType == "CityLoaded" then
+        for _, entry in ipairs(activeDamageNumbers) do
+            if entry.Anchor and entry.Anchor.Parent then entry.Anchor:Destroy() end
+        end
+        table.clear(activeDamageNumbers)
+        table.clear(buildingHealthRatios)
+        CitySelectionPanel.Visible = false
+        if data and (data.CityName or data.CityId) then
+            CityNameLabel.Text = string.format("🏙️ %s", string.upper(data.CityName or data.CityId))
+        end
+        cityState.IsCompleted = false
+        cityState.RunStartTime = os.clock()
+        TimerLabel.Text = "⏱️ 00:00.00"
+
+    elseif eventType == "CityUnlocked" then
+        if data and data.CityName then
+            BannerTitle.Text = string.format("🔓 %s UNLOCKED!", string.upper(data.CityName))
+            BannerDesc.Text = "A massive new urban battlefield awaits your colossal rampage!"
+            LevelUpBanner.Position = UDim2.new(0.5, 0, 0, -100)
+            LevelUpBanner.Visible = true
+            TweenService:Create(LevelUpBanner, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                Position = UDim2.new(0.5, 0, 0, 25),
+            }):Play()
+            task.delay(3.0, function()
+                TweenService:Create(LevelUpBanner, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    Position = UDim2.new(0.5, 0, 0, -100),
+                }):Play()
+            end)
+        end
+
+    elseif eventType == "CitySelectRejected" then
+        if data and data.Reason then
+            warn("[CitySelect] Selection rejected: " .. tostring(data.Reason))
+        end
+
+    elseif eventType == "CityProgressUpdate" then
+        if data.CityName then
+            CityNameLabel.Text = string.format("🏙️ %s", string.upper(data.CityName))
+        end
+
+        local total = data.TotalBuildings or 15
+        local destroyed = data.DestroyedBuildings or 0
+        local completionPct = data.CityCompletionPercentage or 0
+
+        BuildingsLabel.Text = string.format("Buildings: %d / %d", destroyed, total)
+        DestructionLabel.Text = string.format("Destruction: %d%%", completionPct)
+
+        local ratio = math.clamp(destroyed / math.max(1, total), 0, 1)
+        TweenService:Create(ProgressBarFill, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(ratio, 0, 1, 0),
+        }):Play()
+
+        if data.RunStartTime then
+            cityState.RunStartTime = data.RunStartTime
+        end
+        cityState.IsCompleted = (data.CityCompleted == true)
+
+    elseif eventType == "CityCompleted" then
+        cityState.IsCompleted = true
+        AudioController.PlayCityComplete()
+
+        -- Celebration camera rumble
+        task.spawn(function()
+            for _ = 1, 8 do
+                Workspace.CurrentCamera.CFrame = Workspace.CurrentCamera.CFrame * CFrame.Angles(
+                    math.rad(math.random(-10, 10) * 0.05),
+                    math.rad(math.random(-10, 10) * 0.05),
+                    0
+                )
+                task.wait(0.03)
+            end
+        end)
+
+        -- Duration formatting (MM:SS.cs)
+        local duration = data.Duration or 0
+        local dMins = math.floor(duration / 60)
+        local dSecs = math.floor(duration % 60)
+        local dCs = math.floor((duration % 1) * 100)
+        local timeFormatted = string.format("%02d:%02d.%02d", dMins, dSecs, dCs)
+
+        local bestTime = data.BestTime or duration
+        local btMins = math.floor(bestTime / 60)
+        local btSecs = math.floor(bestTime % 60)
+        local bestTimeFormatted = string.format("%02d:%02d", btMins, btSecs)
+
+        -- 1. Score Card Display with animated count-up
+        local finalScore = data.DestructionScore or 0
+        local sb = data.ScoreBreakdown or {}
+        ScoreBreakdown.Text = string.format("Base: %s | Combo: +%s | Speed: +%s | Clear: +%s",
+            formatCommas(sb.BaseScore or 0),
+            formatCommas(sb.ComboBonus or 0),
+            formatCommas(sb.SpeedBonus or 0),
+            formatCommas(sb.CompletionBonus or 0)
+        )
+
+        ScoreBadge.Visible = (data.IsNewBestScore == true)
+        if data.IsNewBestScore then
+            ScoreBadge.Text = "★ NEW BEST SCORE! ★"
+        end
+
+        -- Animate score count-up
+        task.spawn(function()
+            local steps = 20
+            for i = 1, steps do
+                local cur = math.floor((finalScore / steps) * i)
+                ScoreValue.Text = formatCommas(cur)
+                task.wait(0.02)
+            end
+            ScoreValue.Text = formatCommas(finalScore)
+        end)
+
+        -- 2. Stats Card with Personal Best comparisons
+        local timeTag = if data.IsNewBestTime then " ★ NEW BEST!" else string.format(" (Best: %s)", bestTimeFormatted)
+        CardTime.Text = string.format("⏱️ Clear Time: %s%s", timeFormatted, timeTag)
+        if data.IsNewBestTime then
+            CardTime.TextColor3 = Color3.fromRGB(255, 215, 60)
+        else
+            CardTime.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end
+
+        local comboTag = if data.IsNewBestCombo then " ★ NEW BEST!" else string.format(" (Best: %dx)", data.BestCombo or 1)
+        CardCombo.Text = string.format("🔥 Max Combo: %dx%s", data.HighestCombo or 1, comboTag)
+        if data.IsNewBestCombo then
+            CardCombo.TextColor3 = Color3.fromRGB(255, 140, 40)
+        else
+            CardCombo.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end
+
+        local bpm = data.BuildingsPerMinute or 0
+        local bpmTag = if data.IsNewBestBpm then " ★ NEW BEST!" else string.format(" (Best: %.1f)", data.BestBPM or bpm)
+        CardPace.Text = string.format("⚡ Pace: %.1f BPM%s", bpm, bpmTag)
+        if data.IsNewBestBpm then
+            CardPace.TextColor3 = Color3.fromRGB(120, 220, 255)
+        else
+            CardPace.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end
+
+        local totalBld = data.TotalBuildings or 15
+        local destroyedBld = data.DestroyedBuildings or totalBld
+        CardBuildings.Text = string.format("🏛️ Flattened: %d / %d (100%%)", destroyedBld, totalBld)
+        CardDamage.Text = string.format("💥 Total DMG: %s", formatCommas(data.TotalDamage or 0))
+
+        local attacks = data.BasicAttacks or 0
+        local stomps = data.Stomps or 0
+        local roars = data.Roars or 0
+        CardAbilities.Text = string.format("⚔️ Abilities: %d Strikes | %d Stomps | %d Roars", attacks, stomps, roars)
+
+        -- 3. Rewards Card
+        RewBuildings.Text = string.format("Buildings: +$%s Cash | +%s Pts | +%s XP",
+            formatCommas(data.BuildingsCash or 0), formatCommas(data.BuildingsPoints or 0), formatCommas(data.BuildingsXP or 0))
+        RewBonus.Text = string.format("City Bonus: +$%s Cash | +%s Pts | +%s XP",
+            formatCommas(data.CompletionCash or 5000), formatCommas(data.CompletionPoints or 2500), formatCommas(data.CompletionXP or 2000))
+        RewTotal.Text = string.format("TOTAL RUN: +$%s Cash | +%s Pts | +%s XP",
+            formatCommas(data.TotalCash or 0), formatCommas(data.TotalPoints or 0), formatCommas(data.TotalXP or 0))
+
+        -- Animate completion screen into view
+        CompletionScreen.Position = UDim2.new(0.5, 0, 0.45, 0)
+        CompletionScreen.Visible = true
+        TweenService:Create(CompletionScreen, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+        }):Play()
+
+    elseif eventType == "CityReset" then
+        for _, entry in ipairs(activeDamageNumbers) do
+            if entry.Anchor and entry.Anchor.Parent then entry.Anchor:Destroy() end
+        end
+        table.clear(activeDamageNumbers)
+        table.clear(buildingHealthRatios)
+        cityState.IsCompleted = false
+        cityState.RunStartTime = data.RunStartTime or os.clock()
+
+        -- Hide completion screen
+        CompletionScreen.Visible = false
+
+        -- Reset progress UI
+        local total = data.TotalBuildings or 15
+        BuildingsLabel.Text = string.format("Buildings: 0 / %d", total)
+        DestructionLabel.Text = "Destruction: 0%"
+        TweenService:Create(ProgressBarFill, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 0, 1, 0),
+        }):Play()
+        TimerLabel.Text = "⏱️ 00:00.00"
+    end
+end)
+
+-- Rebuild City Button Binding
+RebuildButton.MouseButton1Click:Connect(function()
+    AudioController.PlayUI("Rebuild")
+    RebuildCityRequestRemote:FireServer("SmallTown")
+end)
+
+-- Live Run Timer background task (smooth millisecond tracking)
+local RunService = game:GetService("RunService")
+local comboDrainTween: Tween? = nil
+local comboResetFeedbackActive = false
+
+RunService.Heartbeat:Connect(function()
+    if cityState.RunStartTime > 0 and not cityState.IsCompleted then
+        local elapsed = math.max(0, os.clock() - cityState.RunStartTime)
+        local mins = math.floor(elapsed / 60)
+        local secs = math.floor(elapsed % 60)
+        local cs = math.floor((elapsed % 1) * 100)
+        TimerLabel.Text = string.format("⏱️ %02d:%02d.%02d", mins, secs, cs)
+    end
+end)
+
+-- Remote Event: DestructionFeedback (Visuals & Audio)
+DestructionFeedback.OnClientEvent:Connect(function(eventType: string, data: any)
+    if eventType == "ComboUpdate" then
+        if data and data.Multiplier then
+            local mult = math.clamp(data.Multiplier, 1, 5)
+            local timeout = data.Timeout or 4.0
+            if mult > lastComboMult then
+                AudioController.PlayComboProgress(mult)
+            end
+            lastComboMult = mult
+
+            local comboColors = {
+                [1] = Color3.fromRGB(220, 160, 90),
+                [2] = Color3.fromRGB(255, 215, 0),
+                [3] = Color3.fromRGB(255, 130, 20),
+                [4] = Color3.fromRGB(255, 60, 20),
+                [5] = Color3.fromRGB(255, 20, 20),
+            }
+            local comboSizes = { [1] = 16, [2] = 18, [3] = 20, [4] = 22, [5] = 25 }
+            local targetSize = comboSizes[mult] or 18
+            local targetColor = comboColors[mult] or Color3.fromRGB(255, 100, 20)
+
+            comboResetFeedbackActive = false
+            ComboLabel.Text = if mult >= 5 then "🔥 MAX COMBO: 5x 🔥" else string.format("🔥 COMBO: %dx", mult)
+            ComboLabel.TextColor3 = targetColor
+
+            local tween = TweenService:Create(ComboLabel, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                TextSize = targetSize + 4,
+            })
+            tween:Play()
+            tween.Completed:Connect(function()
+                TweenService:Create(ComboLabel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    TextSize = targetSize,
+                }):Play()
+            end)
+
+            -- Animate draining timer bar
+            if comboDrainTween then
+                comboDrainTween:Cancel()
+                comboDrainTween = nil
+            end
+
+            ComboBarFill.BackgroundColor3 = targetColor
+            ComboBarFill.Size = UDim2.new(1, 0, 1, 0)
+            comboDrainTween = TweenService:Create(ComboBarFill, TweenInfo.new(timeout, Enum.EasingStyle.Linear), {
+                Size = UDim2.new(0, 0, 1, 0),
+            })
+            comboDrainTween:Play()
+        end
+
+    elseif eventType == "ComboReset" then
+        if comboDrainTween then
+            comboDrainTween:Cancel()
+            comboDrainTween = nil
+        end
+        ComboBarFill.Size = UDim2.new(0, 0, 1, 0)
+
+        if lastComboMult > 1 then
+            ComboLabel.Text = "💨 COMBO LOST"
+            ComboLabel.TextColor3 = Color3.fromRGB(190, 85, 85)
+            comboResetFeedbackActive = true
+            task.delay(1.2, function()
+                if comboResetFeedbackActive and lastComboMult == 1 then
+                    ComboLabel.Text = "🔥 COMBO: 1x"
+                    ComboLabel.TextColor3 = Color3.fromRGB(180, 185, 190)
+                    comboResetFeedbackActive = false
+                end
+            end)
+        else
+            ComboLabel.Text = "🔥 COMBO: 1x"
+            ComboLabel.TextColor3 = Color3.fromRGB(180, 185, 190)
+        end
+        lastComboMult = 1
+
+    elseif eventType == "BuildingDamaged" then
+        local pos = data.Position or Vector3.zero
+        local dmg = data.Damage or 0
+        local combo = data.Combo or 1
+        local bld = data.Building
+        local source = data.Source
+
+        -- Audio Feedback: Building tier impact & structural health state transitions
+        local tier = 1
+        if bld and bld:IsA("Model") then
+            tier = tonumber(bld:GetAttribute("DestructionTier")) or 1
+            local curHp = data.CurrentHealth or 0
+            local maxHp = data.MaxHealth or 1000
+            local newRatio = if maxHp > 0 then curHp / maxHp else 0
+            local oldRatio = buildingHealthRatios[bld] or 1.0
+            buildingHealthRatios[bld] = newRatio
+
+            AudioController.PlayStructuralDamage(newRatio, oldRatio, pos)
+        end
+
+        AudioController.PlayBuildingImpact(tier, pos)
+        AudioController.PlayReward(combo)
+
+        -- Spawn distinct, throttled floating damage number
+        spawnDamageNumber(pos, dmg, combo, source)
+
+    elseif eventType == "BuildingDestroyed" then
+        local pos = data.Position or Vector3.zero
+        local rewards = data.Rewards or {}
+        local cash = rewards.Cash or 0
+        local combo = rewards.Combo or 1
+        local bld = data.Building
+
+        -- Audio Feedback: Multi-stage structural collapse sequence & reward
+        local tier = 1
+        if bld and bld:IsA("Model") then
+            tier = tonumber(bld:GetAttribute("DestructionTier")) or 1
+            buildingHealthRatios[bld] = 0
+        end
+
+        AudioController.PlayCollapseSequence(tier, pos)
+        AudioController.PlayReward(combo)
+
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "DestroyedBillboard"
+        billboard.Size = UDim2.new(0, 180, 0, 50)
+        billboard.StudsOffset = Vector3.new(0, 15, 0)
+        billboard.AlwaysOnTop = true
+
+        local text = Instance.new("TextLabel")
+        text.Size = UDim2.new(1, 0, 1, 0)
+        text.BackgroundTransparency = 1
+        text.Text = string.format("💥 DESTROYED! +$%d (%dx)", cash, combo)
+        text.TextColor3 = Color3.fromRGB(255, 220, 50)
+        text.TextStrokeTransparency = 0.1
+        text.Font = Enum.Font.GothamBlack
+        text.TextSize = 24
+        text.Parent = billboard
+
+        local anchor = Instance.new("Part")
+        anchor.Transparency = 1
+        anchor.CanCollide = false
+        anchor.CanQuery = false
+        anchor.CanTouch = false
+        anchor.Anchored = true
+        anchor.Size = Vector3.new(0.5, 0.5, 0.5)
+        anchor.Position = pos
+        anchor.Parent = Workspace
+        billboard.Adornee = anchor
+        billboard.Parent = anchor
+
+        local tween = TweenService:Create(billboard, TweenInfo.new(1.0, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            StudsOffset = Vector3.new(0, 25, 0),
+        })
+        local fade = TweenService:Create(text, TweenInfo.new(1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            TextTransparency = 1,
+            TextStrokeTransparency = 1,
+        })
+        tween:Play()
+        fade:Play()
+
+        task.delay(1.1, function()
+            anchor:Destroy()
+        end)
+    end
+end)
+
+print("[DestructionHUD] City progress and completion tracking initialized.")

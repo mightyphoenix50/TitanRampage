@@ -10,53 +10,68 @@ Welcome to **Titan Rampage**, a multiplayer Roblox giant-monster destruction gam
 | :--- | :---: | :---: | :--- |
 | **Move** | `W`, `A`, `S`, `D` | Arrow Keys | Full directional locomotion at colossal stride pace |
 | **Jump** | `Space` | — | High-impact vertical jump scaled for colossal titans |
-| **Basic Attack** | `Left Click (LMB)` | `1` | Rhythmic 3-hit melee combo against buildings in front |
+| **Primary Attack** | `Left Click (LMB)` | `1` | Fast melee strike (Ravager Claw Swipe / Brontara Tail Sweep) |
 | **Stomp** | `E` | `2` | Heavy ground slam with 360° area-of-effect shockwave |
+| **Signature Ability**| `Q` | — | Long-range head plunge (Brontara Neck Strike) |
 | **Roar** | `R` | `3` | Thunderous intimidation roar with expanding sonic pulse |
+| **Upgrades Menu** | `U` | — | Open/Close the persistent Titan Upgrades matrix |
+| **City Selection** | `M` | — | Open/Close the City Rampage & Travel selector |
+| **Titan Selection**| `T` | — | Open/Close the Titan Roster & Selection panel |
 | **Camera Orbit** | `Right Click + Drag` | — | Rotate perspective around your titan |
-| **Camera Zoom** | `Scroll Wheel` | — | Zoom distance from 15 studs up to 120 studs |
+| **Camera Zoom** | `Scroll Wheel` | — | Dynamic zoom distance (Ravager: 15–120; Brontara: 25–160) |
 
 ---
 
-## 2. Playable Titan: The Ravager
+## 2. Playable Titans Roster
 
-**The Ravager** is an original ancient titan forged from hardened basalt stone with volcanic magma conduits and glowing orange eyes. Standing approximately **24 studs tall**, Ravager towers over conventional structures.
+### Titan 1: The Ravager (Bipedal Brawler)
+**The Ravager** is an original ancient titan forged from hardened basalt stone with volcanic magma conduits and glowing orange eyes. Standing approximately **24 studs tall**, Ravager excels in rapid, aggressive close-quarters brawling.
 
-### Base Attributes
-- **Health:** 3,000 HP
-- **Walk Speed:** 24–28 studs/s (upgradeable)
+- **Class:** Bipedal Brawler
+- **Status:** Unlocked by default
+- **Base Health:** 3,000 HP
+- **Base Walk Speed:** 24–28 studs/s (upgradeable)
 - **Jump Power:** 65 studs
-- **Camera Offset:** 45 studs default distance, elevated shoulder viewpoint
+- **Camera Zoom:** 15 to 120 studs (Default: 45)
+- **Abilities:**
+  - `BasicAttack` (`LMB` / `1`): Rhythmic 3-hit claw swipe combo (0.42s animation, 22 studs range, 150 base dmg).
+  - `Stomp` (`E` / `2`): Rapid ground stomp (0.35s windup, 30–48 studs radius, 400 base dmg).
+  - `Roar` (`R` / `3`): Sonic chest roar (45 studs radius, 8.0s cd).
+
+---
+
+### Titan 2: Brontara the Earthshaker (Colossal Quadrupedal Juggernaut)
+**Brontara the Earthshaker** is an original colossal prehistoric sauropod titan armored with granite dorsal plates, four immense pillar limbs, a 35-stud whip tail, and a reinforced crane-like neck with a hammer head.
+
+- **Class:** Colossal Quadrupedal Juggernaut
+- **Status:** Unlocked at **Player Level 5** AND **2 City Clears**
+- **Base Health:** 4,500 HP (+50% tankier than Ravager)
+- **Base Walk Speed:** 24 studs/s (heavy, deliberate siege momentum)
+- **Jump Power:** 40 studs
+- **Camera Zoom:** 25 to 160 studs (Default: 65, Y+8 offset for colossal perspective)
+- **Abilities:**
+  - `TailSweep` (`LMB` / `1`): Enormous horizontal whip sweep (1.1s cd, 26 studs reach, 200 base dmg). Clears out multiple small and medium buildings in a wide arc.
+  - `HeavyStomp` (`E` / `2`): Front pillar rear-up and seismic ground slam (6.0s cd, 0.50s windup, 45 studs radius, 600 base dmg). Flattens entire city blocks.
+  - `NeckStrike` (`Q`): Signature long-range overhead neck/head plunge (4.0s cd, 52 studs reach, 14 studs radius, 350 base dmg). Demolishes distant skyscrapers before you reach them.
+  - `Roar` (`R` / `3`): Low-frequency seismic bellow (8.0s cd, 55 studs radius). Unleashes a massive shockwave across the metropolis.
 
 ---
 
 ## 3. Titan Abilities Breakdown
 
-### 1. Basic Melee Attack (`LMB` or `1`)
-- **Cooldown:** ~1.0 second (reduces with upgrades)
-- **Range & Arc:** 22 studs forward reach; hits all buildings within a 120° forward arc.
-- **Rhythmic 3-Hit Combo Chain:**
-  1. **Left Swipe:** Horizontal left claw sweep across the torso with an angled orange slash blade.
-  2. **Right Swipe:** Horizontal right claw sweep across the torso with a counter-angled slash blade.
-  3. **Downward Smash:** Two-handed overhead hammer slam plunging vertically into the structure with fiery impact particles and a camera thud.
-- **Non-Locking Locomotion:** You can sprint, turn, and strafe continuously while attacking without stopping.
-- **Zero Input Latency:** Animation and slash visuals start the instant you click.
+### Primary Attacks (`LMB` or `1`)
+- **Ravager — Basic Claw Combo:** 3-hit choreography (`LeftSwipe` $\rightarrow$ `RightSwipe` $\rightarrow$ `DownwardSmash`). 0.42s swift recovery for aggressive mobile demolition.
+- **Brontara — Tail Sweep:** Rotates torso and whips massive tail horizontally across city streets, hitting every building in a wide sweep arc.
 
-### 2. Stomp (`E` or `2`)
-- **Cooldown:** 5.0 seconds (reduces with upgrades)
-- **Windup:** 0.35 seconds
-- **Radius:** 30 to 48 studs (increases with upgrades)
-- **Choreography:**
-  - *Phase 1 (0.15s):* Ravager crouches low, gathering seismic energy.
-  - *Phase 2 (0.20s):* Right leg elevates high into the air.
-  - *Phase 3 (Impact at 0.35s):* Leg hammers down into the ground! Dual Neon shockwave rings blast outward, concrete debris chunks erupt, and screen shake rumbles nearby players.
-- **Distance Falloff:** Damage is 100% at the epicenter, scaling down to 35% at the perimeter edge. Excellent for leveling groups of buildings in one strike.
+### Stomp Attacks (`E` or `2`)
+- **Ravager — Stomp:** Fast 0.35s crouch-and-stomp creating dual Neon shockwaves with distance falloff.
+- **Brontara — Heavy Stomp:** Enormous front pillar rear-up (0.50s windup) followed by a devastating seismic impact that deals up to 600 damage across a massive 45-stud radius.
 
-### 3. Roar (`R` or `3`)
-- **Cooldown:** 8.0 seconds
-- **Radius:** 45 studs
-- **Choreography:** Ravager expands his chest, flings his arms wide, tilts his head toward the sky, and unleashes a violent sonic tremor.
-- **Visual FX:** An expanding orange-red sonic pulse sphere ripples through city streets.
+### Signature Ability (`Q`)
+- **Brontara — Neck Strike:** Rears neck backward and plunges head vertically into structures up to 52 studs away. Allows Brontara to snipe tall buildings and landmark structures from range.
+
+### Utility Roar (`R` or `3`)
+- Unleashes an expansive sonic tremor (Ravager: 45 studs, Brontara: 55 studs) that ripples through the city with camera rumble and audio bellow.
 
 ---
 
@@ -123,15 +138,54 @@ Demolishing buildings earns three resources:
 
 ### Automated City Rebuild
 Once a city reaches 100% destruction:
-1. The **City Complete** victory banner appears.
-2. Run statistics (Total time, Highest combo, Rewards earned) are displayed.
-3. The city automatically initiates a non-destructive rebuild: all collapsed buildings restore their positions, windows, and health to 100% for another destruction run.
+1. The **City Complete** victory results screen appears.
+2. Run statistics (Clear Time, Score, Pace BPM, Abilities used, Rewards earned) are displayed with personal best comparisons.
+3. Clicking **🔄 REBUILD & RAMPAGE AGAIN** initiates a complete non-destructive rebuild: all collapsed buildings restore their positions, windows, and health to 100%, and starts a fresh destruction run timer!
 
 ---
 
-## 7. Pro Tips for Maximum Destruction
+## 7. Destruction Run Scoring & Personal Bests (Milestone 8)
+
+Every city session is now formalized as a server-authoritative **Destruction Run** designed for infinite replayability and mastery.
+
+### Destruction Score Formula
+Your performance is evaluated at the end of each run with an arcade **Destruction Score**:
+$$\text{Destruction Score} = \text{Base Score} + \text{Combo Bonus} + \text{Speed Bonus} + \text{Completion Bonus}$$
+
+- **Base Score:** All destruction points earned from buildings plus $10\%$ of all raw damage dealt ($\text{Points} + \lfloor 0.1 \times \text{Damage} \rfloor$).
+- **Combo Bonus:** $\text{Highest Combo achieved} \times 1,500$ points (up to $+7,500$ for a 5.0x max combo!).
+- **Speed Bonus:** Clearing the city before the par target time awards $+50$ points for every second remaining:
+  - *SmallTown Par Time:* 120 seconds ($2$ minutes)
+  - *Metrovale Par Time:* 240 seconds ($4$ minutes)
+- **Completion Bonus:** $+5,000$ points for SmallTown, $+15,000$ points for Metrovale.
+
+> **Note:** Destruction Score is strictly a mastery and leaderboard performance score — it never replaces or converts into Cash, Points, or XP.
+
+### Personal Bests & Badges
+The server tracks your personal records individually for each city:
+- **Best Clear Time:** Fastest run in seconds (lower is better).
+- **Highest Combo:** Peak combo multiplier achieved (up to 5.0x).
+- **High Destruction Score:** Your best recorded score.
+- **Destruction Pace (BPM):** Buildings flattened per minute ($\text{Buildings} / (\text{Minutes})$).
+
+When you beat an existing personal record on any city run, the Results Screen highlights it with a glowing **★ NEW BEST!** badge!
+
+### Persistent Lifetime Statistics
+Your player profile permanently persists your lifetime rampage career stats in DataStore:
+- **Total Buildings Destroyed**
+- **Total Damage Dealt**
+- **Total Cities Completed**
+- **Total Runs Completed**
+- **Total Cash & Points Earned**
+- **Lifetime Highest Combo**
+- **Total Rampage Play Time**
+
+---
+
+## 8. Pro Tips for Maximum Destruction
 
 1. **Alternate Basic Attacks and Stomp:** Open combat against a cluster of buildings with **Stomp (`E`)** to soften the entire block, then finish individual buildings with **Basic Attack (`LMB`)**.
-2. **Keep the Combo Alive:** Don't get stuck attacking a high-health building alone if your combo is about to expire. Hit a nearby small building to refresh the 4.5-second timer and keep your **5.0x multiplier**.
-3. **Upgrade Walk Speed First:** Moving faster between buildings makes maintaining a 5.0x combo significantly easier.
-4. **Tackle Landmarks with Upgraded Titans:** Metrovale's Landmarks have 6,500–7,500 HP. Upgrade your Basic Attack Damage and Stomp Damage before taking on the Metrovale Tower!
+2. **Watch the Combo Depletion Bar:** A small timer bar drains under your combo multiplier on the HUD. Hit another structure before it empties to preserve your **5.0x multiplier**!
+3. **Pace Your Destruction for High BPM:** Minimize travel time between targets to push your Buildings-Per-Minute (BPM) above 30+ for massive Speed Bonuses.
+4. **Upgrade Walk Speed Early:** Moving faster between buildings makes maintaining 5.0x combos and beating the par speed bonus substantially easier.
+5. **Tackle Landmarks with Upgraded Titans:** Metrovale's Landmarks have 6,500–7,500 HP. Upgrade your Basic Attack Damage and Stomp Damage before taking on the Metrovale Tower!
