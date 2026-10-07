@@ -1,0 +1,37 @@
+{
+  "name": "TitanRampage",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Config": {
+        "$className": "Folder",
+        "$path": "src/shared/Config"
+      },
+      "Shared": {
+        "$className": "Folder",
+        "$path": "src/shared/Shared"
+      }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "$path": "src/server"
+    },
+    "StarterGui": {
+      "$className": "StarterGui",
+      "MainUI": {
+        "$className": "ScreenGui",
+        "DestructionHUD": {
+          "$path": "src/client/UI/DestructionHUD.client.luau"
+        }
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "$path": "src/client/Controllers"
+      }
+    }
+  }
+}
