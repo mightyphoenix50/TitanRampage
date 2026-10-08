@@ -18,13 +18,14 @@
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local ConfigFolder = ReplicatedStorage:WaitForChild("Config")
-local TitanConfig = require(ConfigFolder:WaitForChild("TitanConfig") :: ModuleScript)
+local SharedFolder = ReplicatedStorage:WaitForChild("Shared")
+local TitanRegistry = require(SharedFolder:WaitForChild("TitanRegistry") :: ModuleScript)
 
 export type AnimationController = {
     Character: Model,
     Humanoid: Humanoid,
     Animator: Animator,
+    TitanId: string,
     Motors: { [string]: Motor6D },
     OrigC0: { [string]: CFrame },
     Tracks: { [string]: AnimationTrack },
@@ -38,6 +39,7 @@ export type AnimationController = {
     PlayNeckStrike: (self: AnimationController) -> number,
     PlayStomp: (self: AnimationController) -> number,
     PlayRoar: (self: AnimationController) -> number,
+    PlayAbility: (self: AnimationController, actionName: string, ...any) -> any,
     StopAll: (self: AnimationController) -> (),
     Destroy: (self: AnimationController) -> (),
 }
@@ -75,10 +77,12 @@ function TitanAnimationController.new(character: Model): AnimationController
 
     local tracks: { [string]: AnimationTrack } = {}
 
-    -- Pre-load any configured Animation assets
-    local ravagerConfig = TitanConfig.Ravager
-    if ravagerConfig and ravagerConfig.Abilities then
-        for actionName, ability in pairs(ravagerConfig.Abilities) do
+    local titanId = character:GetAttribute("TitanId") or "Ravager"
+    local titanDef = TitanRegistry.Get(titanId) or TitanRegistry.Get("Ravager")
+
+    -- Pre-load any configured Animation assets for this Titan
+    if titanDef and titanDef.Abilities then
+        for actionName, ability in pairs(titanDef.Abilities) do
             if ability.AnimationIds then
                 for variantName, animId in pairs(ability.AnimationIds) do
                     if animId and animId ~= "rbxassetid://0" and animId ~= "" then
@@ -99,6 +103,7 @@ function TitanAnimationController.new(character: Model): AnimationController
         Character = character,
         Humanoid = humanoid,
         Animator = animator,
+        TitanId = titanId,
         Motors = motors,
         OrigC0 = origC0,
         Tracks = tracks,
@@ -116,7 +121,7 @@ end
     Returns (variantUsed: string, duration: number).
 ]=]
 function TitanAnimationController:PlayBasicAttack(variantOverride: string?): (string, number)
-    if self.Motors["TailBaseJoint"] then
+    if self.TitanId == "Brontara" or self.Motors["TailBaseJoint"] then
         local dur = self:PlayTailSweep()
         return "TailSweep", dur
     end
@@ -274,7 +279,7 @@ end
     Synchronized with the 0.35s server windup delay and impact moment.
 ]=]
 function TitanAnimationController:PlayStomp(): number
-    if self.Motors["TailBaseJoint"] then
+    if self.TitanId == "Brontara" or self.Motors["TailBaseJoint"] then
         return self:PlayHeavyStomp()
     end
     local duration = 0.75
@@ -361,7 +366,7 @@ end
     Sequence: Chest expands -> Head tilts up -> Arms spread wide -> Roar hold -> Recovery.
 ]=]
 function TitanAnimationController:PlayRoar(): number
-    if self.Motors["TailBaseJoint"] then
+    if self.TitanId == "Brontara" or self.Motors["TailBaseJoint"] then
         local duration = 1.10
         self.IsRoaring = true
         local neckBase = self.Motors["NeckBaseJoint"]
@@ -658,6 +663,23 @@ function TitanAnimationController:PlayNeckStrike(): number
     end)
 
     return duration
+end
+
+function TitanAnimationController:PlayAbility(actionName: string, ...): any
+    if actionName == "BasicAttack" then
+        return self:PlayBasicAttack(...)
+    elseif actionName == "Stomp" then
+        return self:PlayStomp()
+    elseif actionName == "Roar" then
+        return self:PlayRoar()
+    elseif actionName == "TailSweep" then
+        return self:PlayTailSweep()
+    elseif actionName == "HeavyStomp" then
+        return self:PlayHeavyStomp()
+    elseif actionName == "NeckStrike" then
+        return self:PlayNeckStrike()
+    end
+    return nil
 end
 
 function TitanAnimationController:StopAll()

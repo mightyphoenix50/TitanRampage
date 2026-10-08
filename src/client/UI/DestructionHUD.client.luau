@@ -25,6 +25,7 @@ local SharedFolder = ReplicatedStorage:WaitForChild("Shared")
 
 local UpgradeConfig = require(ConfigFolder:WaitForChild("UpgradeConfig") :: ModuleScript)
 local AudioController = require(SharedFolder:WaitForChild("AudioController") :: ModuleScript)
+local TitanRegistry = require(SharedFolder:WaitForChild("TitanRegistry") :: ModuleScript)
 local DestructionFeedback = RemotesFolder:WaitForChild("DestructionFeedback") :: RemoteEvent
 local ProgressionUpdateRemote = RemotesFolder:WaitForChild("ProgressionUpdate") :: RemoteEvent
 local UpgradeRequestRemote = RemotesFolder:WaitForChild("UpgradeRequest") :: RemoteEvent
@@ -592,21 +593,9 @@ TitanCloseButton.MouseButton1Click:Connect(function()
     TitanSelectionPanel.Visible = false
 end)
 
-local btnRavager = CardRavager:WaitForChild("ActionButton") :: TextButton
-local btnBrontara = CardBrontara:WaitForChild("ActionButton") :: TextButton
-
-btnRavager.MouseButton1Click:Connect(function()
-    AudioController.PlayUI("ButtonClick")
-    TitanSelectRequestRemote:FireServer("Select", "Ravager")
-end)
-
-btnBrontara.MouseButton1Click:Connect(function()
-    AudioController.PlayUI("ButtonClick")
-    TitanSelectRequestRemote:FireServer("Select", "Brontara")
-end)
-
-local lastKnownTitans = { Ravager = { Unlocked = true }, Brontara = { Unlocked = false } }
+local lastKnownTitans: { [string]: { Unlocked: boolean } } = { Ravager = { Unlocked = true }, Brontara = { Unlocked = false } }
 local lastKnownSelected = "Ravager"
+local boundTitanButtons: { [string]: boolean } = {}
 
 local function updateTitanSelectionView(data: any)
     if not data then return end
@@ -622,57 +611,95 @@ local function updateTitanSelectionView(data: any)
     local titans = lastKnownTitans
     local selected = lastKnownSelected
 
-    local cardList = {
-        { Id = "Ravager", Card = CardRavager, Unlocked = if titans.Ravager then titans.Ravager.Unlocked == true else true },
-        { Id = "Brontara", Card = CardBrontara, Unlocked = if titans.Brontara then titans.Brontara.Unlocked == true else false },
-    }
+    for _, titanDef in ipairs(TitanRegistry.GetList()) do
+        local card = TitanCardsContainer:FindFirstChild("Card_" .. titanDef.Id) :: Frame?
+        if card then
+            local isSelected = (selected == titanDef.Id)
+            local isUnlocked = if titans[titanDef.Id] then (titans[titanDef.Id].Unlocked == true) else (titanDef.UnlockRequirement.Level <= 1 and titanDef.UnlockRequirement.Clears <= 0)
 
-    for _, entry in ipairs(cardList) do
-        local card = entry.Card
-        local isSelected = (selected == entry.Id)
-        local isUnlocked = entry.Unlocked
-
-        local statusLbl = card:FindFirstChild("Status") :: TextLabel?
-        local actionBtn = card:FindFirstChild("ActionButton") :: TextButton?
-        local stroke = card:FindFirstChild("CardStroke") :: UIStroke?
-
-        if statusLbl then
-            if isSelected then
-                statusLbl.Text = "⭐ ACTIVE TITAN"
-                statusLbl.TextColor3 = Color3.fromRGB(255, 230, 80)
-                statusLbl.BackgroundColor3 = Color3.fromRGB(55, 45, 20)
-            elseif isUnlocked then
-                statusLbl.Text = "✓ UNLOCKED"
-                statusLbl.TextColor3 = Color3.fromRGB(100, 255, 140)
-                statusLbl.BackgroundColor3 = Color3.fromRGB(25, 45, 35)
-            else
-                statusLbl.Text = "🔒 LOCKED"
-                statusLbl.TextColor3 = Color3.fromRGB(255, 95, 95)
-                statusLbl.BackgroundColor3 = Color3.fromRGB(45, 25, 25)
+            local titanNameLbl = card:FindFirstChild("TitanName") :: TextLabel?
+            if titanNameLbl then
+                titanNameLbl.Text = titanDef.DisplayName
             end
-        end
 
-        if stroke then
-            stroke.Color = if isSelected then Color3.fromRGB(255, 200, 50) else Color3.fromRGB(60, 70, 90)
-            stroke.Thickness = if isSelected then 2.5 else 1.5
-        end
+            local titleLbl = card:FindFirstChild("Title") :: TextLabel?
+            if titleLbl then
+                titleLbl.Text = titanDef.Title
+            end
 
-        if actionBtn then
-            if isSelected then
-                actionBtn.Text = "CURRENT TITAN"
-                actionBtn.BackgroundColor3 = Color3.fromRGB(40, 50, 65)
-                actionBtn.TextColor3 = Color3.fromRGB(150, 165, 185)
-                actionBtn.AutoButtonColor = false
-            elseif isUnlocked then
-                actionBtn.Text = "SELECT TITAN"
-                actionBtn.BackgroundColor3 = Color3.fromRGB(45, 140, 75)
-                actionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-                actionBtn.AutoButtonColor = true
-            else
-                actionBtn.Text = "LOCKED"
-                actionBtn.BackgroundColor3 = Color3.fromRGB(35, 38, 45)
-                actionBtn.TextColor3 = Color3.fromRGB(120, 125, 135)
-                actionBtn.AutoButtonColor = false
+            local reqLbl = card:FindFirstChild("Requirements") :: TextLabel?
+            if reqLbl then
+                if titanDef.UnlockRequirement.Level > 1 or titanDef.UnlockRequirement.Clears > 0 then
+                    reqLbl.Text = string.format("Requires: Level %d • %d City Clears", titanDef.UnlockRequirement.Level, titanDef.UnlockRequirement.Clears)
+                else
+                    reqLbl.Text = "Starter Titan • Always Available"
+                end
+            end
+
+            local statusLbl = card:FindFirstChild("Status") :: TextLabel?
+            local actionBtn = card:FindFirstChild("ActionButton") :: TextButton?
+            local stroke = card:FindFirstChild("CardStroke") :: UIStroke?
+
+            if statusLbl then
+                if isSelected then
+                    statusLbl.Text = "⭐ ACTIVE TITAN"
+                    statusLbl.TextColor3 = Color3.fromRGB(255, 230, 80)
+                    statusLbl.BackgroundColor3 = Color3.fromRGB(55, 45, 20)
+                elseif isUnlocked then
+                    statusLbl.Text = "✓ UNLOCKED"
+                    statusLbl.TextColor3 = Color3.fromRGB(100, 255, 140)
+                    statusLbl.BackgroundColor3 = Color3.fromRGB(25, 45, 35)
+                else
+                    statusLbl.Text = "🔒 LOCKED"
+                    statusLbl.TextColor3 = Color3.fromRGB(255, 95, 95)
+                    statusLbl.BackgroundColor3 = Color3.fromRGB(45, 25, 25)
+                end
+            end
+
+            if stroke then
+                stroke.Color = if isSelected then Color3.fromRGB(255, 200, 50) else Color3.fromRGB(60, 70, 90)
+                stroke.Thickness = if isSelected then 2.5 else 1.5
+            end
+
+            if actionBtn then
+                if isSelected then
+                    actionBtn.Text = "CURRENT TITAN"
+                    actionBtn.BackgroundColor3 = Color3.fromRGB(40, 50, 65)
+                    actionBtn.TextColor3 = Color3.fromRGB(150, 165, 185)
+                    actionBtn.AutoButtonColor = false
+                elseif isUnlocked then
+                    actionBtn.Text = "SELECT TITAN"
+                    actionBtn.BackgroundColor3 = Color3.fromRGB(45, 140, 75)
+                    actionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    actionBtn.AutoButtonColor = true
+                else
+                    actionBtn.Text = "LOCKED"
+                    actionBtn.BackgroundColor3 = Color3.fromRGB(35, 38, 45)
+                    actionBtn.TextColor3 = Color3.fromRGB(120, 125, 135)
+                    actionBtn.AutoButtonColor = false
+                end
+
+                if not boundTitanButtons[titanDef.Id] then
+                    boundTitanButtons[titanDef.Id] = true
+                    local targetId = titanDef.Id
+                    actionBtn.MouseButton1Click:Connect(function()
+                        local currentSel = lastKnownSelected
+                        local isCurrentlyUnlocked = if lastKnownTitans[targetId] then (lastKnownTitans[targetId].Unlocked == true) else false
+                        if targetId == "Ravager" then isCurrentlyUnlocked = true end
+
+                        if currentSel == targetId then
+                            return
+                        end
+
+                        if not isCurrentlyUnlocked then
+                            AudioController.PlayUI("UpgradeError")
+                            return
+                        end
+
+                        AudioController.PlayUI("ButtonClick")
+                        TitanSelectRequestRemote:FireServer("Select", targetId)
+                    end)
+                end
             end
         end
     end

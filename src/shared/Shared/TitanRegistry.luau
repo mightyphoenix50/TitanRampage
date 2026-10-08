@@ -1,8 +1,10 @@
 --!strict
 --[[
     TitanRegistry.luau
-    Central registry and configuration for all playable Titans in Titan Rampage.
-    Supports extensible data-driven multi-Titan architecture.
+    Central authoritative registry and configuration for all playable Titans in Titan Rampage.
+    Milestone 9A: Multi-Titan Architecture.
+    Provides scalable data-driven Titan definitions, upgrade mappings, camera configs,
+    and ability resolution without hardcoding Titan-specific conditionals.
 --]]
 
 export type AbilitySlot = "Primary" | "Stomp" | "Signature" | "Utility"
@@ -20,11 +22,44 @@ export type AbilityDef = {
     WindUp: number?,
     AnimationDuration: number?,
     AnimationIds: { [string]: string }?,
+    CooldownUpgradeCategory: string?,
+    DamageUpgradeCategory: string?,
+    RadiusUpgradeCategory: string?,
 }
 
 export type UnlockRequirement = {
     Level: number,
     Clears: number,
+    Description: string?,
+}
+
+export type CameraConfig = {
+    Min: number,
+    Max: number,
+    Default: number,
+    CameraOffset: Vector3,
+}
+
+export type BaseMovementConfig = {
+    WalkSpeed: number,
+    JumpPower: number,
+    HipHeight: number,
+}
+
+export type UpgradeMapping = {
+    Category: string,
+    TargetType: "AbilityStat" | "CharacterStat",
+    AbilityName: string?,
+    StatName: string,
+    BaseValue: number,
+}
+
+export type AudioProfile = {
+    AttackWhoosh: { [string]: string }?,
+    StompAnticipation: string?,
+    StompImpact: string?,
+    Roar: string?,
+    [string]: any,
 }
 
 export type TitanDef = {
@@ -34,19 +69,18 @@ export type TitanDef = {
     Title: string,
     Description: string,
     CreatureType: string,
+    ModelName: string,
     BaseHealth: number,
     WalkSpeed: number,
     JumpPower: number,
     HipHeight: number,
-    CameraZoom: {
-        Min: number,
-        Max: number,
-        Default: number,
-        CameraOffset: Vector3,
-    },
+    CameraZoom: CameraConfig,
     UnlockRequirement: UnlockRequirement,
     Abilities: { [string]: AbilityDef },
     AbilityOrder: { string },
+    UpgradeMappings: { [string]: UpgradeMapping },
+    AudioProfile: AudioProfile,
+    AnimationProfile: string,
 }
 
 local Registry: { [string]: TitanDef } = {
@@ -57,6 +91,7 @@ local Registry: { [string]: TitanDef } = {
         Title = "Ancient Volcanic Behemoth",
         Description = "An original ancient bipedal titan forged of hardened basalt stone and volcanic fury. Excels in rapid melee claw strikes and aggressive area ground slams.",
         CreatureType = "Bipedal Basalt Titan",
+        ModelName = "Ravager",
         BaseHealth = 3000,
         WalkSpeed = 24,
         JumpPower = 65,
@@ -70,6 +105,7 @@ local Registry: { [string]: TitanDef } = {
         UnlockRequirement = {
             Level = 1,
             Clears = 0,
+            Description = "Starter Titan • Always Available",
         },
         Abilities = {
             BasicAttack = {
@@ -81,8 +117,10 @@ local Registry: { [string]: TitanDef } = {
                 Cooldown = 0.78,
                 Damage = 120,
                 Range = 22,
-                Radius = 12,
+                Radius = 18,
                 AnimationDuration = 0.42,
+                CooldownUpgradeCategory = "BasicAttackCooldown",
+                DamageUpgradeCategory = "BasicAttackDamage",
                 AnimationIds = {
                     LeftSwipe = "rbxassetid://0",
                     RightSwipe = "rbxassetid://0",
@@ -96,10 +134,13 @@ local Registry: { [string]: TitanDef } = {
                 Slot = "Stomp",
                 KeybindDisplay = "E / 2",
                 Cooldown = 5.0,
-                Damage = 300,
+                Damage = 400,
                 Radius = 30,
                 WindUp = 0.35,
                 AnimationDuration = 0.75,
+                CooldownUpgradeCategory = "StompCooldown",
+                DamageUpgradeCategory = "StompDamage",
+                RadiusUpgradeCategory = "StompRadius",
                 AnimationIds = {
                     Stomp = "rbxassetid://0",
                 },
@@ -113,12 +154,74 @@ local Registry: { [string]: TitanDef } = {
                 Cooldown = 8.0,
                 Radius = 45,
                 AnimationDuration = 1.00,
+                CooldownUpgradeCategory = "RoarCooldown",
                 AnimationIds = {
                     Roar = "rbxassetid://0",
                 },
             },
         },
         AbilityOrder = { "BasicAttack", "Stomp", "Roar" },
+        UpgradeMappings = {
+            BasicAttackDamage = {
+                Category = "BasicAttackDamage",
+                TargetType = "AbilityStat",
+                AbilityName = "BasicAttack",
+                StatName = "Damage",
+                BaseValue = 150,
+            },
+            BasicAttackCooldown = {
+                Category = "BasicAttackCooldown",
+                TargetType = "AbilityStat",
+                AbilityName = "BasicAttack",
+                StatName = "Cooldown",
+                BaseValue = 0.78,
+            },
+            StompDamage = {
+                Category = "StompDamage",
+                TargetType = "AbilityStat",
+                AbilityName = "Stomp",
+                StatName = "Damage",
+                BaseValue = 400,
+            },
+            StompRadius = {
+                Category = "StompRadius",
+                TargetType = "AbilityStat",
+                AbilityName = "Stomp",
+                StatName = "Radius",
+                BaseValue = 30,
+            },
+            StompCooldown = {
+                Category = "StompCooldown",
+                TargetType = "AbilityStat",
+                AbilityName = "Stomp",
+                StatName = "Cooldown",
+                BaseValue = 5.0,
+            },
+            WalkSpeed = {
+                Category = "WalkSpeed",
+                TargetType = "CharacterStat",
+                StatName = "WalkSpeed",
+                BaseValue = 24,
+            },
+            RoarCooldown = {
+                Category = "RoarCooldown",
+                TargetType = "AbilityStat",
+                AbilityName = "Roar",
+                StatName = "Cooldown",
+                BaseValue = 8.0,
+            },
+        },
+        AudioProfile = {
+            AttackWhoosh = {
+                LeftSwipe = "LeftSwipe",
+                RightSwipe = "RightSwipe",
+                DownwardSmash = "DownwardSmash",
+            },
+            StompAnticipation = "StompAnticipation",
+            StompImpact = "StompImpact",
+            Roar = "Roar",
+        },
+        AnimationProfile = "Ravager",
     },
 
     Brontara = {
@@ -128,6 +231,7 @@ local Registry: { [string]: TitanDef } = {
         Title = "The Earthshaker",
         Description = "A colossal quadrupedal ancient behemoth of dense bedrock and surging magma veins. Shakes the earth with seismic footsteps and sweeping siege strikes.",
         CreatureType = "Quadrupedal Colossal Behemoth",
+        ModelName = "Brontara",
         BaseHealth = 4500,
         WalkSpeed = 20,
         JumpPower = 40,
@@ -141,6 +245,7 @@ local Registry: { [string]: TitanDef } = {
         UnlockRequirement = {
             Level = 5,
             Clears = 2,
+            Description = "Requires Level 5 and 2 City Clears",
         },
         Abilities = {
             TailSweep = {
@@ -154,6 +259,8 @@ local Registry: { [string]: TitanDef } = {
                 Range = 26,
                 Radius = 16,
                 AnimationDuration = 0.65,
+                CooldownUpgradeCategory = "BasicAttackCooldown",
+                DamageUpgradeCategory = "BasicAttackDamage",
                 AnimationIds = {
                     TailSweep = "rbxassetid://0",
                 },
@@ -169,6 +276,9 @@ local Registry: { [string]: TitanDef } = {
                 Radius = 45,
                 WindUp = 0.50,
                 AnimationDuration = 1.00,
+                CooldownUpgradeCategory = "StompCooldown",
+                DamageUpgradeCategory = "StompDamage",
+                RadiusUpgradeCategory = "StompRadius",
                 AnimationIds = {
                     HeavyStomp = "rbxassetid://0",
                 },
@@ -184,6 +294,8 @@ local Registry: { [string]: TitanDef } = {
                 Range = 52,
                 Radius = 14,
                 AnimationDuration = 0.70,
+                CooldownUpgradeCategory = "BasicAttackCooldown",
+                DamageUpgradeCategory = "BasicAttackDamage",
                 AnimationIds = {
                     NeckStrike = "rbxassetid://0",
                 },
@@ -197,29 +309,248 @@ local Registry: { [string]: TitanDef } = {
                 Cooldown = 8.0,
                 Radius = 55,
                 AnimationDuration = 1.10,
+                CooldownUpgradeCategory = "RoarCooldown",
                 AnimationIds = {
                     Roar = "rbxassetid://0",
                 },
             },
         },
         AbilityOrder = { "TailSweep", "HeavyStomp", "NeckStrike", "Roar" },
+        UpgradeMappings = {
+            BasicAttackDamage = {
+                Category = "BasicAttackDamage",
+                TargetType = "AbilityStat",
+                AbilityName = "TailSweep",
+                StatName = "Damage",
+                BaseValue = 200,
+            },
+            BasicAttackCooldown = {
+                Category = "BasicAttackCooldown",
+                TargetType = "AbilityStat",
+                AbilityName = "TailSweep",
+                StatName = "Cooldown",
+                BaseValue = 1.10,
+            },
+            StompDamage = {
+                Category = "StompDamage",
+                TargetType = "AbilityStat",
+                AbilityName = "HeavyStomp",
+                StatName = "Damage",
+                BaseValue = 600,
+            },
+            StompRadius = {
+                Category = "StompRadius",
+                TargetType = "AbilityStat",
+                AbilityName = "HeavyStomp",
+                StatName = "Radius",
+                BaseValue = 45,
+            },
+            StompCooldown = {
+                Category = "StompCooldown",
+                TargetType = "AbilityStat",
+                AbilityName = "HeavyStomp",
+                StatName = "Cooldown",
+                BaseValue = 6.0,
+            },
+            WalkSpeed = {
+                Category = "WalkSpeed",
+                TargetType = "CharacterStat",
+                StatName = "WalkSpeed",
+                BaseValue = 20,
+            },
+            RoarCooldown = {
+                Category = "RoarCooldown",
+                TargetType = "AbilityStat",
+                AbilityName = "Roar",
+                StatName = "Cooldown",
+                BaseValue = 8.0,
+            },
+        },
+        AudioProfile = {
+            AttackWhoosh = {
+                LeftSwipe = "LeftSwipe",
+                RightSwipe = "RightSwipe",
+                DownwardSmash = "DownwardSmash",
+            },
+            StompAnticipation = "StompAnticipation",
+            StompImpact = "StompImpact",
+            Roar = "Roar",
+        },
+        AnimationProfile = "Brontara",
     },
 }
 
 local TitanRegistry = {}
 
+--[=[
+    Retrieves the authoritative definition for a Titan by Id.
+]=]
 function TitanRegistry.Get(titanId: string): TitanDef?
     return Registry[titanId]
 end
 
+--[=[
+    Returns the dictionary of all registered Titans.
+]=]
 function TitanRegistry.GetAll(): { [string]: TitanDef }
     return Registry
 end
 
+--[=[
+    Returns a deterministic ordered list of all registered Titans.
+]=]
 function TitanRegistry.GetList(): { TitanDef }
     return { Registry.Ravager, Registry.Brontara }
 end
 
+--[=[
+    Checks whether a TitanId is registered.
+]=]
+function TitanRegistry.IsRegistered(titanId: string): boolean
+    return Registry[titanId] ~= nil
+end
+
+--[=[
+    Retrieves an ability definition by TitanId and ability name.
+]=]
+function TitanRegistry.GetAbility(titanId: string, abilityName: string): AbilityDef?
+    local def = Registry[titanId]
+    if not def then return nil end
+    return def.Abilities[abilityName]
+end
+
+--[=[
+    Retrieves the primary ability assigned to a specific AbilitySlot.
+]=]
+function TitanRegistry.GetAbilityForSlot(titanId: string, slot: AbilitySlot): AbilityDef?
+    local def = Registry[titanId]
+    if not def then return nil end
+    for _, ability in pairs(def.Abilities) do
+        if ability.Slot == slot then
+            return ability
+        end
+    end
+    return nil
+end
+
+--[=[
+    Retrieves the upgrade mapping definition for a Titan and upgrade category.
+]=]
+function TitanRegistry.GetUpgradeMapping(titanId: string, categoryId: string): UpgradeMapping?
+    local def = Registry[titanId]
+    if not def or not def.UpgradeMappings then return nil end
+    return def.UpgradeMappings[categoryId]
+end
+
+--[=[
+    Calculates effective ability cooldown considering player upgrade values.
+    For Ravager: perfectly scales cooldown with UpgradeConfig values.
+]=]
+function TitanRegistry.CalculateAbilityCooldown(titanId: string, abilityName: string, upgradeValue: number?): number
+    local def = Registry[titanId]
+    if not def then return 1.0 end
+    local ab = def.Abilities[abilityName]
+    if not ab then return 1.0 end
+
+    if not upgradeValue then
+        return ab.Cooldown
+    end
+
+    if titanId == "Ravager" then
+        -- For Ravager, upgradeValue directly represents the target cooldown
+        return upgradeValue
+    end
+
+    -- Generic formula for future Titans: scale base cooldown by ratio
+    local mapping = def.UpgradeMappings and ab.CooldownUpgradeCategory and def.UpgradeMappings[ab.CooldownUpgradeCategory]
+    if mapping and mapping.BaseValue > 0 then
+        return ab.Cooldown * (upgradeValue / mapping.BaseValue)
+    end
+
+    return ab.Cooldown
+end
+
+--[=[
+    Calculates effective ability damage considering player upgrade values.
+    For Ravager: perfectly scales damage with UpgradeConfig values.
+]=]
+function TitanRegistry.CalculateAbilityDamage(titanId: string, abilityName: string, upgradeValue: number?): number
+    local def = Registry[titanId]
+    if not def then return 100 end
+    local ab = def.Abilities[abilityName]
+    if not ab then return 100 end
+
+    if not upgradeValue then
+        return ab.Damage or 100
+    end
+
+    if titanId == "Ravager" then
+        -- For Ravager, upgradeValue directly represents the base damage before tier multipliers
+        return upgradeValue
+    end
+
+    -- Generic formula for future Titans: scale base damage by upgrade ratio
+    local baseDmg = ab.Damage or 100
+    local mapping = def.UpgradeMappings and ab.DamageUpgradeCategory and def.UpgradeMappings[ab.DamageUpgradeCategory]
+    if mapping and mapping.BaseValue > 0 then
+        return math.floor(baseDmg * (upgradeValue / mapping.BaseValue))
+    end
+
+    return baseDmg
+end
+
+--[=[
+    Calculates effective ability radius considering player upgrade values.
+    For Ravager: perfectly scales Stomp radius with UpgradeConfig values.
+]=]
+function TitanRegistry.CalculateAbilityRadius(titanId: string, abilityName: string, upgradeValue: number?): number
+    local def = Registry[titanId]
+    if not def then return 30 end
+    local ab = def.Abilities[abilityName]
+    if not ab then return 30 end
+
+    if not upgradeValue then
+        return ab.Radius or 30
+    end
+
+    if titanId == "Ravager" then
+        return upgradeValue
+    end
+
+    local baseRad = ab.Radius or 30
+    local mapping = def.UpgradeMappings and ab.RadiusUpgradeCategory and def.UpgradeMappings[ab.RadiusUpgradeCategory]
+    if mapping and mapping.BaseValue > 0 then
+        return math.floor(baseRad * (upgradeValue / mapping.BaseValue))
+    end
+
+    return baseRad
+end
+
+--[=[
+    Calculates effective walk speed considering player upgrade values.
+    For Ravager: BaseSpeed (24) + (upgradeSpeed - 24) = upgradeSpeed (28 to 40).
+]=]
+function TitanRegistry.CalculateWalkSpeed(titanId: string, upgradeSpeed: number?): number
+    local def = Registry[titanId]
+    local baseSpeed = if def then def.WalkSpeed else 24
+
+    if not upgradeSpeed then
+        return baseSpeed
+    end
+
+    if titanId == "Ravager" then
+        local bonus = math.max(0, upgradeSpeed - 24)
+        return baseSpeed + bonus
+    end
+
+    -- For future Titans: maintain speed delta relative to standard upgrade curve
+    local bonus = math.max(0, upgradeSpeed - 28)
+    return baseSpeed + bonus
+end
+
+--[=[
+    Evaluates whether player meets level & clear requirements to unlock a Titan.
+]=]
 function TitanRegistry.IsUnlocked(titanId: string, level: number, clears: number): (boolean, string?)
     local def = Registry[titanId]
     if not def then
@@ -242,18 +573,7 @@ function TitanRegistry.IsUnlocked(titanId: string, level: number, clears: number
     return true, nil
 end
 
-function TitanRegistry.GetAbilityForSlot(titanId: string, slot: AbilitySlot): AbilityDef?
-    local def = Registry[titanId]
-    if not def then return nil end
-    for _, ability in pairs(def.Abilities) do
-        if ability.Slot == slot then
-            return ability
-        end
-    end
-    return nil
-end
-
--- Allow direct table indexing: TitanRegistry["Ravager"]
+-- Allow backward-compatible table indexing: TitanRegistry["Ravager"]
 setmetatable(TitanRegistry, {
     __index = function(_, key)
         return Registry[key]

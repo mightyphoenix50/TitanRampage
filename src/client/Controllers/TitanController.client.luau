@@ -3,10 +3,12 @@
     TitanController.client.luau
     Client-side controller for Titan Rampage.
     Responsibility:
-    - Captures player inputs (WASD, Jump, Left-Click, E, R).
+    - Captures player inputs (WASD, Jump, LMB, E, R, Q).
     - Requests server-authoritative abilities via TitanAction RemoteEvent.
+    - Resolves active Titan identity, abilities, and camera bounds through TitanRegistry.
     - Renders client-side visual and auditory effects upon receiving TitanEffect events.
     - Manages camera perspective for colossal Titan character scale.
+    - Milestone 9A: Multi-Titan Architecture.
 --]]
 
 local Players = game:GetService("Players")
@@ -18,25 +20,26 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-local ConfigFolder = ReplicatedStorage:WaitForChild("Config")
 local RemotesFolder = ReplicatedStorage:WaitForChild("Remotes")
 local SharedFolder = ReplicatedStorage:WaitForChild("Shared")
 
-local TitanConfig = require(ConfigFolder:WaitForChild("TitanConfig") :: ModuleScript)
+local TitanRegistry = require(SharedFolder:WaitForChild("TitanRegistry") :: ModuleScript)
 local TitanAnimationController = require(SharedFolder:WaitForChild("TitanAnimationController") :: ModuleScript)
 local AudioController = require(SharedFolder:WaitForChild("AudioController") :: ModuleScript)
+
 local TitanActionRemote = RemotesFolder:WaitForChild("TitanAction") :: RemoteEvent
 local TitanEffectRemote = RemotesFolder:WaitForChild("TitanEffect") :: RemoteEvent
 local TitanFeedbackRemote = RemotesFolder:WaitForChild("TitanFeedback") :: RemoteEvent
 
-local currentTitanName = "Ravager"
-local config = TitanConfig[currentTitanName]
+local currentTitanId = "Ravager"
+local currentTitanDef = TitanRegistry.Get(currentTitanId)
 
-local function updateActiveTitan(titanName: string)
-    if not TitanConfig[titanName] then return end
-    currentTitanName = titanName
-    config = TitanConfig[titanName]
-    print("[TitanController] Active Titan switched to: " .. titanName)
+local function updateActiveTitan(titanId: string)
+    local def = TitanRegistry.Get(titanId)
+    if not def then return end
+    currentTitanId = titanId
+    currentTitanDef = def
+    print("[TitanController] Active Titan switched to: " .. titanId)
 end
 
 -- Animation Controller Registry per character Model
@@ -66,24 +69,27 @@ local clientCooldowns: { [string]: number } = {
     BasicAttack = 0,
     Stomp = 0,
     Roar = 0,
+    TailSweep = 0,
+    HeavyStomp = 0,
+    NeckStrike = 0,
 }
 
 --[=[
-    Initializes camera zoom parameters and offsets for the Titan scale.
+    Initializes camera zoom parameters and offsets for the Titan scale from TitanRegistry.
 ]=]
 local function setupCamera(character: Model)
     local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
     if not humanoid then return end
 
     local attrTitan = character:GetAttribute("TitanId")
-    if attrTitan and type(attrTitan) == "string" and TitanConfig[attrTitan] then
+    if attrTitan and type(attrTitan) == "string" and TitanRegistry.Get(attrTitan) then
         updateActiveTitan(attrTitan)
     end
 
-    if config and config.CameraZoom then
-        LocalPlayer.CameraMinZoomDistance = config.CameraZoom.Min
-        LocalPlayer.CameraMaxZoomDistance = config.CameraZoom.Max
-        humanoid.CameraOffset = config.CameraZoom.CameraOffset
+    if currentTitanDef and currentTitanDef.CameraZoom then
+        LocalPlayer.CameraMinZoomDistance = currentTitanDef.CameraZoom.Min
+        LocalPlayer.CameraMaxZoomDistance = currentTitanDef.CameraZoom.Max
+        humanoid.CameraOffset = currentTitanDef.CameraZoom.CameraOffset
     end
 
     -- Pre-initialize animation controller on spawn
@@ -107,12 +113,39 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCamera)
 
+-- Client-side immediate ability anticipation table for responsive input feel
+local ClientAbilityAnticipation: { [string]: (char: Model, animCtrl: any, titanId: string) -> () } = {
+    BasicAttack = function(char, animCtrl, titanId)
+        local variant = animCtrl:PlayBasicAttack()
+        local hrp = char:FindFirstChild("HumanoidRootPart") :: BasePart?
+        AudioController.PlayTitanAttackWhoosh(titanId, variant, hrp)
+    end,
+    TailSweep = function(char, animCtrl, titanId)
+        animCtrl:PlayTailSweep()
+        local hrp = char:FindFirstChild("HumanoidRootPart") :: BasePart?
+        AudioController.PlayTitanAttackWhoosh(titanId, "LeftSwipe", hrp)
+    end,
+    Stomp = function(char, _animCtrl, _titanId)
+        local hrp = char:FindFirstChild("HumanoidRootPart") :: BasePart?
+        AudioController.PlayStompAnticipation(hrp)
+    end,
+    HeavyStomp = function(char, _animCtrl, _titanId)
+        local hrp = char:FindFirstChild("HumanoidRootPart") :: BasePart?
+        AudioController.PlayStompAnticipation(hrp)
+    end,
+    NeckStrike = function(char, animCtrl, titanId)
+        animCtrl:PlayNeckStrike()
+        local hrp = char:FindFirstChild("HumanoidRootPart") :: BasePart?
+        AudioController.PlayTitanAttackWhoosh(titanId, "DownwardSmash", hrp)
+    end,
+}
+
 --[=[
     Requests an ability from the server if client predicted cooldown allows.
 ]=]
 local function tryRequestAbility(actionName: string)
-    if not config then return end
-    local abilityDef = config.Abilities[actionName]
+    if not currentTitanDef then return end
+    local abilityDef = currentTitanDef.Abilities[actionName]
     if not abilityDef then return end
 
     local now = os.clock()
@@ -120,59 +153,36 @@ local function tryRequestAbility(actionName: string)
     local cd = abilityDef.Cooldown or 1.0
 
     if (now - lastTime) < cd then
-        -- Cooldown in effect locally
         return
     end
 
     clientCooldowns[actionName] = now
 
     -- Immediate client-side animation and whoosh trigger for zero input latency
-    if actionName == "BasicAttack" and LocalPlayer.Character then
+    if LocalPlayer.Character then
         local animCtrl = getAnimController(LocalPlayer.Character)
         if animCtrl then
-            local variant = animCtrl:PlayBasicAttack()
-            local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-            AudioController.PlayBasicAttackWhoosh(variant, hrp)
-        end
-    elseif actionName == "TailSweep" and LocalPlayer.Character then
-        local animCtrl = getAnimController(LocalPlayer.Character)
-        if animCtrl then
-            animCtrl:PlayTailSweep()
-            local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-            AudioController.PlayBasicAttackWhoosh("LeftSwipe", hrp)
-        end
-    elseif (actionName == "Stomp" or actionName == "HeavyStomp") and LocalPlayer.Character then
-        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-        AudioController.PlayStompAnticipation(hrp)
-    elseif actionName == "NeckStrike" and LocalPlayer.Character then
-        local animCtrl = getAnimController(LocalPlayer.Character)
-        if animCtrl then
-            animCtrl:PlayNeckStrike()
-            local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-            AudioController.PlayBasicAttackWhoosh("DownwardSmash", hrp)
+            local anticipator = ClientAbilityAnticipation[actionName]
+            if anticipator then
+                anticipator(LocalPlayer.Character, animCtrl, currentTitanId)
+            end
         end
     end
 
     TitanActionRemote:FireServer(actionName)
 end
 
--- Helper to find ability by slot
-local function getAbilityNameBySlot(slot: string): string?
-    if not config or not config.Abilities then return nil end
-    for name, ab in pairs(config.Abilities) do
-        if ab.Slot == slot then
-            return name
-        end
-    end
-    -- Fallbacks
-    if slot == "Primary" then return if config.Abilities.TailSweep then "TailSweep" else "BasicAttack" end
-    if slot == "Stomp" then return if config.Abilities.HeavyStomp then "HeavyStomp" else "Stomp" end
-    if slot == "Signature" then return if config.Abilities.NeckStrike then "NeckStrike" else nil end
-    if slot == "Utility" then return "Roar" end
-    return nil
+-- Helper to find ability by slot authoritatively from TitanRegistry
+local function getAbilityNameBySlot(slot: TitanRegistry.AbilitySlot): string?
+    local ab = TitanRegistry.GetAbilityForSlot(currentTitanId, slot)
+    return if ab then ab.Name else nil
 end
 
--- Input Bindings (Supports LMB / 1 for Primary, E / 2 for Stomp, Q for Signature, R / 3 for Roar)
+-- Input Bindings:
+-- Primary (LMB / 1) -> BasicAttack for Ravager
+-- Stomp (E / 2) -> Stomp for Ravager
+-- Signature (Q) -> None for Ravager
+-- Utility (R / 3) -> Roar for Ravager
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
 
@@ -191,16 +201,13 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
---[=[
-    Renders temporary visual shockwaves and ability effects.
-]=]
-TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar: Model, data: any)
-    if effectType == "StompWindup" then
+-- Visual effect handlers map for clean modular rendering
+local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
+    StompWindup = function(sourceChar, data)
         local pos = data.Position or Vector3.zero
         local windUpTime = data.WindUp or 0.35
         local radius = data.Radius or 30
 
-        -- Play synchronized stomp animation on source character
         if sourceChar then
             local animCtrl = getAnimController(sourceChar)
             if animCtrl then
@@ -212,7 +219,6 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
             end
         end
 
-        -- Ground anticipation ring (gathering energy)
         local windupRing = Instance.new("Part")
         windupRing.Name = "StompAnticipation"
         windupRing.Shape = Enum.PartType.Cylinder
@@ -236,15 +242,14 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
         tween.Completed:Connect(function()
             windupRing:Destroy()
         end)
+    end,
 
-    elseif effectType == "Stomp" then
+    Stomp = function(_sourceChar, data)
         local pos = data.Position or Vector3.zero
         local targetRadius = data.Radius or 30
 
-        -- Play synchronized Stomp Impact audio at the exact 0.35s impact moment
         AudioController.PlayStompImpact(pos)
 
-        -- Primary Shockwave Ring
         local ring = Instance.new("Part")
         ring.Name = "StompShockwave"
         ring.Shape = Enum.PartType.Cylinder
@@ -259,7 +264,6 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
         ring.Transparency = 0.15
         ring.Parent = Workspace
 
-        -- Secondary Outer Shockwave Ring
         local outerRing = Instance.new("Part")
         outerRing.Name = "StompOuterWave"
         outerRing.Shape = Enum.PartType.Cylinder
@@ -288,7 +292,6 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
         t1.Completed:Connect(function() ring:Destroy() end)
         t2.Completed:Connect(function() outerRing:Destroy() end)
 
-        -- Debris Particles (Simple, lightweight non-colliding parts)
         for i = 1, 6 do
             local angle = (i / 6) * math.pi * 2
             local debris = Instance.new("Part")
@@ -312,7 +315,6 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
             dt.Completed:Connect(function() debris:Destroy() end)
         end
 
-        -- Heavy Distance-scaled Camera Shake
         if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
             local dist = (LocalPlayer.Character.PrimaryPart.Position - pos).Magnitude
             local maxDist = targetRadius * 2.8
@@ -332,24 +334,24 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
                 end)
             end
         end
+    end,
 
-    elseif effectType == "Roar" then
+    Roar = function(sourceChar, data)
         local pos = data.Position or Vector3.zero
         local targetRadius = data.Radius or 45
+        local titanId = data.Titan or "Ravager"
 
-        -- Play roar chest expansion / tremor animation & roar audio
         if sourceChar then
             local animCtrl = getAnimController(sourceChar)
             if animCtrl then
                 animCtrl:PlayRoar()
             end
             local headOrHrp = sourceChar:FindFirstChild("Head") or sourceChar:FindFirstChild("HumanoidRootPart")
-            AudioController.PlayRoar(headOrHrp :: BasePart?)
+            AudioController.PlayTitanRoar(titanId, headOrHrp :: BasePart?)
         else
-            AudioController.PlayRoar(nil)
+            AudioController.PlayTitanRoar(titanId, nil)
         end
 
-        -- Sonic Pulse Sphere
         local pulse = Instance.new("Part")
         pulse.Name = "RoarPulse"
         pulse.Shape = Enum.PartType.Ball
@@ -373,13 +375,13 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
         tween.Completed:Connect(function()
             pulse:Destroy()
         end)
+    end,
 
-    elseif effectType == "BasicAttack" then
+    BasicAttack = function(sourceChar, data)
         local pos = data.Position or Vector3.zero
         local look = data.LookVector or Vector3.new(0, 0, -1)
         local variant = data.Variant or "LeftSwipe"
 
-        -- For remote multiplayer characters, trigger their attack animation variant & spatial whoosh
         if sourceChar and sourceChar ~= LocalPlayer.Character then
             local animCtrl = getAnimController(sourceChar)
             if animCtrl then
@@ -389,29 +391,24 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
             AudioController.PlayBasicAttackWhoosh(variant, hrp)
         end
 
-        -- Calculate dynamic swipe slash orientation based on attack variant
         local swipeCFrame = CFrame.lookAt(pos, pos + look)
         local swipeInitialSize = Vector3.new(8, 2, 4)
         local swipeTargetSize = Vector3.new(16, 4, 7)
 
         if variant == "LeftSwipe" then
-            -- Angled left-to-right arc
             swipeCFrame = swipeCFrame * CFrame.Angles(0, math.rad(-22), math.rad(15))
             swipeInitialSize = Vector3.new(10, 2.2, 4.5)
             swipeTargetSize = Vector3.new(18, 4.5, 8)
         elseif variant == "RightSwipe" then
-            -- Angled right-to-left arc
             swipeCFrame = swipeCFrame * CFrame.Angles(0, math.rad(22), math.rad(-15))
             swipeInitialSize = Vector3.new(10, 2.2, 4.5)
             swipeTargetSize = Vector3.new(18, 4.5, 8)
         elseif variant == "DownwardSmash" then
-            -- Vertical overhead slam slash plunging down into the ground
             swipeCFrame = swipeCFrame * CFrame.Angles(math.rad(45), 0, 0)
             swipeInitialSize = Vector3.new(3.5, 12, 4)
             swipeTargetSize = Vector3.new(5.5, 20, 8)
         end
 
-        -- Melee Impact/Swipe Slash
         local swipe = Instance.new("Part")
         swipe.Name = "AttackSwipe"
         swipe.Material = Enum.Material.Neon
@@ -425,7 +422,6 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
         swipe.Transparency = 0.2
         swipe.Parent = Workspace
 
-        -- Impact Flash Burst
         local flash = Instance.new("Part")
         flash.Name = "ImpactFlash"
         flash.Shape = Enum.PartType.Ball
@@ -453,7 +449,6 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
         swipeTween.Completed:Connect(function() swipe:Destroy() end)
         flashTween.Completed:Connect(function() flash:Destroy() end)
 
-        -- Directional Camera Punch on claw strike for local player
         if sourceChar == LocalPlayer.Character then
             task.spawn(function()
                 if variant == "LeftSwipe" then
@@ -471,8 +466,9 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
                 end
             end)
         end
+    end,
 
-    elseif effectType == "TailSweep" then
+    TailSweep = function(sourceChar, data)
         local pos = data.Position or Vector3.zero
         local look = data.LookVector or Vector3.new(0, 0, -1)
 
@@ -513,8 +509,9 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
                 Camera.CFrame = Camera.CFrame * CFrame.Angles(0, math.rad(1.8), math.rad(-0.8))
             end)
         end
+    end,
 
-    elseif effectType == "HeavyStompWindup" then
+    HeavyStompWindup = function(sourceChar, data)
         local pos = data.Position or Vector3.zero
         local windUpTime = data.WindUp or 0.50
         local radius = data.Radius or 45
@@ -551,8 +548,9 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
         })
         tween:Play()
         tween.Completed:Connect(function() windupRing:Destroy() end)
+    end,
 
-    elseif effectType == "HeavyStomp" then
+    HeavyStomp = function(_sourceChar, data)
         local pos = data.Position or Vector3.zero
         local targetRadius = data.Radius or 45
 
@@ -618,8 +616,9 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
                 end)
             end
         end
+    end,
 
-    elseif effectType == "NeckStrike" then
+    NeckStrike = function(sourceChar, data)
         local pos = data.Position or Vector3.zero
         local look = data.LookVector or Vector3.new(0, 0, -1)
 
@@ -680,7 +679,14 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
                 Camera.CFrame = Camera.CFrame * CFrame.Angles(math.rad(1.5), 0, 0)
             end)
         end
+    end,
+}
+
+TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar: Model, data: any)
+    local handler = EffectHandlers[effectType]
+    if handler then
+        handler(sourceChar, data or {})
     end
 end)
 
-print("[TitanController] Client controller initialized for Ravager.")
+print("[TitanController] Client controller initialized for " .. currentTitanId .. ".")

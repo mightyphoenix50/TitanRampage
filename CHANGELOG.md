@@ -374,5 +374,50 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
   - Studio cleanly returned to Edit Mode with zero errors.
 - **Status:** Complete, Verified & Returned to Edit Mode.
 
+---
+
+### [2026-10-08 15:35 UTC] — Prompt: Milestone 9A — Multi-Titan Architecture
+- **Goal:** Refactor existing Titan systems into a scalable, data-driven multi-Titan architecture so future Titans can be integrated without rewriting combat, progression, persistence, UI, or input handling.
+- **Architectural Scope (Architecture ONLY — Zero Gameplay/Balancing Changes):**
+  - **1. Data-Driven Titan Registry (`ReplicatedStorage.Shared.TitanRegistry.luau`)**:
+    - Centralized single source of truth for all Titan definitions (`Ravager` and `Brontara`).
+    - Standardized fields: `Id`, `Name`, `DisplayName`, `Title`, `Description`, `CreatureType`, `ModelName`, `BaseHealth`, `WalkSpeed`, `JumpPower`, `HipHeight`, `CameraZoom`, `UnlockRequirement`, `Abilities`, `UpgradeMappings`, `AudioProfile`, `AnimationProfile`.
+    - Data-driven mathematical helpers: `CalculateWalkSpeed`, `CalculateAbilityCooldown`, `CalculateAbilityDamage`, `CalculateAbilityRadius`, `GetAbilityForSlot`, `Get`, `GetAll`, `GetList`, `IsRegistered`, `IsUnlocked`.
+  - **2. Server Authoritative Validation (`PlayerDataService.luau` & `MonsterService.luau`)**:
+    - Maintained profile `SchemaVersion = 3` with `SelectedTitan = "Ravager"` and `UnlockedTitans = { Ravager = true, Brontara = false }`.
+    - Removed legacy auto-unlock routines for Brontara; strictly authoritatively gates selection via `IsTitanUnlocked(player, titanId)`.
+    - Server-side validation rejects invalid Titan IDs and locked Titans with client feedback (`TitanFeedback`).
+    - Dynamic calculation of walkspeed, ability damage, cooldowns, and radius via `TitanRegistry` formulas.
+    - Modular `AbilityExecutors` dispatch table in `MonsterService`.
+  - **3. Polymorphic Animation & Audio Abstraction (`TitanAnimationController.luau` & `AudioController.luau`)**:
+    - Decoupled joint checks from hardcoded monster parts; tracks `self.TitanId` and dynamically uses registry animation profiles.
+    - Added generic `PlayAbility(actionName, ...)` dispatch while preserving exact procedural Motor6D animation parameters for Ravager.
+    - Parameterized sound retrieval via `GetTitanSoundKey(titanId, soundCategory, variant)`.
+  - **4. Input & Ability Abstraction (`TitanController.client.luau`)**:
+    - Client queries active Titan abilities dynamically via `TitanRegistry.GetAbilityForSlot(titanId, slot)`.
+    - Replaced hardcoded if-else ladders with data-driven lookup tables (`ClientAbilityAnticipation`, `EffectHandlers`).
+    - Preserved exact Ravager controls (WASD, Space, LMB/1, E/2, R/3, Q, M, U, T).
+  - **5. Dynamic Titan Selection UI (`DestructionHUD.client.luau`)**:
+    - Refactored `updateTitanSelectionView()` to dynamically bind cards from `TitanRegistry.GetList()`.
+    - UI updates stats, descriptions, requirements, and button states based on authoritative player data.
+    - Selection buttons reject locked Titans with UI audio error feedback.
+- **Verification & Playtesting (Studio Play Mode & Edit Mode)**:
+  - 64 assertion tests passed in Studio (registry fields, calculations, Ravager 0.15 HipHeight, camera config, formulas, audio keys, protected assets).
+  - Play Mode smoke test verified:
+    - Player spawned cleanly as Ravager (`HP: 3000`, `WalkSpeed: 28`, `HipHeight: 0.15`).
+    - No script errors or warnings in console log.
+    - Selection of locked Brontara successfully rejected by server with `Titan is locked.` notification.
+    - Ability execution (`BasicAttack`, `Stomp`, `Roar`) passed without error.
+    - DestructionHUD `TitanSelectionPanel` rendered dynamically with correct card data for Ravager (Active) and Brontara (Locked).
+  - All protected assets confirmed intact:
+    - `Workspace.Cities.SmallTown.Buildings` (15 buildings)
+    - `Workspace.Cities.Metrovale.Buildings` (27 buildings)
+    - `Workspace.Ravager_Prototype`
+    - `ReplicatedStorage.Assets.Models.Ravager` & `Brontara`
+    - `ReplicatedStorage.Remotes` (10 RemoteEvents)
+    - `StarterPlayer.StarterCharacter` (15 parts)
+    - `StarterGui.MainUI`
+- **Status:** Complete, Verified & Returned to Edit Mode.
+
 
 

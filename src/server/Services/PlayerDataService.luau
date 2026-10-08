@@ -17,7 +17,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local ConfigFolder = ReplicatedStorage:WaitForChild("Config")
+local SharedFolder = ReplicatedStorage:WaitForChild("Shared")
 local UpgradeConfig = require(ConfigFolder:WaitForChild("UpgradeConfig") :: ModuleScript)
+local TitanRegistry = require(SharedFolder:WaitForChild("TitanRegistry") :: ModuleScript)
 
 export type CityProgress = {
     Unlocked: boolean,
@@ -277,20 +279,6 @@ function PlayerDataService.MigrateProfile(data: any): any
             data.SelectedTitan = "Ravager"
         end
 
-        local lvl = tonumber(data.Level) or 1
-        local totalClears = 0
-        if type(data.Cities) == "table" then
-            for _, cityData in pairs(data.Cities) do
-                if type(cityData) == "table" then
-                    totalClears += (tonumber(cityData.Clears) or 0)
-                end
-            end
-        end
-        if lvl >= 5 and totalClears >= 2 then
-            data.Titans.Brontara.Unlocked = true
-            print("[PlayerDataService] 🎉 Player meets Brontara unlock criteria! Unlocked Brontara.")
-        end
-
         data.SchemaVersion = 3
     end
 
@@ -388,14 +376,6 @@ function PlayerDataService.ValidateProfile(raw: any): PlayerProfile
         bronUnlocked = (rawTitans.Brontara.Unlocked == true)
     end
 
-    local totalClears = 0
-    for _, c in pairs(profile.Cities) do
-        totalClears += (c.Clears or 0)
-    end
-    if profile.Level >= 5 and totalClears >= 2 then
-        bronUnlocked = true
-    end
-
     profile.Titans = {
         Ravager = { Unlocked = true },
         Brontara = { Unlocked = bronUnlocked },
@@ -422,7 +402,7 @@ end
 function PlayerDataService.SetSelectedTitan(player: Player, titanId: string): boolean
     local prof = PlayerDataService.GetProfile(player)
     if not prof then return false end
-    if titanId ~= "Ravager" and titanId ~= "Brontara" then return false end
+    if not TitanRegistry.Get(titanId) then return false end
     if not PlayerDataService.IsTitanUnlocked(player, titanId) then
         return false
     end
@@ -440,36 +420,15 @@ function PlayerDataService.IsTitanUnlocked(player: Player, titanId: string): boo
     if prof.Titans and prof.Titans[titanId] and prof.Titans[titanId].Unlocked == true then
         return true
     end
-    -- Auto-check requirements
-    local totalClears = 0
-    if type(prof.Cities) == "table" then
-        for _, c in pairs(prof.Cities) do
-            totalClears += (tonumber(c.Clears) or 0)
-        end
-    end
-    if titanId == "Brontara" and prof.Level >= 5 and totalClears >= 2 then
-        if prof.Titans and prof.Titans.Brontara then
-            prof.Titans.Brontara.Unlocked = true
-        else
-            prof.Titans = prof.Titans or { Ravager = { Unlocked = true } }
-            prof.Titans.Brontara = { Unlocked = true }
-        end
-        if mockStorage[player.UserId] then
-            if not mockStorage[player.UserId].Titans then
-                mockStorage[player.UserId].Titans = { Ravager = { Unlocked = true } }
-            end
-            mockStorage[player.UserId].Titans.Brontara = { Unlocked = true }
-        end
-        return true
-    end
     return false
 end
 
 function PlayerDataService.UnlockTitan(player: Player, titanId: string): boolean
     local prof = PlayerDataService.GetProfile(player)
     if not prof then return false end
+    if not TitanRegistry.Get(titanId) then return false end
     if not prof.Titans then
-        prof.Titans = { Ravager = { Unlocked = true } }
+        prof.Titans = { Ravager = { Unlocked = true }, Brontara = { Unlocked = false } }
     end
     if not prof.Titans[titanId] then
         prof.Titans[titanId] = { Unlocked = true }
@@ -478,7 +437,7 @@ function PlayerDataService.UnlockTitan(player: Player, titanId: string): boolean
     end
     if mockStorage[player.UserId] then
         if not mockStorage[player.UserId].Titans then
-            mockStorage[player.UserId].Titans = { Ravager = { Unlocked = true } }
+            mockStorage[player.UserId].Titans = { Ravager = { Unlocked = true }, Brontara = { Unlocked = false } }
         end
         mockStorage[player.UserId].Titans[titanId] = { Unlocked = true }
     end
@@ -489,25 +448,6 @@ function PlayerDataService.GetTitansData(player: Player): { [string]: { Unlocked
     local prof = PlayerDataService.GetProfile(player)
     if not prof or not prof.Titans then
         return { Ravager = { Unlocked = true }, Brontara = { Unlocked = false } }
-    end
-    local totalClears = 0
-    if type(prof.Cities) == "table" then
-        for _, c in pairs(prof.Cities) do
-            totalClears += (tonumber(c.Clears) or 0)
-        end
-    end
-    if prof.Level >= 5 and totalClears >= 2 then
-        if not prof.Titans.Brontara then
-            prof.Titans.Brontara = { Unlocked = true }
-        else
-            prof.Titans.Brontara.Unlocked = true
-        end
-        if mockStorage[player.UserId] then
-            if not mockStorage[player.UserId].Titans then
-                mockStorage[player.UserId].Titans = { Ravager = { Unlocked = true } }
-            end
-            mockStorage[player.UserId].Titans.Brontara = { Unlocked = true }
-        end
     end
     local copy: { [string]: { Unlocked: boolean } } = {}
     for k, v in pairs(prof.Titans) do
@@ -724,28 +664,6 @@ function PlayerDataService.UpdateProfile(player: Player, callback: (profile: Pla
     end
 
     callback(profile)
-
-    -- Auto-check Titan unlock criteria on profile mutation
-    local totalClears = 0
-    if type(profile.Cities) == "table" then
-        for _, c in pairs(profile.Cities) do
-            totalClears += (tonumber(c.Clears) or 0)
-        end
-    end
-    if profile.Level >= 5 and totalClears >= 2 then
-        if not profile.Titans then
-            profile.Titans = { Ravager = { Unlocked = true }, Brontara = { Unlocked = true } }
-        elseif not profile.Titans.Brontara or not profile.Titans.Brontara.Unlocked then
-            profile.Titans.Brontara = { Unlocked = true }
-        end
-        if mockStorage[player.UserId] then
-            if not mockStorage[player.UserId].Titans then
-                mockStorage[player.UserId].Titans = { Ravager = { Unlocked = true } }
-            end
-            mockStorage[player.UserId].Titans.Brontara = { Unlocked = true }
-        end
-    end
-
     return true
 end
 
@@ -851,47 +769,6 @@ function PlayerDataService.Start()
             end
         end
     end)
-end
-
---[=[
-    Titan Selection & Unlock Accessors.
-]=]
-function PlayerDataService.GetSelectedTitan(player: Player): string
-    local prof = PlayerDataService.GetProfile(player)
-    return if prof and prof.SelectedTitan then prof.SelectedTitan else "Ravager"
-end
-
-function PlayerDataService.SetSelectedTitan(player: Player, titanId: string): boolean
-    local prof = PlayerDataService.GetProfile(player)
-    if not prof then return false end
-    if titanId ~= "Ravager" and titanId ~= "Brontara" then return false end
-    if not prof.Titans[titanId] or not prof.Titans[titanId].Unlocked then
-        return false
-    end
-    prof.SelectedTitan = titanId
-    return true
-end
-
-function PlayerDataService.IsTitanUnlocked(player: Player, titanId: string): boolean
-    local prof = PlayerDataService.GetProfile(player)
-    if not prof then return titanId == "Ravager" end
-    return prof.Titans[titanId] ~= nil and prof.Titans[titanId].Unlocked == true
-end
-
-function PlayerDataService.UnlockTitan(player: Player, titanId: string): boolean
-    local prof = PlayerDataService.GetProfile(player)
-    if not prof then return false end
-    if not prof.Titans[titanId] then return false end
-    prof.Titans[titanId].Unlocked = true
-    return true
-end
-
-function PlayerDataService.GetTitansData(player: Player): { [string]: { Unlocked: boolean } }
-    local prof = PlayerDataService.GetProfile(player)
-    if not prof or not prof.Titans then
-        return { Ravager = { Unlocked = true }, Brontara = { Unlocked = false } }
-    end
-    return prof.Titans
 end
 
 return PlayerDataService

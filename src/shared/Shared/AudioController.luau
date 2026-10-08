@@ -184,19 +184,43 @@ end
 -- ====================================================================
 
 --[=[
-    Plays whoosh swing audio matching the attack variant.
+    Resolves the sound key for a Titan ability from TitanRegistry.
+]=]
+function AudioController.GetTitanSoundKey(titanId: string?, soundCategory: string, variant: string?): string
+    local id = titanId or "Ravager"
+    local sharedMod = ReplicatedStorage:FindFirstChild("Shared")
+    if sharedMod then
+        local titanRegMod = sharedMod:FindFirstChild("TitanRegistry")
+        if titanRegMod and titanRegMod:IsA("ModuleScript") then
+            local reg = require(titanRegMod)
+            local def = reg.Get(id)
+            if def and def.AudioProfile then
+                local val = def.AudioProfile[soundCategory]
+                if type(val) == "table" and variant then
+                    return val[variant] or variant
+                elseif type(val) == "string" then
+                    return val
+                end
+            end
+        end
+    end
+    return if variant then variant else soundCategory
+end
+
+--[=[
+    Plays whoosh swing audio matching the attack variant for a specific Titan.
+]=]
+function AudioController.PlayTitanAttackWhoosh(titanId: string?, variant: string, sourcePart: BasePart?): Sound?
+    local soundKey = AudioController.GetTitanSoundKey(titanId, "AttackWhoosh", variant)
+    local target = sourcePart or Workspace.CurrentCamera
+    return AudioController.PlaySpatial(soundKey, target)
+end
+
+--[=[
+    Plays whoosh swing audio matching the attack variant (defaulting to Ravager).
 ]=]
 function AudioController.PlayBasicAttackWhoosh(variant: string, sourcePart: BasePart?): Sound?
-    local target = sourcePart or Workspace.CurrentCamera
-    if variant == "LeftSwipe" then
-        return AudioController.PlaySpatial("LeftSwipe", target)
-    elseif variant == "RightSwipe" then
-        return AudioController.PlaySpatial("RightSwipe", target)
-    elseif variant == "DownwardSmash" then
-        return AudioController.PlaySpatial("DownwardSmash", target)
-    else
-        return AudioController.PlaySpatial("LeftSwipe", target)
-    end
+    return AudioController.PlayTitanAttackWhoosh("Ravager", variant, sourcePart)
 end
 
 --[=[
@@ -240,11 +264,19 @@ function AudioController.PlayStompImpact(position: Vector3): Sound?
 end
 
 --[=[
-    Plays Roar audio during the tremor phase.
+    Plays Titan-specific Roar audio during the tremor phase.
+]=]
+function AudioController.PlayTitanRoar(titanId: string?, sourcePart: BasePart?): Sound?
+    local soundKey = AudioController.GetTitanSoundKey(titanId, "Roar", nil)
+    local target = sourcePart or Workspace.CurrentCamera
+    return AudioController.PlaySpatial(soundKey, target)
+end
+
+--[=[
+    Plays Roar audio during the tremor phase (defaulting to Ravager).
 ]=]
 function AudioController.PlayRoar(sourcePart: BasePart?): Sound?
-    local target = sourcePart or Workspace.CurrentCamera
-    return AudioController.PlaySpatial("Roar", target)
+    return AudioController.PlayTitanRoar("Ravager", sourcePart)
 end
 
 -- ====================================================================
