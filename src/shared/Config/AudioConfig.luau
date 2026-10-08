@@ -76,6 +76,18 @@ local AudioConfig: AudioConfigType = {
             RollOffMode = Enum.RollOffMode.InverseTapered,
         },
 
+        TailSweepWhoosh = {
+            SoundId = "rbxasset://sounds/action_jump.mp3",
+            PlaceholderAssetId = "rbxassetid://0", -- Production: Colossal tail whip whoosh
+            Volume = 1.05,
+            BasePitch = 0.85, -- Heavy, deep low-frequency whoosh
+            PitchVariation = 0.05,
+            SoundGroup = "Combat",
+            RollOffMinDistance = 20,
+            RollOffMaxDistance = 320,
+            RollOffMode = Enum.RollOffMode.InverseTapered,
+        },
+
         Impact_Small = {
             SoundId = "rbxasset://sounds/action_jump_land.mp3",
             PlaceholderAssetId = "rbxassetid://0", -- Production: Crisp concrete wall impact
@@ -165,6 +177,32 @@ local AudioConfig: AudioConfigType = {
             RollOffMinDistance = 25,
             RollOffMaxDistance = 350,
             RollOffMode = Enum.RollOffMode.InverseTapered,
+        },
+
+        HeavyStompImpact = {
+            SoundId = "rbxasset://sounds/impact_explosion_03.mp3",
+            PlaceholderAssetId = "rbxassetid://0", -- Production: Massive seismic ground slam & shockwave
+            Volume = 1.55,
+            BasePitch = 0.75, -- Deeper, massive seismic impact
+            PitchVariation = 0.04,
+            SoundGroup = "Combat",
+            RollOffMinDistance = 45,
+            RollOffMaxDistance = 550,
+            RollOffMode = Enum.RollOffMode.InverseTapered,
+            SecondarySoundId = "rbxasset://sounds/action_jump_land.mp3",
+        },
+
+        NeckStrikeImpact = {
+            SoundId = "rbxasset://sounds/action_jump_land.mp3",
+            PlaceholderAssetId = "rbxassetid://0", -- Production: Deep hammer plunge structural thud
+            Volume = 1.25,
+            BasePitch = 0.70,
+            PitchVariation = 0.05,
+            SoundGroup = "Combat",
+            RollOffMinDistance = 25,
+            RollOffMaxDistance = 380,
+            RollOffMode = Enum.RollOffMode.InverseTapered,
+            SecondarySoundId = "rbxasset://sounds/impact_explosion_03.mp3",
         },
 
         Roar = {

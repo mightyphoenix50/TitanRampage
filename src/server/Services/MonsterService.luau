@@ -438,6 +438,7 @@ end
 
 --[=[
     Executes Tail Sweep (Brontara primary sweep attack).
+    Wide CC/destruction sweep: 160° rear/flank arc, multi-target, hits each qualifying building once.
 ]=]
 function MonsterService.ExecuteTailSweep(player: Player, character: Model, hrp: BasePart, abilityDef: any, titanDef: any)
     local range = abilityDef.Range or 26
@@ -449,31 +450,44 @@ function MonsterService.ExecuteTailSweep(player: Player, character: Model, hrp: 
     })
 
     if CityService and DestructionService then
-        local nearbyBuildings = CityService.GetBuildingsInRadius(hrp.Position, range + 8)
+        local nearbyBuildings = CityService.GetBuildingsInRadius(hrp.Position, range + 10)
         local upgradePower = ProgressionService.GetUpgradeValue(player, "BasicAttackDamage")
         local scaledDmg = TitanRegistry.CalculateAbilityDamage(titanDef.Id, "TailSweep", upgradePower)
+        local backVector = -hrp.CFrame.LookVector
         local hitCount = 0
 
         for _, item in ipairs(nearbyBuildings) do
             local bld = item.Building
             if not bld:GetAttribute("IsDestroyed") then
-                local tier = tonumber(bld:GetAttribute("DestructionTier")) or 1
-                local tierMult = if tier == 1 then 1.0 elseif tier == 2 then 0.70 elseif tier == 3 then 0.50 else 0.40
-                local calculatedDamage = math.max(1, math.floor(scaledDmg * tierMult))
+                local bldPos = item.Entry.Position
+                local toBld = Vector3.new(bldPos.X, 0, bldPos.Z) - Vector3.new(hrp.Position.X, 0, hrp.Position.Z)
+                local dist = toBld.Magnitude
 
-                local success, _ = DestructionService.DamageBuilding(bld, calculatedDamage, player, "TailSweep")
-                if success then
-                    hitCount += 1
+                if dist <= (range + 6) and dist > 0.01 then
+                    local dot = backVector:Dot(toBld.Unit)
+                    -- 160° horizontal rear/flank arc: dot >= cos(80°) (~0.1736)
+                    if dot >= 0.15 then
+                        local tier = tonumber(bld:GetAttribute("DestructionTier")) or 1
+                        local tierMult = if tier == 1 then 1.0 elseif tier == 2 then 0.70 elseif tier == 3 then 0.50 else 0.40
+                        local calculatedDamage = math.max(1, math.floor(scaledDmg * tierMult))
+
+                        local success, _ = DestructionService.DamageBuilding(bld, calculatedDamage, player, "TailSweep")
+                        if success then
+                            hitCount += 1
+                        end
+                    end
                 end
             end
         end
 
-        print(string.format("[MonsterService] [TailSweep] %s (%s) swept! Hit %d buildings for %d dmg", player.Name, titanDef.DisplayName, hitCount, scaledDmg))
+        print(string.format("[MonsterService] [TailSweep] %s (%s) swept! Hit %d buildings for %d base dmg",
+            player.Name, titanDef.DisplayName, hitCount, scaledDmg))
     end
 end
 
 --[=[
     Executes Heavy Stomp Ability (Brontara heavy seismic slam).
+    0.50s wind-up, synchronized damage at impact, 45-stud radius with radial falloff (1.0 at epicenter down to 0.35 at perimeter).
 ]=]
 function MonsterService.ExecuteHeavyStomp(player: Player, character: Model, hrp: BasePart, abilityDef: any, titanDef: any)
     local windUp = abilityDef.WindUp or 0.50
@@ -481,7 +495,8 @@ function MonsterService.ExecuteHeavyStomp(player: Player, character: Model, hrp:
     local radius = TitanRegistry.CalculateAbilityRadius(titanDef.Id, "HeavyStomp", upgradeRadius)
     local groundPos = hrp.Position - Vector3.new(0, hrp.Size.Y * 0.5, 0)
 
-    print(string.format("[MonsterService] [Heavy Stomp Wind-up] %s (%s) rearing up (%.2fs windup, %d radius)...", player.Name, titanDef.DisplayName, windUp, radius))
+    print(string.format("[MonsterService] [Heavy Stomp Wind-up] %s (%s) rearing up (%.2fs windup, %d radius)...",
+        player.Name, titanDef.DisplayName, windUp, radius))
 
     TitanEffectRemote:FireAllClients("HeavyStompWindup", character, {
         Position = groundPos,
@@ -513,7 +528,7 @@ function MonsterService.ExecuteHeavyStomp(player: Player, character: Model, hrp:
                     local tier = tonumber(bld:GetAttribute("DestructionTier")) or 1
                     local tierMult = if tier == 1 then 1.0 elseif tier == 2 then 0.75 elseif tier == 3 then 0.50 else 0.40
                     local maxStomp = math.max(1, math.floor(scaledStomp * tierMult))
-                    local minFactor = 0.40
+                    local minFactor = 0.35
 
                     local dist = item.Distance
                     local falloff = math.clamp(1 - (dist / radius), 0, 1)
@@ -525,17 +540,18 @@ function MonsterService.ExecuteHeavyStomp(player: Player, character: Model, hrp:
                 end
             end
 
-            print(string.format("[MonsterService] [Heavy Stomp IMPACT] %s (%s) seismic shock hit %d buildings!", player.Name, titanDef.DisplayName, count))
+            print(string.format("[MonsterService] [Heavy Stomp IMPACT] %s (%s) seismic shock hit %d buildings (Radius: %d studs)!",
+                player.Name, titanDef.DisplayName, count, radius))
         end
     end)
 end
 
 --[=[
-    Executes Neck Strike Ability (Brontara signature long-range overhead smash).
+    Executes Neck Strike Ability (Brontara signature precision forward strike).
+    Precision forward strike: 45° forward cone, 52-stud range, selects single targeted building within reach.
 ]=]
 function MonsterService.ExecuteNeckStrike(player: Player, character: Model, hrp: BasePart, abilityDef: any, titanDef: any)
     local range = abilityDef.Range or 52
-    local radius = abilityDef.Radius or 14
     local strikePosition = hrp.Position + (hrp.CFrame.LookVector * (range * 0.85))
 
     TitanEffectRemote:FireAllClients("NeckStrike", character, {
@@ -544,29 +560,50 @@ function MonsterService.ExecuteNeckStrike(player: Player, character: Model, hrp:
     })
 
     if CityService and DestructionService then
-        local nearbyBuildings = CityService.GetBuildingsInRadius(strikePosition, radius)
-        local upgradePower = ProgressionService.GetUpgradeValue(player, "BasicAttackDamage")
-        local scaledDmg = TitanRegistry.CalculateAbilityDamage(titanDef.Id, "NeckStrike", upgradePower)
-        local countHit = 0
+        local nearbyBuildings = CityService.GetBuildingsInRadius(hrp.Position, range + 10)
+        local targetBuilding = nil
+        local targetDist = 9999
 
         for _, item in ipairs(nearbyBuildings) do
             local bld = item.Building
             if not bld:GetAttribute("IsDestroyed") then
-                local tier = tonumber(bld:GetAttribute("DestructionTier")) or 1
-                local tierMult = if tier == 1 then 1.0 elseif tier == 2 then 0.75 elseif tier == 3 then 0.55 else 0.45
-                local calculatedDamage = math.max(1, math.floor(scaledDmg * tierMult))
+                local bldPos = item.Entry.Position
+                local toBld = Vector3.new(bldPos.X, 0, bldPos.Z) - Vector3.new(hrp.Position.X, 0, hrp.Position.Z)
+                local dist = toBld.Magnitude
 
-                local success = DestructionService.DamageBuilding(bld, calculatedDamage, player, "NeckStrike")
-                if success then countHit += 1 end
+                if dist <= (range + 6) and dist > 0.01 then
+                    local dot = hrp.CFrame.LookVector:Dot(toBld.Unit)
+                    -- 45° forward cone: dot >= cos(45°) (~0.7071)
+                    if dot >= 0.70 and dist < targetDist then
+                        targetDist = dist
+                        targetBuilding = bld
+                    end
+                end
             end
         end
 
-        print(string.format("[MonsterService] [NeckStrike] %s (%s) plunge hit %d buildings for %d dmg!", player.Name, titanDef.DisplayName, countHit, scaledDmg))
+        if targetBuilding then
+            local upgradePower = ProgressionService.GetUpgradeValue(player, "BasicAttackDamage")
+            local scaledDmg = TitanRegistry.CalculateAbilityDamage(titanDef.Id, "NeckStrike", upgradePower)
+            local tier = tonumber(targetBuilding:GetAttribute("DestructionTier")) or 1
+            local tierMult = if tier == 1 then 1.0 elseif tier == 2 then 0.75 elseif tier == 3 then 0.55 else 0.45
+            local calculatedDamage = math.max(1, math.floor(scaledDmg * tierMult))
+
+            local success, damageApplied = DestructionService.DamageBuilding(targetBuilding, calculatedDamage, player, "NeckStrike")
+            if success then
+                print(string.format("[MonsterService] [NeckStrike] %s (%s) plunged downward into '%s' (Tier %d) for %d damage!",
+                    player.Name, titanDef.DisplayName, targetBuilding.Name, tier, damageApplied))
+            end
+        else
+            print(string.format("[MonsterService] [NeckStrike] %s (%s) attacked air. No building in forward strike reach.",
+                player.Name, titanDef.DisplayName))
+        end
     end
 end
 
 --[=[
     Executes Roar Ability (utility intimidation effect).
+    Zero building damage, distinct quadruped presentation and seismic shockwave FX.
 ]=]
 function MonsterService.ExecuteRoar(player: Player, character: Model, hrp: BasePart, abilityDef: any, titanDef: any)
     local head = character:FindFirstChild("Head") :: BasePart?
@@ -574,7 +611,8 @@ function MonsterService.ExecuteRoar(player: Player, character: Model, hrp: BaseP
     local radius = abilityDef.Radius or 45
     local titanId = titanDef.Id
 
-    print(string.format("[MonsterService] [Roar EVENT] %s (%s) unleashed a thunderous Roar! Radius: %d studs.", player.Name, titanDef.DisplayName, radius))
+    print(string.format("[MonsterService] [Roar EVENT] %s (%s) unleashed a thunderous Roar! Radius: %d studs.",
+        player.Name, titanDef.DisplayName, radius))
 
     TitanEffectRemote:FireAllClients("Roar", character, {
         Position = roarOrigin,
@@ -610,19 +648,15 @@ function MonsterService.ProcessAbilityRequest(player: Player, actionName: string
     local titanDef = TitanRegistry.Get(titanId)
     if not titanDef then return end
 
-    if titanId == "Brontara" then
-        print(string.format("[MonsterService] 🛑 Ability '%s' rejected for %s: Brontara combat abilities are inactive in Milestone 9B.", actionName, player.Name))
-        TitanFeedbackRemote:FireClient(player, "AbilityRejected", {
-            TitanId = "Brontara",
-            Ability = actionName,
-            Reason = "Brontara combat abilities are inactive in Milestone 9B.",
-        })
-        return
-    end
-
     local abilityDef = titanDef.Abilities[actionName]
     if not abilityDef then
-        warn(string.format("[MonsterService] %s requested unknown ability: %s", player.Name, tostring(actionName)))
+        warn(string.format("[MonsterService] 🛑 %s (%s) requested invalid/cross-Titan ability: %s",
+            player.Name, titanDef.DisplayName, tostring(actionName)))
+        TitanFeedbackRemote:FireClient(player, "AbilityRejected", {
+            TitanId = titanId,
+            Ability = actionName,
+            Reason = string.format("Ability '%s' is not available for %s.", tostring(actionName), titanDef.DisplayName),
+        })
         return
     end
 
@@ -644,6 +678,11 @@ function MonsterService.ProcessAbilityRequest(player: Player, actionName: string
     if (now - lastUsed) < cooldownTime then
         local remaining = cooldownTime - (now - lastUsed)
         print(string.format("[MonsterService] Ability %s on cooldown for %s (%.2fs remaining)", actionName, player.Name, remaining))
+        TitanFeedbackRemote:FireClient(player, "AbilityRejected", {
+            TitanId = titanId,
+            Ability = actionName,
+            Reason = string.format("Ability '%s' is recharging (%.1fs remaining).", actionName, remaining),
+        })
         return
     end
 

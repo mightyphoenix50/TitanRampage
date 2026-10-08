@@ -253,14 +253,22 @@ function AudioController.PlayStompAnticipation(sourcePart: BasePart?): Sound?
 end
 
 --[=[
-    Plays Stomp impact sound at exact 0.35s impact moment.
+    Plays Titan-specific Stomp impact sound at impact moment.
 ]=]
-function AudioController.PlayStompImpact(position: Vector3): Sound?
-    local s = AudioController.PlaySpatial("StompImpact", position)
+function AudioController.PlayTitanStompImpact(titanId: string?, position: Vector3): Sound?
+    local soundKey = AudioController.GetTitanSoundKey(titanId, "StompImpact", nil)
+    local s = AudioController.PlaySpatial(soundKey, position)
     task.delay(0.1, function()
         AudioController.PlaySpatial("StompDebris", position)
     end)
     return s
+end
+
+--[=[
+    Plays Stomp impact sound at exact 0.35s impact moment.
+]=]
+function AudioController.PlayStompImpact(position: Vector3): Sound?
+    return AudioController.PlayTitanStompImpact("Ravager", position)
 end
 
 --[=[

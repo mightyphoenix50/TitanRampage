@@ -461,5 +461,74 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
   - Output log: 0 unexpected runtime errors.
 - **Status:** Complete, Verified & Returned to Edit Mode.
 
+---
+
+### [2026-10-08 18:35 UTC] — Prompt: Milestone 9C — Brontara Combat Implementation
+- **Goal:** Implement Brontara's complete, server-authoritative combat kit (Tail Sweep, Heavy Stomp, Neck Strike, Roar) with procedural Motor6D animations, distinct acoustic profile, non-locking locomotion, destruction integration, and strict security validation.
+- **Architectural Scope & Implementations:**
+  - **1. Server-Authoritative Ability Execution (`MonsterService.luau`)**:
+    - Removed Milestone 9B temporary ability block for Brontara.
+    - Implemented `ExecuteTailSweep`:
+      - Wide horizontal rear/flank CC sweep: 160° arc (`math.abs(angle) <= 80°` relative to backward vector `-hrp.CFrame.LookVector`).
+      - Range: 26 studs (up to 32 studs with building footprint).
+      - Multi-target damage: hits each qualifying building in the arc once for 200 base damage (scaled via `BasicAttackDamage` upgrade and building tier multipliers).
+      - Server-enforced facing check: buildings in front are immune.
+    - Implemented `ExecuteHeavyStomp`:
+      - Synchronized 0.50s wind-up delay with client anticipation broadcast (`HeavyStompWindup`).
+      - Impact at exact 0.50s moment with 45-stud radius (`StompRadius` upgradeable).
+      - 600 base damage (`StompDamage` upgradeable) with smooth radial falloff (1.0 factor at epicenter down to 0.35 factor at perimeter).
+      - Non-locking movement: only torso and legs rear up, restoring neutral grounding after impact.
+    - Implemented `ExecuteNeckStrike`:
+      - Precision forward strike: 45° forward cone (`dot >= 0.70`), 52-stud reach.
+      - Single-target targeting: selects the closest/best-aligned forward building and deals 350 base damage (scaled via `BasicAttackDamage` and tier multipliers).
+      - Not an area wipe; buildings behind or outside the cone are immune.
+    - Implemented `ExecuteRoar`:
+      - Server-authoritative utility intimidation bellow: 55-stud radius, 8.0s cooldown.
+      - Broadcasts `TitanEffect ("Roar")` with `Titan = "Brontara"`.
+      - Strict zero-damage guarantee: verified 0 damage to all buildings.
+    - Security & Validation:
+      - Enforces ability registration per active Titan: cross-Titan requests (e.g. Ravager requesting `TailSweep` or Brontara requesting `BasicAttack`) are rejected server-side with warning and `AbilityRejected` client feedback.
+      - Cooldown validation: server rejects rapid-fire requests with remaining duration feedback.
+  - **2. Authoritative Progression & Stat Scaling (`TitanRegistry.luau`)**:
+    - Calibrated `Brontara.UpgradeMappings` with `BaseValue` entries matching `UpgradeConfig` Tier 1 values (`150`, `0.78`, `400`, `30`, `5.0`, `28`, `8.0`).
+    - At Level 1, ratio scaling is exactly 1.0 (Tail Sweep 200 dmg, Heavy Stomp 600 dmg, Neck Strike 350 dmg).
+    - At Level 5, stats scale smoothly to 506 dmg (Tail Sweep), 1650 dmg (Heavy Stomp), 886 dmg (Neck Strike).
+    - Registered audio keys in `Brontara.AudioProfile` (`TailSweepWhoosh`, `HeavyStompImpact`, `NeckStrikeImpact`).
+  - **3. Expressive Procedural Motor6D Animations (`TitanAnimationController.luau`)**:
+    - Implemented `PlayTailSweep`: Torso & tail coil left (0.15s), violent horizontal sweep right (0.22s), recovery to neutral (0.28s). Total: 0.65s.
+    - Implemented `PlayHeavyStomp`: Colossal rear-up on hind legs during 0.50s wind-up, downward pillar slam at 0.50s (0.15s), heavy recovery (0.35s). Total: 1.00s.
+    - Implemented `PlayNeckStrike`: High neck coil drawback (0.22s), downward hammer plunge (0.18s), recovery (0.30s). Total: 0.70s.
+    - Implemented `PlayBrontaraRoar`: Skyward neck extension (0.35s), infrasonic tremor vibration (0.45s), recovery to stance (0.30s). Total: 1.10s.
+    - State gating in `RenderStepped` quadruped walk connection prevents joint conflicts during attacks while allowing continuous WASD locomotion.
+    - Exact rest pose restoration: all 12 Motor6D joints return to exact `OrigC0` at completion, guaranteeing zero cumulative drift.
+  - **4. Sound Infrastructure (`AudioConfig.luau` & `AudioController.luau`)**:
+    - Added `TailSweepWhoosh`: 0.85 pitch low-frequency sweep whoosh.
+    - Added `HeavyStompImpact`: 0.75 pitch massive seismic ground slam with debris rumble.
+    - Added `NeckStrikeImpact`: 0.70 pitch structural hammer plunge sound.
+    - Added `AudioController.PlayTitanStompImpact(titanId, position)`.
+  - **5. Dynamic Client Input Routing & FX (`TitanController.client.luau`)**:
+    - Dynamically maps inputs via `TitanRegistry.GetAbilityForSlot`:
+      - Brontara: Primary (LMB/1) -> `TailSweep`, Stomp (E/2) -> `HeavyStomp`, Signature (Q) -> `NeckStrike`, Utility (R/3) -> `Roar`.
+      - Ravager: Primary (LMB/1) -> `BasicAttack`, Stomp (E/2) -> `Stomp`, Signature (Q) -> None, Utility (R/3) -> `Roar`.
+    - Zero cross-Titan fallthrough.
+    - Client ability anticipation triggers zero-latency whooshes and animations.
+    - Modular effect handlers render dynamic visual rings, dust clouds, and directional camera tremors.
+  - **6. Full Destruction & Run Tracking Integration (`DestructionService.luau` & `CityService.luau`)**:
+    - All Brontara abilities integrate with `DestructionService.DamageBuilding`: floating damage numbers, combo multiplier, cash/point/XP rewards, and visual collapse into rubble.
+    - `CityService.RecordAbilityUsed` tracks `TailSweep` and `NeckStrike` under BasicAttacks, `HeavyStomp` under Stomps, `Roar` under Roars.
+- **Verification & Playtesting (16-Step Test Suite Passed in Studio Play Mode)**:
+  - Brontara spawn: 4500 HP, 20 WalkSpeed, 0 JumpPower, -0.18 HipHeight.
+  - Tail Sweep: dealt 100 dmg to Tier 3 building (200 base * 0.50 tier mult); 0 dmg when facing away.
+  - Heavy Stomp: 0 dmg during 0.50s wind-up; 534 dmg dealt at impact with radial falloff across 3 buildings.
+  - Neck Strike: dealt 350 dmg directly to forward targeted Tier 1 building; 0 dmg when facing away.
+  - Roar: verified 0 buildings damaged across entire city.
+  - Security tests: rapid-fire cooldown spam rejected; cross-Titan abilities rejected (Brontara requesting BasicAttack/Stomp; Ravager requesting TailSweep/HeavyStomp/NeckStrike).
+  - Destruction test: building collapsed into rubble, awarded +$20 Cash, combo incremented.
+  - CityService run tracking: recorded 4 basic attacks, 1 stomp, 3 roars, 1596 total damage.
+  - Ravager regression: HP 3000, WS 28, JP 65, HipHeight 0.15; Claw Strike, Stomp, Roar fully operational.
+  - Protected assets: SmallTown (15), Metrovale (27), Ravager_Prototype, Ravager & Brontara models, 10 Remotes, StarterCharacter (15 parts), MainUI intact.
+  - Console: 0 runtime errors.
+- **Status:** Complete, Verified & Returned to Edit Mode.
+
 
 
