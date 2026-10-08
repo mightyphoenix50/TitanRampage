@@ -294,6 +294,12 @@ function MonsterService.SetupTitanCharacter(player: Player, character: Model)
     humanoid.HipHeight = titanDef.HipHeight
     humanoid.DisplayName = string.format("%s (%s)", player.DisplayName, titanDef.DisplayName)
 
+    if titanDef.JumpPower <= 0 then
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+    else
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+    end
+
     player.CameraMinZoomDistance = titanDef.CameraZoom.Min
     player.CameraMaxZoomDistance = titanDef.CameraZoom.Max
     humanoid.CameraOffset = titanDef.CameraZoom.CameraOffset
@@ -603,6 +609,16 @@ function MonsterService.ProcessAbilityRequest(player: Player, actionName: string
     local titanId = activeTitans[player.UserId] or PlayerDataService.GetSelectedTitan(player) or "Ravager"
     local titanDef = TitanRegistry.Get(titanId)
     if not titanDef then return end
+
+    if titanId == "Brontara" then
+        print(string.format("[MonsterService] 🛑 Ability '%s' rejected for %s: Brontara combat abilities are inactive in Milestone 9B.", actionName, player.Name))
+        TitanFeedbackRemote:FireClient(player, "AbilityRejected", {
+            TitanId = "Brontara",
+            Ability = actionName,
+            Reason = "Brontara combat abilities are inactive in Milestone 9B.",
+        })
+        return
+    end
 
     local abilityDef = titanDef.Abilities[actionName]
     if not abilityDef then

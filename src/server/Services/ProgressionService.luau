@@ -243,6 +243,16 @@ function ProgressionService.AddRewards(player: Player, cash: number, points: num
 
     if leveledUp then
         print(string.format("[ProgressionService] 🎉 %s leveled up to Level %d! (Next threshold: %d XP)", player.Name, newLevel, nextLevelXP))
+        local newlyUnlocked = PlayerDataService.CheckTitanUnlocks(player)
+        if next(newlyUnlocked) ~= nil then
+            local titanFeedback = RemotesFolder:FindFirstChild("TitanFeedback") :: RemoteEvent?
+            if titanFeedback then
+                titanFeedback:FireClient(player, "TitanListSync", {
+                    Titans = PlayerDataService.GetTitansData(player),
+                    SelectedTitan = PlayerDataService.GetSelectedTitan(player),
+                })
+            end
+        end
     end
 
     -- Broadcast update to player

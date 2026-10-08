@@ -413,10 +413,48 @@ function PlayerDataService.SetSelectedTitan(player: Player, titanId: string): bo
     return true
 end
 
+function PlayerDataService.CheckTitanUnlocks(player: Player): { [string]: boolean }
+    local prof = PlayerDataService.GetProfile(player)
+    if not prof then return {} end
+
+    local totalClears = 0
+    if prof.Statistics and type(prof.Statistics.TotalCitiesCompleted) == "number" then
+        totalClears = prof.Statistics.TotalCitiesCompleted
+    elseif prof.Cities then
+        for _, c in pairs(prof.Cities) do
+            if type(c) == "table" and type(c.Clears) == "number" then
+                totalClears += c.Clears
+            end
+        end
+    end
+
+    local newlyUnlocked: { [string]: boolean } = {}
+    for _, titanDef in ipairs(TitanRegistry.GetList()) do
+        local id = titanDef.Id
+        if id ~= "Ravager" then
+            local isAlreadyUnlocked = prof.Titans and prof.Titans[id] and prof.Titans[id].Unlocked == true
+            if not isAlreadyUnlocked then
+                local canUnlock, _ = TitanRegistry.IsUnlocked(id, prof.Level or 1, totalClears)
+                if canUnlock then
+                    PlayerDataService.UnlockTitan(player, id)
+                    newlyUnlocked[id] = true
+                    print(string.format("[PlayerDataService] 🔓 Titan '%s' unlocked for %s (Level %d, %d Clears)",
+                        id, player.Name, prof.Level or 1, totalClears))
+                end
+            end
+        end
+    end
+    return newlyUnlocked
+end
+
 function PlayerDataService.IsTitanUnlocked(player: Player, titanId: string): boolean
     local prof = PlayerDataService.GetProfile(player)
     if not prof then return titanId == "Ravager" end
     if titanId == "Ravager" then return true end
+    if prof.Titans and prof.Titans[titanId] and prof.Titans[titanId].Unlocked == true then
+        return true
+    end
+    PlayerDataService.CheckTitanUnlocks(player)
     if prof.Titans and prof.Titans[titanId] and prof.Titans[titanId].Unlocked == true then
         return true
     end
@@ -449,6 +487,7 @@ function PlayerDataService.GetTitansData(player: Player): { [string]: { Unlocked
     if not prof or not prof.Titans then
         return { Ravager = { Unlocked = true }, Brontara = { Unlocked = false } }
     end
+    PlayerDataService.CheckTitanUnlocks(player)
     local copy: { [string]: { Unlocked: boolean } } = {}
     for k, v in pairs(prof.Titans) do
         copy[k] = { Unlocked = (v.Unlocked == true) }

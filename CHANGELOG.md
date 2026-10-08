@@ -419,5 +419,47 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
     - `StarterGui.MainUI`
 - **Status:** Complete, Verified & Returned to Edit Mode.
 
+---
+
+### [2026-10-08 16:45 UTC] — Prompt: Milestone 9B — Brontara Core Implementation
+- **Goal:** Integrate Brontara as a selectable, fully controllable second Titan upon unlocking, with precise quadruped grounding, deliberate locomotion, custom camera zooming, and authoritative rejection of inactive combat abilities.
+- **Architectural Scope (Core Locomotion & Character Integration ONLY — Combat Inactive):**
+  - **1. Brontara Model & Grounding Calibration**:
+    - Rig analysis: 21 parts, 12 Motor6D joints, R6 configuration, 17,658 total mass (3.2x Ravager mass).
+    - Calculated grounding: In rest pose, all 4 feet (`Left Arm`, `Right Arm`, `Left Leg`, `Right Leg`) extend to Y=0.0 while `Torso` sits at Y=16.0.
+    - Equilibrium raycast clearance calibrated: setting `Humanoid.HipHeight = -0.18` produces an exact `0.10 studs` clearance across all four feet. Zero hover, zero terrain clipping, zero vertical jitter.
+  - **2. Movement & Jumping Configuration**:
+    - Base `WalkSpeed` configured at 20 studs/sec for a heavy, deliberate quadruped locomotion feel.
+    - Jumping explicitly disabled (`JumpPower = 0`, `humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)`) to prevent unrealistic hopping and unstable physics on a 17,658-mass sauropod.
+  - **3. Camera Integration**:
+    - Colossal camera zoom range: `Min = 25`, `Max = 160`, `Default = 65`, `CameraOffset = Vector3.new(0, 10, 0)`.
+    - Smooth transitions between Ravager (15–120 zoom) and Brontara (25–160 zoom).
+  - **4. Procedural Quadruped Locomotion (`TitanAnimationController.luau`)**:
+    - Diagonal gait: alternating front-left/rear-right and front-right/rear-left strides with neck bob and undulating tail sway.
+    - Turning presence: neck bends into the turn direction while tail trails outward.
+    - Idle breathing: gentle rhythmic sinusoidal sway in neck and tail; limbs lerp smoothly to neutral stance.
+  - **5. Authoritative Unlock & Progression Flow (`PlayerDataService.luau` & `MonsterService.luau`)**:
+    - Authoritative requirement: Level 5 + 2 City Clears.
+    - Implemented `PlayerDataService.CheckTitanUnlocks()` evaluating persistent profile level and total city completions against `TitanRegistry.IsUnlocked`.
+    - Rejects locked Titan selection server-side (`TitanSelectRejected`).
+    - Syncs unlock state dynamically on level-up and city completion.
+  - **6. Safe Inactive Combat Enforcement (Milestone 9B Scope Boundary)**:
+    - All combat abilities for Brontara (`BasicAttack`, `Stomp`, `Roar`, `TailSweep`, `HeavyStomp`, `NeckStrike`) are strictly rejected on both client and server.
+    - Zero damage, zero city destruction, zero fallback to Ravager attacks.
+- **Verification & Playtesting (15-Step Test Suite Passed)**:
+  - Edit mode inspection & Registry tests: 24/24 assertions passed.
+  - Locked Brontara selection rejected by server.
+  - Controlled unlock test: Level 5 + 2 clears unlocked Brontara in session.
+  - Brontara spawn: 4500 HP, 20 WalkSpeed, 0 JumpPower, -0.18 HipHeight.
+  - Grounding measurement: all 4 feet verified at exactly 0.10 studs clearance, velocity 0,0,0, Running state.
+  - Movement & turning: 20.00 studs forward travel in 1.0s, stable Y (0.08 delta), 90-degree turning with AutoRotate passed.
+  - Camera: verified min 25, max 160, offset (0, 10, 0).
+  - Ability rejection: 6/6 abilities rejected with zero damage delta and zero attack count delta.
+  - Round-trip switching: Brontara -> Ravager -> Brontara verified seamlessly.
+  - Ravager regression test: 3000 HP, 28 WalkSpeed, 0.15 HipHeight, Claw Strike / Stomp / Roar fully functional.
+  - Protected assets: SmallTown (15), Metrovale (27), Ravager_Prototype, Ravager & Brontara models, 10 Remotes, StarterCharacter (15 parts), MainUI intact.
+  - Output log: 0 unexpected runtime errors.
+- **Status:** Complete, Verified & Returned to Edit Mode.
+
 
 

@@ -144,6 +144,9 @@ local ClientAbilityAnticipation: { [string]: (char: Model, animCtrl: any, titanI
     Requests an ability from the server if client predicted cooldown allows.
 ]=]
 local function tryRequestAbility(actionName: string)
+    if currentTitanId == "Brontara" then
+        return
+    end
     if not currentTitanDef then return end
     local abilityDef = currentTitanDef.Abilities[actionName]
     if not abilityDef then return end

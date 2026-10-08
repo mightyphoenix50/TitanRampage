@@ -860,6 +860,17 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
             })
         end
         CityFeedbackRemote:FireClient(p, "CityListSync", CityService.GetAvailableCities(p))
+
+        local newlyUnlockedTitans = PlayerDataService.CheckTitanUnlocks(p)
+        if next(newlyUnlockedTitans) ~= nil then
+            local titanFeedback = RemotesFolder:FindFirstChild("TitanFeedback") :: RemoteEvent?
+            if titanFeedback then
+                titanFeedback:FireClient(p, "TitanListSync", {
+                    Titans = PlayerDataService.GetTitansData(p),
+                    SelectedTitan = PlayerDataService.GetSelectedTitan(p),
+                })
+            end
+        end
     end
 
     -- Construct and broadcast personalized completion payload per client
