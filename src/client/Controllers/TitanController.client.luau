@@ -39,6 +39,7 @@ local function updateActiveTitan(titanId: string)
     if not def then return end
     currentTitanId = titanId
     currentTitanDef = def
+    table.clear(clientCooldowns)
     print("[TitanController] Active Titan switched to: " .. titanId)
 end
 

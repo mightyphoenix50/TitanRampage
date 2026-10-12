@@ -242,6 +242,7 @@ function MonsterService.SpawnPlayerTitan(player: Player, titanId: string)
 
     activeTitans[player.UserId] = titanId
     playerAttackVariantIndex[player.UserId] = 0
+    playerCooldowns[player.UserId] = {}
 
     MonsterService.SetupTitanCharacter(player, newChar)
 
@@ -388,6 +389,7 @@ function MonsterService.ExecuteStomp(player: Player, character: Model, hrp: Base
 
     task.delay(windUp, function()
         if not character.Parent then return end
+        if character:GetAttribute("TitanId") ~= titanDef.Id then return end
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         if not humanoid or humanoid.Health <= 0 then return end
 
@@ -506,6 +508,7 @@ function MonsterService.ExecuteHeavyStomp(player: Player, character: Model, hrp:
 
     task.delay(windUp, function()
         if not character.Parent then return end
+        if character:GetAttribute("TitanId") ~= titanDef.Id then return end
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         if not humanoid or humanoid.Health <= 0 then return end
 
@@ -644,7 +647,7 @@ function MonsterService.ProcessAbilityRequest(player: Player, actionName: string
     local hrp = character:FindFirstChild("HumanoidRootPart") :: BasePart?
     if not hrp then return end
 
-    local titanId = activeTitans[player.UserId] or PlayerDataService.GetSelectedTitan(player) or "Ravager"
+    local titanId = (character:GetAttribute("TitanId") :: string?) or activeTitans[player.UserId] or PlayerDataService.GetSelectedTitan(player) or "Ravager"
     local titanDef = TitanRegistry.Get(titanId)
     if not titanDef then return end
 
@@ -682,11 +685,18 @@ function MonsterService.ProcessAbilityRequest(player: Player, actionName: string
             TitanId = titanId,
             Ability = actionName,
             Reason = string.format("Ability '%s' is recharging (%.1fs remaining).", actionName, remaining),
+            Remaining = remaining,
         })
         return
     end
 
     cooldowns[actionName] = now
+
+    TitanFeedbackRemote:FireClient(player, "AbilityUsed", {
+        TitanId = titanId,
+        Ability = actionName,
+        Cooldown = cooldownTime,
+    })
 
     -- Execute server-authoritative ability
     if CityService and type(CityService.RecordAbilityUsed) == "function" then

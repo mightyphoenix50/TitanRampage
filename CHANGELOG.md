@@ -530,5 +530,42 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
   - Console: 0 runtime errors.
 - **Status:** Complete, Verified & Returned to Edit Mode.
 
+---
 
-
+### [2026-10-10 12:10 UTC] — Prompt: Milestone 9D — Brontara Gameplay Polish, Balance & Full Integration
+- **Goal:** Polish, balance, and integrate Brontara into the complete game loop with dynamic HUD feedback, universal progression descriptions, cooldown isolation, robust mid-windup switching, security validation, and full city destruction/rebuild verification.
+- **Actions Executed:**
+  - **1. Universal Progression Architecture (`UpgradeConfig.luau`)**:
+    - Removed obsolete Ravager-specific naming from upgrade descriptions.
+    - Updated `BasicAttackDamage` ("Increases primary melee strike damage against structures"), `BasicAttackCooldown` ("Reduces recovery delay between primary attacks"), and `WalkSpeed` ("Accelerates your Titan's colossal stride pacing across the city") to be completely universal across all present and future Titans.
+  - **2. Cooldown Isolation & Switching Hardening (`MonsterService.luau` & `TitanController.client.luau`)**:
+    - Fixed cooldown bleed during Titan switching: `MonsterService.SpawnPlayerTitan` authoritatively clears `playerCooldowns[player.UserId] = {}`, and `TitanController` clears `clientCooldowns`.
+    - Added mid-windup switch safeguarding: `ExecuteStomp` and `ExecuteHeavyStomp` validate `character:GetAttribute("TitanId") == titanDef.Id` inside their `task.delay` callbacks to abort shockwave execution if a player switches Titans mid-windup.
+    - Added authoritative active character binding in `MonsterService.ProcessAbilityRequest`: checks `character:GetAttribute("TitanId")` first, ensuring requests strictly target the physically active character model.
+    - Enhanced server-authoritative cooldown broadcast via `TitanFeedbackRemote ("AbilityUsed")` and `("AbilityRejected")` with remaining duration payloads.
+  - **3. Dynamic HUD Cooldown Action Bar (`DestructionHUD.client.luau`)**:
+    - Created dynamic bottom-center Action Bar (`AbilitiesFrame`) with 4 slot cards (`Primary`, `Stomp`, `Signature`, `Utility`).
+    - Implemented dynamic slot card configuration via `refreshAbilitiesHUD`:
+      - Brontara: Slot 1 (Tail Sweep, LMB/1), Slot 2 (Heavy Stomp, E/2), Slot 3 (Neck Strike, Q), Slot 4 (Seismic Bellow, R/3).
+      - Ravager: Slot 1 (Claw Strike, LMB/1), Slot 2 (Ground Stomp, E/2), Slot 3 (Hidden), Slot 4 (Volcanic Roar, R/3).
+    - Built real-time cooldown sweep overlay with countdown timer (`%.1fs`) and ready pulse highlight animation in `RunService.Heartbeat`.
+    - Connected both server feedback (`AbilityUsed`, `AbilityRejected`, `TitanSelected`, `TitanSpawned`) and client effects for zero-latency UI responsiveness.
+  - **4. Combat Pacing & Balance Verification**:
+    - Tested Tail Sweep rear/flank horizontal arc (160° arc, 26 reach, 200 dmg) hitting structures in reverse/flank alignment.
+    - Tested Heavy Stomp radial shockwave (45-stud radius, 600 base dmg with distance falloff and tier reduction) damaging clusters.
+    - Tested Neck Strike forward plunging reach (45° forward cone, 52-stud reach, 350 base dmg) obliterating targeted buildings from long distance.
+    - Tested Roar seismic bellow (55-stud radius, 8.0s cooldown) with verified 0 building damage.
+  - **5. Security & Stress Testing**:
+    - Verified cross-Titan ability rejection: Brontara requests for `BasicAttack` and `Stomp` are dropped server-side with `AbilityRejected` feedback.
+    - Stress-tested rapid ability spam: 20 calls sent in rapid succession; 1 executed, 19 rejected with exact cooldown timers, zero desync, zero memory leaks.
+    - Tested mid-windup Titan switch: Heavy Stomp windup initiated and player switched to Ravager within 0.05s; shockwave execution aborted cleanly with no orphaned damage.
+  - **6. Full City Completion & Rebuild Regression**:
+    - SmallTown flattened to 100% destruction (15/15 buildings, 0/16,410 HP remaining).
+    - Verified 5x maximum combo cap, animated completion score count-up (`ScoreValue: 15,121`), rewards, and stat cards.
+    - Executed authoritative `CityService.ResetCity()`: all 15 buildings restored with 100% HP (16,410 total HP), HUD progress reset to `0 / 15`, and completion screen hidden.
+  - **7. Protected Asset Verification**:
+    - SmallTown: exactly 15 buildings.
+    - Metrovale: exactly 27 buildings.
+    - Ravager & Brontara models intact in `ReplicatedStorage.Assets.Models`.
+    - 10 RemoteEvents intact in `ReplicatedStorage.Remotes`.
+- **Status:** Complete, Verified & Returned to Edit Mode.

@@ -34,6 +34,7 @@ local RebuildCityRequestRemote = RemotesFolder:WaitForChild("RebuildCityRequest"
 local CitySelectRequestRemote = RemotesFolder:WaitForChild("CitySelectRequest") :: RemoteEvent
 local TitanSelectRequestRemote = RemotesFolder:WaitForChild("TitanSelectRequest") :: RemoteEvent
 local TitanFeedbackRemote = RemotesFolder:WaitForChild("TitanFeedback") :: RemoteEvent
+local TitanEffectRemote = RemotesFolder:WaitForChild("TitanEffect") :: RemoteEvent
 
 -- UI Elements: StatsFrame
 local StatsFrame = MainUI:WaitForChild("StatsFrame") :: Frame
@@ -705,16 +706,264 @@ local function updateTitanSelectionView(data: any)
     end
 end
 
+--------------------------------------------------------------------------------
+-- Dynamic HUD Ability Cooldown Bar (Milestone 9D)
+--------------------------------------------------------------------------------
+type AbilitySlotUI = {
+    Slot: TitanRegistry.AbilitySlot,
+    Card: Frame,
+    CardStroke: UIStroke,
+    KeybindLabel: TextLabel,
+    NameLabel: TextLabel,
+    TypeLabel: TextLabel,
+    Overlay: Frame,
+    Sweep: Frame,
+    TimerLabel: TextLabel,
+    AbilityName: string?,
+}
+
+local activeTitanIdForHUD = "Ravager"
+local abilitySlotWidgets: { [TitanRegistry.AbilitySlot]: AbilitySlotUI } = {}
+local activeAbilityCooldowns: { [string]: { EndTime: number, Duration: number } } = {}
+
+local AbilitiesFrame = MainUI:FindFirstChild("AbilitiesFrame") :: Frame?
+if not AbilitiesFrame then
+    AbilitiesFrame = Instance.new("Frame")
+    AbilitiesFrame.Name = "AbilitiesFrame"
+    AbilitiesFrame.Size = UDim2.new(0, 490, 0, 70)
+    AbilitiesFrame.Position = UDim2.new(0.5, 0, 1, -18)
+    AbilitiesFrame.AnchorPoint = Vector2.new(0.5, 1)
+    AbilitiesFrame.BackgroundColor3 = Color3.fromRGB(15, 18, 26)
+    AbilitiesFrame.BackgroundTransparency = 0.35
+    AbilitiesFrame.BorderSizePixel = 0
+    AbilitiesFrame.ZIndex = 15
+    AbilitiesFrame.Parent = MainUI
+
+    local barCorner = Instance.new("UICorner")
+    barCorner.CornerRadius = UDim.new(0, 8)
+    barCorner.Parent = AbilitiesFrame
+
+    local barStroke = Instance.new("UIStroke")
+    barStroke.Color = Color3.fromRGB(48, 58, 78)
+    barStroke.Thickness = 1.5
+    barStroke.Parent = AbilitiesFrame
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.Padding = UDim.new(0, 8)
+    layout.Parent = AbilitiesFrame
+end
+
+local SLOT_ORDER: { TitanRegistry.AbilitySlot } = { "Primary", "Stomp", "Signature", "Utility" }
+
+local function createAbilitySlotCard(slot: TitanRegistry.AbilitySlot, orderIndex: number): AbilitySlotUI
+    local card = Instance.new("Frame")
+    card.Name = "Slot_" .. slot
+    card.Size = UDim2.new(0, 110, 0, 56)
+    card.BackgroundColor3 = Color3.fromRGB(22, 26, 36)
+    card.BorderSizePixel = 0
+    card.LayoutOrder = orderIndex
+    card.ZIndex = 16
+    card.Parent = AbilitiesFrame
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = card
+
+    local cardStroke = Instance.new("UIStroke")
+    cardStroke.Color = Color3.fromRGB(45, 54, 72)
+    cardStroke.Thickness = 1
+    cardStroke.Parent = card
+
+    local keybind = Instance.new("TextLabel")
+    keybind.Name = "Keybind"
+    keybind.Size = UDim2.new(0.6, 0, 0, 14)
+    keybind.Position = UDim2.new(0, 6, 0, 4)
+    keybind.BackgroundTransparency = 1
+    keybind.Font = Enum.Font.GothamBold
+    keybind.TextSize = 10
+    keybind.TextColor3 = Color3.fromRGB(255, 205, 50)
+    keybind.TextXAlignment = Enum.TextXAlignment.Left
+    keybind.ZIndex = 17
+    keybind.Parent = card
+
+    local typeLabel = Instance.new("TextLabel")
+    typeLabel.Name = "TypeLabel"
+    typeLabel.Size = UDim2.new(0.4, -6, 0, 14)
+    typeLabel.Position = UDim2.new(0.6, 0, 0, 4)
+    typeLabel.BackgroundTransparency = 1
+    typeLabel.Font = Enum.Font.Gotham
+    typeLabel.TextSize = 9
+    typeLabel.TextColor3 = Color3.fromRGB(130, 145, 165)
+    typeLabel.TextXAlignment = Enum.TextXAlignment.Right
+    typeLabel.Text = slot
+    typeLabel.ZIndex = 17
+    typeLabel.Parent = card
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "AbilityName"
+    nameLabel.Size = UDim2.new(1, -8, 0, 32)
+    nameLabel.Position = UDim2.new(0, 4, 0, 20)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Font = Enum.Font.GothamBlack
+    nameLabel.TextSize = 11
+    nameLabel.TextColor3 = Color3.fromRGB(245, 245, 250)
+    nameLabel.TextWrapped = true
+    nameLabel.ZIndex = 17
+    nameLabel.Parent = card
+
+    local overlay = Instance.new("Frame")
+    overlay.Name = "CooldownOverlay"
+    overlay.Size = UDim2.new(1, 0, 1, 0)
+    overlay.BackgroundColor3 = Color3.fromRGB(10, 12, 18)
+    overlay.BackgroundTransparency = 0.35
+    overlay.BorderSizePixel = 0
+    overlay.Visible = false
+    overlay.ZIndex = 18
+    overlay.Parent = card
+
+    local overlayCorner = Instance.new("UICorner")
+    overlayCorner.CornerRadius = UDim.new(0, 6)
+    overlayCorner.Parent = overlay
+
+    local sweep = Instance.new("Frame")
+    sweep.Name = "Sweep"
+    sweep.Size = UDim2.new(1, 0, 0, 0)
+    sweep.Position = UDim2.new(0, 0, 1, 0)
+    sweep.AnchorPoint = Vector2.new(0, 1)
+    sweep.BackgroundColor3 = Color3.fromRGB(255, 100, 20)
+    sweep.BackgroundTransparency = 0.75
+    sweep.BorderSizePixel = 0
+    sweep.ZIndex = 19
+    sweep.Parent = overlay
+
+    local sweepCorner = Instance.new("UICorner")
+    sweepCorner.CornerRadius = UDim.new(0, 6)
+    sweepCorner.Parent = sweep
+
+    local timerLabel = Instance.new("TextLabel")
+    timerLabel.Name = "Timer"
+    timerLabel.Size = UDim2.new(1, 0, 1, 0)
+    timerLabel.BackgroundTransparency = 1
+    timerLabel.Font = Enum.Font.GothamBlack
+    timerLabel.TextSize = 15
+    timerLabel.TextColor3 = Color3.fromRGB(255, 225, 90)
+    timerLabel.Text = "0.0s"
+    timerLabel.ZIndex = 20
+    timerLabel.Parent = overlay
+
+    return {
+        Slot = slot,
+        Card = card,
+        CardStroke = cardStroke,
+        KeybindLabel = keybind,
+        NameLabel = nameLabel,
+        TypeLabel = typeLabel,
+        Overlay = overlay,
+        Sweep = sweep,
+        TimerLabel = timerLabel,
+        AbilityName = nil,
+    }
+end
+
+for idx, slot in ipairs(SLOT_ORDER) do
+    abilitySlotWidgets[slot] = createAbilitySlotCard(slot, idx)
+end
+
+local function refreshAbilitiesHUD(titanId: string)
+    activeTitanIdForHUD = titanId
+    table.clear(activeAbilityCooldowns)
+
+    local titanDef = TitanRegistry.Get(titanId) or TitanRegistry.Get("Ravager")
+    if not titanDef then return end
+
+    for _, slot in ipairs(SLOT_ORDER) do
+        local widget = abilitySlotWidgets[slot]
+        if widget then
+            local ability = TitanRegistry.GetAbilityForSlot(titanId, slot)
+            if ability then
+                widget.Card.Visible = true
+                widget.NameLabel.Text = ability.DisplayName
+                widget.KeybindLabel.Text = ability.KeybindDisplay
+                widget.AbilityName = ability.Name
+                widget.Overlay.Visible = false
+                widget.CardStroke.Color = Color3.fromRGB(45, 54, 72)
+            else
+                widget.Card.Visible = false
+                widget.AbilityName = nil
+                widget.Overlay.Visible = false
+            end
+        end
+    end
+end
+
+local function triggerAbilityCooldownUI(abilityName: string, duration: number)
+    local now = os.clock()
+    activeAbilityCooldowns[abilityName] = {
+        EndTime = now + duration,
+        Duration = duration,
+    }
+    for _, widget in pairs(abilitySlotWidgets) do
+        if widget.AbilityName == abilityName then
+            widget.Overlay.Visible = true
+            widget.TimerLabel.Text = string.format("%.1fs", duration)
+            widget.Sweep.Size = UDim2.new(1, 0, 1, 0)
+            widget.CardStroke.Color = Color3.fromRGB(180, 50, 40)
+        end
+    end
+end
+
 TitanFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
     if not data then return end
     if eventType == "TitanListSync" or eventType == "TitanSelected" then
         updateTitanSelectionView(data)
-    elseif eventType == "TitanSelectRejected" then
+        local newSel = data.SelectedTitan or data.TitanId
+        if newSel and type(newSel) == "string" then
+            refreshAbilitiesHUD(newSel)
+        end
+    elseif eventType == "TitanSpawned" then
+        if data.TitanId and type(data.TitanId) == "string" then
+            refreshAbilitiesHUD(data.TitanId)
+        end
+    elseif eventType == "AbilityUsed" then
+        if data.Ability and data.Cooldown then
+            triggerAbilityCooldownUI(data.Ability, data.Cooldown)
+        end
+    elseif eventType == "AbilityRejected" then
+        if data.Remaining and data.Ability then
+            triggerAbilityCooldownUI(data.Ability, data.Remaining)
+        end
         if data.Reason then
             warn("[TitanSelect] " .. tostring(data.Reason))
         end
     end
 end)
+
+TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar: Model, data: any)
+    if sourceChar == LocalPlayer.Character then
+        local abilityMap: { [string]: string } = {
+            BasicAttack = "BasicAttack",
+            TailSweep = "TailSweep",
+            Stomp = "Stomp",
+            StompWindup = "Stomp",
+            HeavyStomp = "HeavyStomp",
+            HeavyStompWindup = "HeavyStomp",
+            NeckStrike = "NeckStrike",
+            Roar = "Roar",
+        }
+        local ab = abilityMap[effectType]
+        if ab and not activeAbilityCooldowns[ab] then
+            local def = TitanRegistry.GetAbility(activeTitanIdForHUD, ab)
+            if def and def.Cooldown then
+                triggerAbilityCooldownUI(ab, def.Cooldown)
+            end
+        end
+    end
+end)
+
+refreshAbilitiesHUD("Ravager")
 
 local function updateCitySelectionView(citiesList: { any })
     for _, cityInfo in ipairs(citiesList) do
@@ -1031,6 +1280,28 @@ RunService.Heartbeat:Connect(function()
         local secs = math.floor(elapsed % 60)
         local cs = math.floor((elapsed % 1) * 100)
         TimerLabel.Text = string.format("⏱️ %02d:%02d.%02d", mins, secs, cs)
+    end
+
+    -- Real-time Cooldown HUD update
+    local now = os.clock()
+    for _, widget in pairs(abilitySlotWidgets) do
+        if widget.Card.Visible and widget.AbilityName then
+            local cd = activeAbilityCooldowns[widget.AbilityName]
+            if cd and now < cd.EndTime then
+                local remaining = cd.EndTime - now
+                local fraction = math.clamp(remaining / math.max(0.05, cd.Duration), 0, 1)
+                widget.Overlay.Visible = true
+                widget.TimerLabel.Text = string.format("%.1fs", remaining)
+                widget.Sweep.Size = UDim2.new(1, 0, fraction, 0)
+            elseif widget.Overlay.Visible then
+                widget.Overlay.Visible = false
+                activeAbilityCooldowns[widget.AbilityName] = nil
+                widget.CardStroke.Color = Color3.fromRGB(100, 255, 140)
+                TweenService:Create(widget.CardStroke, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Color = Color3.fromRGB(45, 54, 72),
+                }):Play()
+            end
+        end
     end
 end)
 
