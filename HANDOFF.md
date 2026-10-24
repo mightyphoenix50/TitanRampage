@@ -3,7 +3,7 @@
 > **Source Session ID:** `e61117e8-8291-4737-8abb-736aedd82200`  
 > **Workspace:** `C:\RobloxProjects\TitanRampage`  
 > **Place ID:** `131002954769216`  
-> **Git Baseline:** Milestone 10.3B Complete  
+> **Git Baseline:** Milestone 10.4 Complete  
 > **Date Updated:** October 24, 2026  
 
 ---
@@ -21,48 +21,44 @@
 
 ## 2. Status & Recent Accomplishments
 
-### Completed Up to Milestone 10.3B
+### Completed Up to Milestone 10.4
 - **Milestone 9D (Production Baseline):** Full gameplay, titan combat, and custom HUDs for both Ravager and Brontara polished and committed (`a48be85`).
-- **Milestone 10.2 (Blender Prototype Assets):** Generated and validated 3D prototype assets in `C:\Tools\TitanRampage-BlenderMCP\tests\Milestone10_2\`:
-  - `Brontara_BrowCrest.fbx` / `.obj` (64 verts, 58 faces)
-  - `Brontara_TailClub.fbx` / `.obj` (85 verts, 85 faces)
-  - `Brontara_Milestone10_2_Prototyping.blend`
-- **Milestone 10.3A (Disposable Mesh Integration Test):**
-  - Executed on a temporary clone (`Workspace.Milestone10_3A_Test.Brontara_TestClone`).
-  - Kinematic simulation verified zero Motor6D drift across procedural neck pitch/yaw and the full `TailSweep` animation sequence. Eye clearance verified at 3.44 studs.
+- **Milestone 10.2 & 10.3A:** Generated and validated 3D prototype assets in Blender and verified 0 Motor6D drift on disposable Brontara clone.
 - **Milestone 10.3B (Production Integration of BrowCrest & TailClub):**
-  - Applied `Brontara_BrowCrest_Mesh` and `Brontara_TailClub_Mesh` directly to `ReplicatedStorage.Assets.Models.Brontara`.
-  - Set legacy placeholder block parts (`BrowCrest`, `TailClub`, `TailGlow`) to `Transparency = 1` while keeping the original Motor6D hierarchy (12 motors) intact.
-  - Verified Edit-mode kinematic stress testing: 0 studs relative drift during motion, 0 studs rest drift, 3.44 studs eye clearance.
-  - Executed live Play-mode combat in SmallTown and Metrovale: `TailSweep` (200 base dmg / 100 tier-3 dmg), `HeavyStomp` (ground slam destruction), `NeckStrike` (192 dmg on skyscraper), and `Roar` (0 collateral dmg).
-  - Verified Ravager regression: HP 3000, WS 28, JP 65, full brawler moveset unaffected.
-  - Zero console runtime errors. Studio returned cleanly to Edit mode.
+  - Integrated `Brontara_BrowCrest_Mesh` and `Brontara_TailClub_Mesh` into `ReplicatedStorage.Assets.Models.Brontara`.
+  - Hidden legacy block parts (`Transparency = 1`), preserving 12-motor hierarchy.
+  - Verified live combat in SmallTown & Metrovale, 0 runtime errors (`2a31801`).
+- **Milestone 10.4 (3D Asset Prototyping for Brontara & Ravager Armor):**
+  - Automated headless Blender 5.2.2 LTS socket bridge on `127.0.0.1:9876`.
+  - Modeled, beveled, materialized, and unwrapped 5 game-ready armor assets in `C:\Tools\TitanRampage-BlenderMCP\tests\Milestone10_4\`:
+    - `Brontara_Carapace.fbx` / `.obj` (40 verts, 38 faces, $14.49 \times 2.60 \times 20.50$ studs)
+    - `Brontara_MagmaSpine.fbx` / `.obj` (23 verts, 21 faces, $2.20 \times 4.40 \times 18.00$ studs)
+    - `Ravager_ChestPlate.fbx` / `.obj` (48 verts, 52 faces, $9.60 \times 7.60 \times 2.10$ studs)
+    - `Ravager_Pauldron_Left.fbx` / `.obj` (30 verts, 32 faces, $5.00 \times 5.62 \times 5.00$ studs)
+    - `Ravager_Pauldron_Right.fbx` / `.obj` (30 verts, 32 faces, $5.00 \times 5.62 \times 5.00$ studs)
+    - Master file: `Milestone10_4_Prototyping.blend` (106 KB)
+  - Executed disposable in-Studio fitting test on temporary clones in `Workspace.Milestone10_4_FittingTest`: verified exact offsets, clean limb clearance, and zero collisions.
+  - Test container deleted; production models pristine.
 
 ---
 
-## 3. Production Technical Specs & Attachment Geometry
+## 3. Prototype Armor Specs & Attachment Geometry
 
-| Component | Target Joint / Anchor | Mounting Method | Relative Offset | Bounding Dimensions (Studs) | Physics & Query Settings |
+| Component | Target Joint / Anchor | Relative Position Offset | Bounding Dimensions (Studs) | Vert / Face Count | Physics & Query Settings |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`Brontara_BrowCrest_Mesh`** | `Head` | `WeldConstraint` | `(0, 2.80, 0.40)` | $3.60 \times 2.20 \times 4.00$ | `CanCollide = false`<br>`CanTouch = false`<br>`CanQuery = false`<br>`Massless = true` |
-| **`Brontara_TailClub_Mesh`** | `Tail3` | `WeldConstraint` | `(0, 0.00, 7.40)` | $4.80 \times 3.80 \times 7.20$ | `CanCollide = false`<br>`CanTouch = false`<br>`CanQuery = false`<br>`Massless = true` |
+| **`Brontara_Carapace`** | `Torso` | `(0, 6.10, 0.00)` | $14.49 \times 2.60 \times 20.50$ | 40 V / 38 F | `CanCollide = false`, `Massless = true` |
+| **`Brontara_MagmaSpine`**| `Torso` | `(0, 9.20, 0.00)` | $2.20 \times 4.40 \times 18.00$ | 23 V / 21 F | `CanCollide = false`, `Massless = true` |
+| **`Ravager_ChestPlate`** | `Torso` | `(0, 0.40, -3.75)` | $9.60 \times 7.60 \times 2.10$ | 48 V / 52 F | `CanCollide = false`, `Massless = true` |
+| **`Ravager_Pauldron_Left`** | `Left Arm` | `(0, 5.90, 0.00)` | $5.00 \times 5.62 \times 5.00$ | 30 V / 32 F | `CanCollide = false`, `Massless = true` |
+| **`Ravager_Pauldron_Right`**| `Right Arm` | `(0, 5.90, 0.00)` | $5.00 \times 5.62 \times 5.00$ | 30 V / 32 F | `CanCollide = false`, `Massless = true` |
 
 ---
 
-## 4. Current State of the Workspace
+## 4. Immediate Next Steps / Roadmap
 
-1. **Git Status:** `CHANGELOG.md` and `HANDOFF.md` updated with Milestone 10.3B integration details.
-2. **Backups:**
-   - In-Studio: `ServerStorage.Milestone9D_Backups` (`Brontara_Milestone9D_Baseline`, `Ravager_Milestone9D_Baseline`) and `ServerStorage.PreMilestone10_3B_Backups.Brontara_Pre10_3B`.
-   - External: `C:\Tools\TitanRampage-BlenderMCP\backups\Brontara_Milestone10_3B_Production.json` (49 instances) and `Brontara_Milestone9D_Baseline.json`.
-3. **Production Assets:** `ReplicatedStorage.Assets.Models.Brontara` updated with integrated 3D visual assemblies; `Ravager` intact.
-
----
-
-## 5. Immediate Next Steps / Roadmap
-
-### Priority: Milestone 10.4 — Additional Disposable Prototyping in Blender
-- Model the next tier of Kaiju cosmetic enhancements in Blender before production touch:
-  - **Brontara Carapace & Magma Spine:** Sculpted volcanic mantle and dorsal ridge plates for `Torso`.
-  - **Ravager Pauldrons & ChestPlate:** Jagged volcanic basalt shoulder armor and cracked obsidian chestplate.
-- Validate topology, bounding bounds, vertex budgets ($< 200$ verts), and UV unwrap in Blender.
+### Priority: Milestone 10.5 — Disposable Kinematic Simulation & Rig Stress Test
+- Test full animation sequences with the new armor mounted on disposable rigs:
+  - **Ravager Claw Combo**: 3-stage arm swing with Pauldrons mounted (verify zero shoulder clipping and zero Motor6D drift on `Left Shoulder` / `Right Shoulder`).
+  - **Ravager Stomp & Roar**: Chest crouch and roar recoil with ChestPlate mounted.
+  - **Brontara Heavy Stomp**: Front leg rear-up and torso pitch with Carapace & MagmaSpine mounted.
+- Once verified, proceed to **Milestone 10.6: Production Integration of Tier 2 Armor Sets**.

@@ -600,3 +600,26 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
   - **5. Mode Restoration**:
     - Returned Studio cleanly to Edit mode. Production model persisted with 49 descendants.
 - **Status:** Complete, Verified & Returned to Edit Mode.
+
+
+---
+
+### [2026-10-24 20:50 UTC] — Milestone 10.4: 3D Asset Prototyping for Brontara & Ravager Armor
+- **Goal:** Model the next tier of Kaiju cosmetic enhancements in Blender (Brontara Carapace & Magma Spine; Ravager Pauldrons & ChestPlate), export game-ready assets, and validate topology and disposable fitting.
+- **Actions Executed:**
+  - **1. Headless Blender MCP Pipeline Execution**:
+    - Initialized headless Blender 5.2.2 LTS socket server on `127.0.0.1:9876` via `_launch.py`.
+    - Executed procedural modeling, beveling, PBR material creation, and Smart UV projection across 5 original Kaiju armor components.
+  - **2. Asset Generation & Topology Budgets (`tests/Milestone10_4/`)**:
+    - `Brontara_Carapace.fbx` / `.obj` ($14.49 \times 2.60 \times 20.50$ studs, 40 verts, 38 faces, `Basalt` PBR).
+    - `Brontara_MagmaSpine.fbx` / `.obj` ($2.20 \times 4.40 \times 18.00$ studs, 23 verts, 21 faces, `Neon` magma emission).
+    - `Ravager_ChestPlate.fbx` / `.obj` ($9.60 \times 7.60 \times 2.10$ studs, 48 verts, 52 faces, `Granite`/obsidian PBR).
+    - `Ravager_Pauldron_Left.fbx` / `.obj` ($5.00 \times 5.62 \times 5.00$ studs, 30 verts, 32 faces, outward brawler spike).
+    - `Ravager_Pauldron_Right.fbx` / `.obj` ($5.00 \times 5.62 \times 5.00$ studs, 30 verts, 32 faces, outward brawler spike).
+    - Saved master scene: `Milestone10_4_Prototyping.blend` (106 KB).
+  - **3. Disposable In-Studio Fitting Validation (`Workspace.Milestone10_4_FittingTest`)**:
+    - Mounted onto disposable clones of Brontara and Ravager using `WeldConstraint`.
+    - Verified offsets: Carapace `(0, 6.10, 0)`, MagmaSpine `(0, 9.20, 0)`, ChestPlate `(0, 0.40, -3.75)`, Pauldrons `(0, 5.90, 0)`.
+    - Verified zero joint clipping, correct scale relative to limb bounding boxes, and non-colliding/massless physics settings.
+    - Completely cleaned up test container: `Milestone10_4_FittingTest` deleted, production models pristine.
+- **Status:** Complete, Verified & Cleaned Up.
