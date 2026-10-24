@@ -235,10 +235,17 @@ function CityService.Init()
         }
 
         player.CharacterAdded:Connect(function(character)
+            local hub = Workspace:FindFirstChild("KaijuHub")
+            if hub then
+                -- KaijuHub is the master lobby spawn. Do not override spawn location.
+                return
+            end
             local cityDef = CityConfig.GetCity(activeCityName)
             if cityDef then
                 task.wait(0.1)
-                character:PivotTo(CFrame.new(cityDef.SpawnPosition + Vector3.new(0, 4, 0)))
+                if character and character.Parent and character.PrimaryPart then
+                    character:PivotTo(CFrame.new(cityDef.SpawnPosition + Vector3.new(0, 4, 0)))
+                end
             end
         end)
 
@@ -531,6 +538,20 @@ function CityService.LoadCity(cityId: string, player: Player?): (boolean, string
     return true, "City Loaded"
 end
 
+function CityService.ReturnToHub(player: Player): (boolean, string)
+    local hub = Workspace:FindFirstChild("KaijuHub")
+    local hubSpawn = hub and hub:FindFirstChild("HubSpawnLocation")
+    if not hubSpawn or not hubSpawn:IsA("BasePart") then
+        return false, "Kaiju Hub spawn not found!"
+    end
+
+    if player.Character and player.Character.PrimaryPart then
+        player.Character:PivotTo(hubSpawn.CFrame + Vector3.new(0, 8, 0))
+        return true, "Returned to Kaiju Hub"
+    end
+    return false, "Player character not found"
+end
+
 function CityService.GetAllBuildings(): { Model }
     ensureInitialized()
     local models: { Model } = {}
@@ -567,6 +588,48 @@ function CityService.GetBuildingsInRadius(origin: Vector3, radius: number): { { 
                     Entry = entry,
                     Distance = actualDist,
                 })
+            end
+        end
+    end
+
+    -- Include KaijuHub training pillars if within radius
+    local hub = Workspace:FindFirstChild("KaijuHub")
+    if hub then
+        for _, child in ipairs(hub:GetChildren()) do
+            if child:GetAttribute("IsTrainingDummy") == true then
+                local part = if child:IsA("BasePart") then child else child.PrimaryPart or child:FindFirstChildWhichIsA("BasePart")
+                if part then
+                    local distSq = (part.Position.X - origin.X) ^ 2 + (part.Position.Z - origin.Z) ^ 2
+                    if distSq <= rSq then
+                        local curHp = child:GetAttribute("CurrentHealth") or 10000
+                        local maxHp = child:GetAttribute("MaxHealth") or 10000
+                        local dummyEntry: BuildingEntry = {
+                            Model = child :: any,
+                            Id = child.Name,
+                            Name = tostring(child:GetAttribute("BuildingName") or child.Name),
+                            Type = "TrainingPillar",
+                            MaxHealth = maxHp,
+                            CurrentHealth = curHp,
+                            Reward = 0,
+                            Points = 10,
+                            Tier = 1,
+                            Position = part.Position,
+                            PrimaryPart = part,
+                            Structure = nil,
+                            MainBody = part,
+                            Roof = nil,
+                            WindowParts = {},
+                            PropParts = {},
+                            IsDestroyed = false,
+                            VisualBackup = nil :: any,
+                        }
+                        table.insert(results, {
+                            Building = child :: any,
+                            Entry = dummyEntry,
+                            Distance = math.sqrt(distSq),
+                        })
+                    end
+                end
             end
         end
     end
@@ -1020,6 +1083,20 @@ end
 ]=]
 function CityService.ApplyDamage(buildingModel: Model, damage: number, attacker: Player?): (boolean, number)
     ensureInitialized()
+
+    -- Special handling for KaijuHub Training Pillars
+    if buildingModel:GetAttribute("IsTrainingDummy") == true then
+        local maxHp = tonumber(buildingModel:GetAttribute("MaxHealth")) or 10000
+        local curHp = tonumber(buildingModel:GetAttribute("CurrentHealth")) or maxHp
+        local actualDamage = math.min(curHp, math.max(1, damage))
+        local newHp = curHp - actualDamage
+        if newHp <= 1000 then
+            newHp = maxHp -- Instantly refresh practice pillar health
+        end
+        buildingModel:SetAttribute("CurrentHealth", newHp)
+        return true, actualDamage
+    end
+
     local entry = CityService.GetBuildingEntry(buildingModel)
     if not entry or entry.IsDestroyed then
         return false, 0

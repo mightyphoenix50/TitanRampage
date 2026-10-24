@@ -390,6 +390,27 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
         return false, 0
     end
 
+    -- Special handling for KaijuHub Training Pillars
+    if building:GetAttribute("IsTrainingDummy") == true then
+        local maxHp = tonumber(building:GetAttribute("MaxHealth")) or 10000
+        local newHp = tonumber(building:GetAttribute("CurrentHealth")) or maxHp
+        local playerCombo = 1
+        if player then
+            playerCombo = registerComboActivity(player)
+        end
+        DestructionFeedbackRemote:FireAllClients("BuildingDamaged", {
+            Building = building,
+            Damage = actualDamage,
+            CurrentHealth = newHp,
+            MaxHealth = maxHp,
+            Position = building:GetPivot().Position,
+            Source = source,
+            Combo = playerCombo,
+            IsTrainingDummy = true,
+        })
+        return true, actualDamage
+    end
+
     -- Record damage in run statistics
     local bId = building:GetAttribute("BuildingId") or building.Name
     CityService.RecordDamage(actualDamage, tostring(bId))

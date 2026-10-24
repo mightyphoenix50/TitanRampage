@@ -623,3 +623,45 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
     - Verified zero joint clipping, correct scale relative to limb bounding boxes, and non-colliding/massless physics settings.
     - Completely cleaned up test container: `Milestone10_4_FittingTest` deleted, production models pristine.
 - **Status:** Complete, Verified & Cleaned Up.
+
+---
+
+### [2026-10-24 23:20 UTC] — Milestone 11: Central Kaiju Hub & Brontara Cervical Spine Resolution
+- **Goal:** Construct the persistent high-altitude **Central Kaiju Hub** (Titan selection pedestals, city deployment portals, Proving Grounds combat dummies, Hall of Records terminal) and permanently resolve Brontara's detached/floating dorsal magma spine gap using Blender MCP and Unreal Engine MCP.
+- **Actions Executed:**
+  - **1. Safety Snapshots & Baseline Verification**:
+    - Captured pre-modification snapshots into `ServerStorage.PreHub_Backups`: `Brontara_PreHub` (49 desc), `Ravager_PreHub` (28 desc), `SmallTown_PreHub` (530 desc), `Metrovale_PreHub` (588 desc).
+    - Created external manifest snapshot: `C:\Tools\TitanRampage-BlenderMCP\backups\Milestone11_Hub_Production.json`.
+  - **2. Unreal Engine Architecture Blueprinting**:
+    - Registered and compiled Agent Skill Toolset skill `/Game/Skills/KaijuHubArchitecture.KaijuHubArchitecture_C` via Unreal Engine MCP.
+    - Validated world layout coordinates at $1\text{ stud} \approx 28\text{ cm}$: Hub Origin $(0, 14000, -140000)\text{ cm}$.
+  - **3. Blender Modeling & Sub-Millimeter Gap Math**:
+    - Modeled, beveled, and unwrapped 4 new modular architectural and cosmetic assets in Blender MCP exported to `tests/Milestone11_Hub/`:
+      - `Brontara_CervicalSpine.fbx` / `.obj` ($2.20 \times 3.20 \times 13.50$ studs, 23 verts, 21 faces, neon magma emission).
+      - `Hub_Portal_Arch.fbx` / `.obj` ($16.00 \times 20.00 \times 4.00$ studs, 72 verts, 78 faces).
+      - `Hub_Titan_Pedestal.fbx` / `.obj` ($14.00 \times 2.00 \times 14.00$ studs, 48 verts, 50 faces).
+      - `Hub_Practice_Pillar.fbx` / `.obj` ($6.00 \times 30.00 \times 6.00$ studs, 24 verts, 26 faces).
+    - Analyzed cervical vertebra slope: `Neck1` to base of skull slopes forward at $+24.3^\circ$.
+    - Mounted `Brontara_CervicalSpine_Mesh` directly onto `ReplicatedStorage.Assets.Models.Brontara` anchored to `Neck1` via `WeldConstraint` at relative offset `(0, 5.75, -3.90)`.
+    - Measured live anterior-to-cervical spine gap: **0.0144 studs** (~4 mm), fully eliminating the floating visual detachment with zero Motor6D joint modification.
+  - **4. Roblox Studio World Assembly (`Workspace.KaijuHub`)**:
+    - Constructed `KaijuHub` at high altitude `(0, 500, -5000)`:
+      - `CentralPlaza`: $120 \times 5 \times 120$ studs basalt foundation with glowing boundary runes.
+      - `HubSpawnLocation`: persistent master player spawn.
+      - `Pedestal_Ravager` & `Pedestal_Brontara`: elevated pedestals with ProximityPrompts for instant character switching.
+      - `Portal_SmallTown` & `Portal_Metrovale`: runic stargates with ProximityPrompts deploying players to target cities.
+      - `ArenaBridge` & `ProvingGroundsArena`: $90 \times 4 \times 90$ studs combat testing grounds.
+      - `Pillar_Alpha`, `Pillar_Beta`, `Pillar_Gamma`: Practice Monoliths with `IsTrainingDummy = true`, 10,000 HP, and auto-refresh.
+      - `HallOfRecords_Terminal`: leaderboard monolith.
+    - Constructed `ReturnToHubPortal` in both `Workspace.Cities.SmallTown` and `Workspace.Cities.Metrovale` with ProximityPrompt `Return to Kaiju Hub`.
+  - **5. Server Services Integration (`MonsterService`, `CityService`, `DestructionService`)**:
+    - `MonsterService.luau`: Spawn default updated to `KaijuHub.HubSpawnLocation`; wired `ProximityPromptService.PromptTriggered` for Pedestals, City Portals, and KaijuHub Return.
+    - `CityService.luau`: Added `CityService.ReturnToHub(player)`; updated `CharacterAdded` to respect KaijuHub master spawn; integrated training dummy querying in `GetBuildingsInRadius`; updated `ApplyDamage` to handle training dummy health and refresh without modifying city destruction stats.
+    - `DestructionService.luau`: Intercepted training dummies to award combo multipliers and floating damage feedback without recording run damage or collapsing the structure.
+  - **6. Live In-Studio Playtest Verification**:
+    - Verified player spawns at `(0, 518.65, -5000)` in `KaijuHub`.
+    - Verified titan switching from Ravager to Brontara via Pedestal: `Brontara_CervicalSpine_Mesh` rendered seamlessly, moving in lockstep with neck animations.
+    - Verified Proving Grounds combat: attacked `Pillar_Alpha` with `HeavyStomp` (dealt 288 dmg, health 10,000 -> 9,712); SmallTown destruction stats remained at 0% (0 dmg, 0 buildings destroyed).
+    - Verified Portal travel: deployed to SmallTown `(0, 10.32, 0)` via Portal; used `ReturnToHubPortal` to return to `KaijuHub` `(0, 511.46, -5000)`.
+    - Returned Studio cleanly to Edit mode with 51 hub descendants intact.
+- **Status:** Complete, Verified & In Production.

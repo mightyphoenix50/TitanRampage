@@ -14,6 +14,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local ConfigFolder = ReplicatedStorage:WaitForChild("Config")
 local SharedFolder = ReplicatedStorage:WaitForChild("Shared")
@@ -68,6 +69,22 @@ function MonsterService.Init()
                 Titans = titans,
                 SelectedTitan = selected,
             })
+        end
+    end)
+
+    -- Bind Hub ProximityPrompts (Pedestals & Portals)
+    ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt, player: Player)
+        local objText = prompt.ObjectText
+        if objText == "Ravager" or objText == "Brontara" then
+            MonsterService.SelectTitan(player, objText)
+        elseif objText == "SmallTown" or objText == "Metrovale" then
+            if CityService then
+                CityService.LoadCity(objText, player)
+            end
+        elseif objText == "KaijuHub" then
+            if CityService then
+                CityService.ReturnToHub(player)
+            end
         end
     end)
 
@@ -215,13 +232,19 @@ function MonsterService.SpawnPlayerTitan(player: Player, titanId: string)
     if oldChar and oldChar.PrimaryPart then
         spawnCFrame = oldChar.PrimaryPart.CFrame + Vector3.new(0, 2, 0)
     else
-        local cityFolder = Workspace:FindFirstChild("Cities")
-        local smallTown = cityFolder and cityFolder:FindFirstChild("SmallTown")
-        local spawnPart = smallTown and smallTown:FindFirstChild("SpawnLocation")
-        if spawnPart and spawnPart:IsA("BasePart") then
-            spawnCFrame = spawnPart.CFrame + Vector3.new(0, 8, 0)
+        local hub = Workspace:FindFirstChild("KaijuHub")
+        local hubSpawn = hub and hub:FindFirstChild("HubSpawnLocation")
+        if hubSpawn and hubSpawn:IsA("BasePart") then
+            spawnCFrame = hubSpawn.CFrame + Vector3.new(0, 8, 0)
         else
-            spawnCFrame = CFrame.new(0, 15, 0)
+            local cityFolder = Workspace:FindFirstChild("Cities")
+            local smallTown = cityFolder and cityFolder:FindFirstChild("SmallTown")
+            local spawnPart = smallTown and smallTown:FindFirstChild("SpawnLocation")
+            if spawnPart and spawnPart:IsA("BasePart") then
+                spawnCFrame = spawnPart.CFrame + Vector3.new(0, 8, 0)
+            else
+                spawnCFrame = CFrame.new(0, 15, 0)
+            end
         end
     end
 
