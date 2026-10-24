@@ -569,3 +569,34 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
     - Ravager & Brontara models intact in `ReplicatedStorage.Assets.Models`.
     - 10 RemoteEvents intact in `ReplicatedStorage.Remotes`.
 - **Status:** Complete, Verified & Returned to Edit Mode.
+
+
+---
+
+### [2026-10-24 20:20 UTC] — Milestone 10.3B: Production Integration of Brontara TailClub & BrowCrest
+- **Goal:** Safely integrate verified 3D prototype visual assemblies (`Brontara_BrowCrest_Mesh` and `Brontara_TailClub_Mesh`) into production model `ReplicatedStorage.Assets.Models.Brontara`, preserve Motor6D joint hierarchy, and verify in-game combat and animation fidelity.
+- **Actions Executed:**
+  - **1. Safety Snapshots & Baseline Verification**:
+    - Confirmed `ServerStorage.Milestone9D_Backups.Brontara_Milestone9D_Baseline` matches production baseline across all 12 Motor6D joints.
+    - Created pre-modification snapshot: `ServerStorage.PreMilestone10_3B_Backups.Brontara_Pre10_3B`.
+    - Generated offline manifest snapshot: `C:\Tools\TitanRampage-BlenderMCP\backups\Brontara_Milestone10_3B_Production.json`.
+  - **2. Production Assembly Integration (`ReplicatedStorage.Assets.Models.Brontara`)**:
+    - Mounted `Brontara_BrowCrest_Mesh` ($3.6 \times 2.2 \times 4.0$ studs, `Basalt`, `Massless = true`, `CanCollide = false`, `CanTouch = false`, `CanQuery = false`) onto `Head` via `WeldConstraint` at relative offset `(0, 2.80, 0.40)`.
+    - Mounted `Brontara_TailClub_Mesh` ($4.8 \times 3.8 \times 7.2$ studs, `Basalt`, `Massless = true`, `CanCollide = false`, `CanTouch = false`, `CanQuery = false`) onto `Tail3` via `WeldConstraint` at relative offset `(0, 0.00, 7.40)`.
+    - Set legacy block placeholders (`BrowCrest`, `TailClub`, `TailGlow`) to `Transparency = 1` while keeping their original welds and hierarchy intact.
+  - **3. Kinematic & Animation Regression Audit (Edit Mode)**:
+    - Exercised full pitch and yaw motion on `Neck` and `NeckBaseJoint`: verified 0 studs relative drift during motion and 0 studs rest drift.
+    - Exercised full coil and sweep motion on `TailTipJoint` and `TailBaseJoint`: verified 0 studs drift during Phase 1 (+40°) and Phase 2 (-48°) sweep rotations.
+    - Eye clearance verified at 3.44 studs from `LeftEye` and `RightEye` with zero clipping.
+    - All 12 Motor6D joints verified 100% identical to baseline C0/C1 transforms.
+  - **4. Full In-Game Combat & Destruction Playtest (Play Mode)**:
+    - Spawned as Brontara in live Play session: verified seamless replication, character attributes, and camera framing.
+    - Executed `TailSweep` against SmallTown and Metrovale structures: dealt full damage (200 base dmg on SmallTown, 100 dmg on Metrovale Tier 3), triggered sound and visual shockwaves.
+    - Executed `HeavyStomp`: 0.50s windup followed by ground slam destroying target building.
+    - Executed `NeckStrike`: dealt 192 dmg to distant skyscraper (`Building_Large_01`).
+    - Executed `Roar`: verified 0 collateral building damage.
+    - Ravager regression verified: switched to Ravager, confirmed HP 3000, WalkSpeed 28, JumpPower 65, and claw combo functional.
+    - Console audit: 0 runtime errors.
+  - **5. Mode Restoration**:
+    - Returned Studio cleanly to Edit mode. Production model persisted with 49 descendants.
+- **Status:** Complete, Verified & Returned to Edit Mode.
