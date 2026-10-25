@@ -374,45 +374,27 @@ local function createDisplayStatue(parent: Instance, titanId: string, modelTempl
     return statue
 end
 
+local DEFAULT_PAD_VELOCITIES: { [string]: Vector3 } = {
+    Pad_PlazaToColosseum = Vector3.new(0, 140, -280),
+    Pad_ColosseumToPlaza = Vector3.new(0, 180, 280),
+    Pad_PlazaToStargates = Vector3.new(0, 145, 200),
+    Pad_PlazaToTitans = Vector3.new(0, 120, -160),
+}
+
 --[=[
-    Constructs a directional Magma Launch Pad.
+    Binds high-velocity launch impulse physics to a launch pad model.
 ]=]
-local function createLaunchPad(parent: Instance, name: string, cframe: CFrame, launchVelocity: Vector3, label: string)
-    local padModel = Instance.new("Model")
-    padModel.Name = name
+local function bindLaunchPad(padModel: Model)
+    local inner = padModel:FindFirstChild("TriggerPad") :: BasePart?
+    if not inner then return end
 
-    -- Outer ring
-    local base = createPart(padModel, "PadBase", Vector3.new(22, 1.4, 22), cframe, Enum.Material.SmoothPlastic, Color3.fromRGB(20, 20, 25), true)
-    base.CastShadow = false
+    -- Avoid duplicate bindings
+    if inner:GetAttribute("LaunchBound") == true then return end
+    inner:SetAttribute("LaunchBound", true)
 
-    -- Glowing inner pad
-    local inner = createPart(padModel, "TriggerPad", Vector3.new(18, 1.6, 18), cframe * CFrame.new(0, 0.25, 0), Enum.Material.Neon, Color3.fromRGB(255, 95, 15), false)
-    inner.CastShadow = false
+    local rawVel = padModel:GetAttribute("LaunchVelocity")
+    local launchVelocity: Vector3 = if typeof(rawVel) == "Vector3" then rawVel else (DEFAULT_PAD_VELOCITIES[padModel.Name] or Vector3.new(0, 150, 0))
 
-    local light = Instance.new("PointLight")
-    light.Color = Color3.fromRGB(255, 110, 20)
-    light.Range = 30
-    light.Brightness = 3.5
-    light.Parent = inner
-
-    -- Overhead holographic billboard
-    local bg = Instance.new("BillboardGui")
-    bg.Size = UDim2.new(0, 180, 0, 42)
-    bg.StudsOffset = Vector3.new(0, 5, 0)
-    bg.AlwaysOnTop = true
-    bg.MaxDistance = 100
-    bg.Parent = inner
-
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, 0, 1, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = "▲ " .. label .. " ▲"
-    lbl.TextColor3 = Color3.fromRGB(255, 190, 60)
-    lbl.Font = Enum.Font.GothamBlack
-    lbl.TextSize = 15
-    lbl.Parent = bg
-
-    -- Launch impulse binding
     inner.Touched:Connect(function(hit: BasePart)
         local character = hit.Parent
         if not character or not character:IsA("Model") then return end
@@ -448,6 +430,48 @@ local function createLaunchPad(parent: Instance, name: string, cframe: CFrame, l
             end)
         end
     end)
+end
+
+--[=[
+    Constructs a directional Magma Launch Pad.
+]=]
+local function createLaunchPad(parent: Instance, name: string, cframe: CFrame, launchVelocity: Vector3, label: string)
+    local padModel = Instance.new("Model")
+    padModel.Name = name
+    padModel:SetAttribute("LaunchVelocity", launchVelocity)
+
+    -- Outer ring
+    local base = createPart(padModel, "PadBase", Vector3.new(22, 1.4, 22), cframe, Enum.Material.SmoothPlastic, Color3.fromRGB(20, 20, 25), true)
+    base.CastShadow = false
+
+    -- Glowing inner pad
+    local inner = createPart(padModel, "TriggerPad", Vector3.new(18, 1.6, 18), cframe * CFrame.new(0, 0.25, 0), Enum.Material.Neon, Color3.fromRGB(255, 95, 15), false)
+    inner.CastShadow = false
+
+    local light = Instance.new("PointLight")
+    light.Color = Color3.fromRGB(255, 110, 20)
+    light.Range = 30
+    light.Brightness = 3.5
+    light.Parent = inner
+
+    -- Overhead holographic billboard
+    local bg = Instance.new("BillboardGui")
+    bg.Size = UDim2.new(0, 180, 0, 42)
+    bg.StudsOffset = Vector3.new(0, 5, 0)
+    bg.AlwaysOnTop = true
+    bg.MaxDistance = 100
+    bg.Parent = inner
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = "▲ " .. label .. " ▲"
+    lbl.TextColor3 = Color3.fromRGB(255, 190, 60)
+    lbl.Font = Enum.Font.GothamBlack
+    lbl.TextSize = 15
+    lbl.Parent = bg
+
+    bindLaunchPad(padModel)
 
     padModel.Parent = parent
     return padModel
@@ -1225,12 +1249,46 @@ function HubService.ConstructGrandSanctuary()
 end
 
 --[=[
-    Initializes HubService lifecycle and constructs the Grand Sanctuary.
+    Initializes HubService lifecycle and connects interactive systems.
+    Preserves manual Studio edits if KaijuHub already exists in Workspace.
 ]=]
 function HubService.Init()
     print("[HubService] Initializing HubService...")
     setupAtmosphere()
-    HubService.ConstructGrandSanctuary()
+
+    -- Clean up rogue default spawn at origin if any
+    local defaultSpawn = Workspace:FindFirstChild("SpawnLocation")
+    if defaultSpawn and defaultSpawn.Parent == Workspace then
+        defaultSpawn:Destroy()
+    end
+
+    local existing = Workspace:FindFirstChild("KaijuHub")
+    local forceRegen = Workspace:GetAttribute("ForceRegenerateHub") == true
+
+    if existing and not forceRegen then
+        print(string.format("[HubService] 🏰 Preserving existing KaijuHub in Workspace (%d descendants). Manual Studio edits are preserved!", #existing:GetDescendants()))
+
+        -- Register lightning strike targets from existing structure
+        table.clear(lightningStrikeTargets)
+        for _, desc in ipairs(existing:GetDescendants()) do
+            if desc:IsA("BasePart") and desc.Name == "ConductorTip" then
+                table.insert(lightningStrikeTargets, desc.Position)
+            end
+        end
+        print(string.format("[HubService] ⚡ Registered %d lightning conductor strike targets.", #lightningStrikeTargets))
+
+        -- Bind launch pads
+        local launchPadsFolder = existing:FindFirstChild("LaunchPads")
+        if launchPadsFolder then
+            for _, pad in ipairs(launchPadsFolder:GetChildren()) do
+                if pad:IsA("Model") then
+                    bindLaunchPad(pad)
+                end
+            end
+        end
+    else
+        HubService.ConstructGrandSanctuary()
+    end
 end
 
 --[=[
