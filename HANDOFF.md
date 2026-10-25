@@ -3,7 +3,7 @@
 > **Source Session ID:** `e61117e8-8291-4737-8abb-736aedd82200`  
 > **Workspace:** `C:\RobloxProjects\TitanRampage`  
 > **Place ID:** `131002954769216`  
-> **Git Baseline:** Milestone 12 Complete  
+> **Git Baseline:** Milestone 12.1 Complete  
 > **Date Updated:** October 25, 2026  
 
 ---
@@ -15,42 +15,44 @@
 ### Key Architectural Pillars
 - **Rojo Project Layout:** Managed via `default.project.json` mapping `src/` to `ReplicatedStorage.Config`, `ReplicatedStorage.Shared`, `ServerScriptService`, `StarterGui.MainUI`, and `StarterPlayer.StarterPlayerScripts`.
 - **Titan Registry & Models:** Located in `ReplicatedStorage.Assets.Models` (`Brontara` and `Ravager`).
-- **Safety & Baseline Mechanism:** Pre-milestone snapshots archived in `ServerStorage.PreMilestone12_Backups` (`KaijuHub_Pre12`, `SmallTown_Pre12`, `Metrovale_Pre12`, `Brontara_Pre12`, `Ravager_Pre12`).
-- **Grand Volcanic Kaiju Sanctuary:** Located at high altitude `(0, 520, -5000)` spanning over $450\text{ studs}$ across 4 distinct elevation tiers: Grand Central Plaza, Hall of Titans, Stargate Promontory, and Colosseum Proving Grounds.
+- **Guaranteed Master Initial Spawning:** `Workspace.KaijuHub.HubSpawnLocation` at $(0, 524, -5000)$ on the Central Raised Dais is the exclusive player spawn. Stray spawns in Workspace root are permanently eliminated. `MonsterService.luau` tracks session initial spawns to enforce Hub spawn on join.
+- **Grand Volcanic Kaiju Megastructure:** Located at high altitude `(0, 520, -5000)` spanning **over $850\text{–}900\text{ studs}$ across** with 539 descendants across 4 distinct elevation tiers:
+  - **Tier 1: Grand Central Plaza ($Y = 520$)**: $380\text{ studs}$ dia, 4 concentric magma rings, central dais, flame core, permanent `MerchantPavilion`, and `AltarOfAscension`.
+  - **Tier 2: The Hall of Titans ($Y = 540$)**: $280 \times 140\text{ studs}$ amphitheater, 8 monumental columns with Tesla lightning conductors, 1:1 display statues with dual spotlights and 3D stat cards.
+  - **Tier 3: The Stargate Promontory ($Y = 560$)**: $260 \times 120\text{ studs}$ high ridge, $42\text{ studs}$ tall runic stargates (`Portal_SmallTown`, `Portal_Metrovale`) with lightning coils and electric storm fields.
+  - **Tier 4: The Colosseum Proving Grounds ($Y = 480$)**: $360 \times 360\text{ studs}$ sunken arena (sunken 40 studs), 45-stud walls, 46-stud wide bridge ($170\text{ studs}$ long), Bastion Titan DPS dummy, and 5 practice monoliths.
+  - **Caldera Vista & Launch Pads**: 16 towering jagged perimeter basalt spires at **$460\text{ studs}$ radius** (heights up to $320\text{ studs}$), 4 colossal cardinal skybeams ($1600\text{ studs}$ tall), and 4 scaled jump pads.
+- **Volcanic Thunderstorm Engine:** Dynamic background lightning simulation in `HubService.luau` striking 27 designated caldera targets every $3.5\text{ to } 6.5\text{ seconds}$ with segmented jagged neon lightning bolts, full-sky illumination flashes (`Lighting.Brightness` spikes $2.2 \to 3.8$), contact impact spark bursts, and spatial thunder rumbles (`impact_explosion_03.mp3`).
 - **Monetization Engine:** Server-authoritative `MonetizationService.luau` handling `MarketplaceService.ProcessReceipt` idempotently, caching Gamepass ownership, managing multipliers (DoubleCash, DoubleXP), and rendering tabbed `ShopHUD` alongside the physical `MerchantPavilion` kiosk in the hub.
-- **Atmospheric & Lighting System:** Dynamic zone-based lighting profiles in `CityConfig.luau` tweened smoothly on client via `LightingController.client.luau` ($ClockTime = 14.2$ in SmallTown, $16.5$ golden hour in Metrovale, and $18.25$ volcanic twilight in Kaiju Hub).
 - **Titan Sprint System:** High-impact sprint mode (WalkSpeed $28 \to 44$ for Ravager, $18 \to 28$ for Brontara) with stamina gauge, dynamic FOV punch ($70^\circ \to 82^\circ$), and mobile touch support.
 
 ---
 
 ## 2. Status & Recent Accomplishments
 
-### Completed Up to Milestone 12
-- **Milestone 11.1 (Grand Volcanic Kaiju Sanctuary Revamp):**
-  - Expanded hub from a flat 120-stud disc to a 450+ stud 4-tier Sanctuary (251 descendants).
-  - 1:1 scale static display statues of Ravager and Brontara mounted on elevated pedestals with dual-source lighting and 3D holographic stat cards.
-  - Bastion Titan DPS dummy (50,000 HP, rolling 3-second DPS meter, combo indicator) and directional Titan Magma Launch Pads.
+### Completed Up to Milestone 12.1
 - **Milestone 12 (Production Monetization, City Lighting Overhaul, and Titan Sprint System):**
-  - **City Lighting Overhaul**:
-    - Created `LightingController.client.luau` smoothly tweening `ClockTime`, `Brightness`, `OutdoorAmbient`, and `Atmosphere` over $1.2\text{ seconds}$ upon city changes.
-    - Configured bright sunny coastal afternoon in SmallTown ($ClockTime = 14.2$, $Brightness = 2.4$) and metropolitan golden hour in Metrovale ($ClockTime = 16.5$, $Brightness = 2.2$).
-    - Outfitted streetlamps with warm `PointLight` fixtures (+10 in SmallTown, +40 in Metrovale).
-  - **Titan Sprint & Stamina Mechanics**:
-    - Configured sprint speeds in `TitanRegistry.luau`: Ravager ($28 \to 44$, $+57\%$) and Brontara ($18 \to 28$, $+55\%$).
-    - Added sprint input handlers (LeftShift, RightShift, ButtonL3), stamina drain/regen on `RenderStepped`, dynamic camera FOV punch ($70^\circ \to 82^\circ$), and attribute replication in `TitanController.client.luau`.
-    - Implemented `MonsterService.SetSprintState` server authority.
-    - Added electric cyan/orange/crimson Stamina Bar UI to `DestructionHUD.client.luau` above the abilities bar, with exhaustion warnings and mobile touch sprint button.
-  - **Server Monetization Engine**:
-    - Built `MonetizationConfig.luau` defining 5 Gamepasses (DoubleCash, DoubleXP, InstantRebuild, VIPTitanAura, AutoCollect) and 5 Developer Products (CashSurge Small/Large, XPBlast, InstantCooldownReset, ComboShield).
-    - Upgraded `PlayerDataService.luau` to Schema 4 with persistent `ProcessedReceipts` (idempotency) and `Gamepasses`.
-    - Built `MonetizationService.luau` with `ProcessReceipt` idempotency, ownership caching, multiplier getters, VIP aura emitter attachment, and Studio sandbox testing.
-    - Integrated multipliers into `ProgressionService.AddRewards` ($2.0\times$ Cash and XP).
-    - Integrated `InstantRebuild` into `CityService.ResetCity`.
-    - Integrated `ComboShield` into `DestructionService.luau`.
-  - **Shop Interface & Hub Market Pavilion**:
-    - Built `ShopHUD.client.luau` tabbed modal GUI bound to keybind `B`, `StatsFrame.ShopButton`, and ProximityPrompt.
-    - Constructed physical 21-part `MerchantPavilion` trading kiosk in `Workspace.KaijuHub.GrandCentralPlaza` at $(60, 520, -4970)$ with glowing magma ring, gold goods, lantern, and 3D holographic billboard sign.
-  - **Live In-Studio Playtest Verified**: Spawning, sandbox purchase of `DoubleCash` ($2\times$ multiplier), `CashSurge_Small` awarding $+50,000$ Cash ($25k \times 2$), VIP Aura attachment, Ravager sprint jump ($32 \to 44$ WalkSpeed), smooth lighting transitions across all zones, and Shop UI verified with 0 errors.
+  - Full server-authoritative monetization (5 Gamepasses, 5 Developer Products, receipt idempotency, `ShopHUD`, and `MerchantPavilion`).
+  - Lighting overhaul in SmallTown (sunny coastal afternoon $ClockTime = 14.2$) and Metrovale (golden hour $ClockTime = 16.5$).
+  - Titan sprint system with stamina bar UI and camera FOV punch.
+- **Milestone 12.1 (Grand Hub Megastructure, Volcanic Thunderstorm Engine, and Guaranteed Master Hub Spawning):**
+  - **Guaranteed Master Initial Spawning**:
+    - Deleted rogue `Workspace.SpawnLocation` at $(0, 0.5, 0)$.
+    - Configured `Workspace.KaijuHub.HubSpawnLocation` as the sole active spawn in the DataModel.
+    - Updated `MonsterService.luau` to enforce `HubSpawnLocation` on initial session spawn.
+    - Updated `CityService.luau` to dispatch `KaijuHub` lighting profile immediately on player join.
+  - **Megastructure Spatial Expansion (2x Area Expansion)**:
+    - Expanded Central Plaza from 220 to 380 studs diameter.
+    - Expanded Hall of Titans from 160x80 to 280x140 studs.
+    - Expanded Stargate Promontory from 150x60 to 260x120 studs with 42-stud tall stargate arches.
+    - Expanded Colosseum Proving Grounds from 200x200 to 360x360 studs (sunken 40 studs).
+    - Expanded Caldera Vista from 12 to 16 basalt spires at 460 studs radius (up to 320 studs tall).
+    - Outfitted 68 Tesla lightning conductor rods with neon cyan insulators and electric arc emitters across all columns, skybeams, stargates, and monoliths.
+  - **Volcanic Thunderstorm Engine**:
+    - Integrated procedural multi-segmented jagged lightning bolts striking 27 caldera targets every 3.5–6.5s.
+    - Full-sky illumination brightness flashes (`Lighting.Brightness` spikes to 3.8 and decays back to 2.2).
+    - Impact flash spheres, 40-spark electric particle bursts, and spatial thunder clap audio.
+  - **Live In-Studio Playtest Verified**: Spawning at `(0, 540.40, -5000)` on Central Dais, thunderstorm strikes running continuously with 0 audio or script errors, and all 539 descendants intact in Edit mode.
 
 ---
 
@@ -58,16 +60,24 @@
 
 | Asset / Structure | Location | Position / Anchor | Bounding Dimensions (Studs) | Properties / Settings |
 | :--- | :--- | :--- | :--- | :--- |
-| **`PlazaFloor`** | `KaijuHub.GrandCentralPlaza` | `(0, 517, -5000)` | $220 \times 6 \times 220$ | Basalt disc, concentric magma ley-lines |
-| **`HubSpawnLocation`**| `KaijuHub` | `(0, 523.1, -5000)`| $20 \times 1.2 \times 20$ | Neutral spawn, 0 duration forcefield |
-| **`MerchantPavilion`**| `KaijuHub.GrandCentralPlaza` | `(60, 520, -4970)` | $26 \times 18 \times 26$ | 21-part trading kiosk, ProximityPrompt, 3D Billboard |
-| **`Pedestal_Ravager`** | `KaijuHub.HallOfTitans` | `(-42, 534, -5085)`| $22 \times 3 \times 22$ | 1:1 Ravager Statue, Underglow, 3D Holo Card |
-| **`Pedestal_Brontara`**| `KaijuHub.HallOfTitans` | `(42, 534, -5085)` | $26 \times 3 \times 26$ | 1:1 Brontara Statue, Underglow, 3D Holo Card |
-| **`Portal_SmallTown`** | `KaijuHub.StargatePromontory` | `(-45, 550, -4890)`| $29 \times 38 \times 6$ | Runic Arch, Cyan Stargate, ProximityPrompt |
-| **`Portal_Metrovale`** | `KaijuHub.StargatePromontory` | `(45, 550, -4890)` | $29 \times 38 \times 6$ | Runic Arch, Violet Stargate, ProximityPrompt |
-| **`Bastion_Titan_Dummy`**| `KaijuHub.ColosseumProvingGrounds` | `(0, 511, -5230)`| $16 \times 38 \times 16$ | `IsTrainingDummy = true`, 50k HP, Live DPS GUI |
-| **`PracticePillars`** | `KaijuHub.ColosseumProvingGrounds` | $Y = 508$ | $8 \times 32 \times 8$ | `IsTrainingDummy = true`, 10k HP each |
-| **`LaunchPads` (x3)** | `KaijuHub.LaunchPads` | Various | $18 \times 1.2 \times 18$ | Magma boost pads, velocity impulse |
+| **`PlazaFloor`** | `KaijuHub.GrandCentralPlaza` | `(0, 516, -5000)` | $380 \times 8 \times 380$ | Basalt disc, 4 concentric magma rings |
+| **`HubSpawnLocation`**| `KaijuHub` | `(0, 524, -5000)`| $28 \times 1.5 \times 28$ | Exclusive master spawn, 0 duration forcefield |
+| **`MagmaFlameCore`** | `KaijuHub.GrandCentralPlaza` | `(0, 532, -5000)` | $6 \times 18 \times 6$ | Crystalline magma core, flame emitter |
+| **`MerchantPavilion`**| `KaijuHub.GrandCentralPlaza` | `(95, 520, -4940)` | $28 \times 20 \times 28$ | 24-part trading kiosk, ProximityPrompt, 3D Billboard |
+| **`AltarOfAscension`**| `KaijuHub.GrandCentralPlaza` | `(0, 520, -4860)` | $26 \times 36 \times 26$ | Progression shrine, lightning conductor |
+| **`TerraceFloor`** | `KaijuHub.HallOfTitans` | `(0, 536, -5140)` | $280 \times 8 \times 140$ | Elevated North terrace, 10 sweeping steps |
+| **`Pillars` (x8)** | `KaijuHub.HallOfTitans` | Various | $12 \times 64 \times 12$ | Obsidian columns with Tesla lightning conductors |
+| **`Pedestal_Ravager`** | `KaijuHub.HallOfTitans` | `(-75, 542, -5140)`| $34 \times 4 \times 34$ | 1:1 Ravager Statue, Underglow, 3D Holo Card |
+| **`Pedestal_Brontara`**| `KaijuHub.HallOfTitans` | `(75, 542, -5140)` | $38 \times 4 \times 38$ | 1:1 Brontara Statue, Underglow, 3D Holo Card |
+| **`PromontoryFloor`** | `KaijuHub.StargatePromontory` | `(0, 556, -4820)` | $260 \times 8 \times 120$ | Elevated South ridge, 14 ascending steps |
+| **`Portal_SmallTown`** | `KaijuHub.StargatePromontory` | `(-70, 560, -4820)`| $38 \times 42 \times 8$ | 42-stud Runic Arch, Cyan Stargate, Tesla coil |
+| **`Portal_Metrovale`** | `KaijuHub.StargatePromontory` | `(70, 560, -4820)` | $38 \times 42 \times 8$ | 42-stud Runic Arch, Violet Stargate, Tesla coil |
+| **`ColosseumFloor`** | `KaijuHub.ColosseumProvingGrounds` | `(0, 475, -5420)` | $360 \times 10 \times 360$ | Sunken battle pit (40 studs below Plaza) |
+| **`Bastion_Titan_Dummy`**| `KaijuHub.ColosseumProvingGrounds` | `(0, 480, -5420)`| $16 \times 45 \times 16$ | `IsTrainingDummy = true`, 50k HP, Live DPS GUI, Lightning Rod |
+| **`PracticePillars` (x5)**| `KaijuHub.ColosseumProvingGrounds` | Various | $10 \times 38 \times 10$ | `IsTrainingDummy = true`, 10k HP each, Tesla conductors |
+| **`ColosseumBridge`** | `KaijuHub.ColosseumProvingGrounds` | `(0, 500, -5215)` | $46 \times 5 \times 170$ | Grand descending bridge connecting Plaza to Arena |
+| **`LaunchPads` (x4)** | `KaijuHub.LaunchPads` | Various | $22 \times 1.6 \times 22$ | Magma boost pads, scaled velocity impulses |
+| **`CalderaVista` (x16)**| `KaijuHub.CalderaVista` | 460-stud radius | $24 \times (180\text{-}320) \times 24$ | Basalt spires with lightning conductor summits |
 
 ---
 

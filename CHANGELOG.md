@@ -754,3 +754,37 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
     - Lighting Overhaul: Verified smooth real-time tweening between SmallTown ($ClockTime = 14.2$, $Brightness = 2.4$), Metrovale ($ClockTime = 16.5$, $Brightness = 2.2$), and Kaiju Hub caldera ($ClockTime = 18.25$, $Brightness = 1.8$).
     - Shop HUD: Opened via `ShopToggleBindable` and verified 5 gamepasses rendered cleanly with purchase buttons and safe sandbox status.
 - **Status:** Complete, Verified & In Production.
+
+
+---
+
+### [2026-10-25 17:10 UTC] — Milestone 12.1: Grand Hub Megastructure (850+ Studs), Volcanic Thunderstorm Engine, and Guaranteed Master Hub Spawning
+- **Goal:** Expand the Central Kaiju Hub to an 850+ stud volcanic caldera megastructure, integrate an active dynamic volcanic thunderstorm and lightning storm engine with Tesla conductors and sky illumination flashes, and guarantee that the Kaiju Hub is authoritatively the first and exclusive place players spawn when joining the server or starting the game.
+- **Actions Executed:**
+  - **1. Guaranteed Master Hub Initial Spawning**:
+    - Identified root cause of accidental SmallTown initial spawning: rogue `Workspace.SpawnLocation` at $(0, 0.5, 0)$ in the DataModel root was active and prioritized by default Roblox character spawning.
+    - Permanently removed `Workspace.SpawnLocation` from the DataModel, leaving `Workspace.KaijuHub.HubSpawnLocation` at $(0, 524, -5000)$ on the Central Raised Dais as the sole active `SpawnLocation` in the game.
+    - `src/server/Services/MonsterService.luau`: Enforced `hasSpawnedInSession[player.UserId]` session tracking; guarantees that each player's initial character spawn is authoritatively pivoted to `HubSpawnLocation.CFrame + Vector3.new(0, 8, 0)`.
+    - `src/server/Services/CityService.luau`: On `PlayerAdded`, immediately dispatches `CityLightingChanged` with the Kaiju Hub volcanic lighting profile so clients display the Hub's atmospheric twilight from tick 0.
+  - **2. Colossal Hub Megastructure Expansion (850+ Studs Span)**:
+    - Expanded total hub footprint from $\sim 450\text{ studs}$ to **over $850\text{–}900\text{ studs}$ across** with 539 descendants:
+      - **Tier 1: Grand Central Plaza ($Y = 520$)**: Expanded to $380\text{ studs}$ diameter (`Vector3.new(380, 8, 380)`) with 4 concentric magma ley-line rings ($360, 280, 200, 120\text{ studs}$ radii), a $70\text{ studs}$ central raised dais, $28\text{ studs}$ `HubSpawnLocation`, central magma flame core, permanent `MerchantPavilion` trading kiosk, expanded `AltarOfAscension`, and 4 cardinal walkway promenades flanked by 16 fire braziers.
+      - **Tier 2: The Hall of Titans ($Y = 540$)**: Expanded to $280 \times 140\text{ studs}$ amphitheater with 10 grand tiers of steps ($100\text{ studs}$ wide), 8 colossal obsidian columns ($12 \times 64 \times 12\text{ studs}$) with roaring braziers, and expanded pedestals ($34\text{ studs}$ Ravager, $38\text{ studs}$ Brontara) with 1:1 scale display statues.
+      - **Tier 3: The Stargate Promontory ($Y = 560$)**: Expanded to $260 \times 120\text{ studs}$ high ridge with 14 ascending grand steps ($70\text{ studs}$ wide), and towering $42\text{ studs}$ tall runic stargates (`Portal_SmallTown` and `Portal_Metrovale`) with crackling electric portal fields.
+      - **Tier 4: The Colosseum Proving Grounds ($Y = 480$)**: Sunken by $40\text{ studs}$ into a colossal $360 \times 360\text{ studs}$ battle arena with $45\text{ studs}$ high amphitheater walls, $46\text{ studs}$ wide descending bridge ($170\text{ studs}$ long), Bastion Titan DPS dummy, and 5 practice monoliths (`Pillar_Alpha` through `Pillar_Epsilon`).
+      - **Caldera Vista & Launch Pads**: 16 towering jagged perimeter basalt spires arranged at a massive **$460\text{ studs}$ radius** (heights up to $320\text{ studs}$), 4 cardinal skybeams ($1600\text{ studs}$ tall), and 4 scaled high-velocity jump pads.
+  - **3. Dynamic Volcanic Thunderstorm & Lightning Engine**:
+    - Built dynamic lightning storm engine in `src/server/Services/HubService.luau` (`StartLightningStorm`):
+      - Strikes every $3.5\text{ to } 6.5\text{ seconds}$ targeting 27 designated caldera targets (spire summits, column conductors, stargate arches, Bastion dummy rod).
+      - Spawns multi-segmented jagged neon lightning bolts ($2.4\text{ studs}$ thick) arcing from storm cloud ceiling ($Y = 1350$) down to target with randomized lateral jitter.
+      - Triggers an instant sky illumination flash (`Lighting.Brightness` spikes $2.2 \to 3.8$ and smoothly decays over $0.22\text{s}$).
+      - Emits bright contact flash balls and 40-spark electric particle bursts at the strike point.
+      - Plays spatial thunder rumble audio using built-in engine audio (`rbxasset://sounds/impact_explosion_03.mp3` at $1.35$ playback speed).
+      - Automatically cleans up bolt parts and lighting within $0.20\text{s}$.
+    - Outfitted 68 Tesla lightning conductor rods with neon cyan insulators and persistent electric arc emitters across all columns, skybeams, stargates, and monoliths.
+    - Updated `CityConfig.luau` Hub lighting profile with enhanced brightness ($2.2$) and outdoor ambient ($110, 75, 70$) for crisp visibility across the $850\text{ stud}$ vista.
+  - **4. Live In-Studio Playtest Verification**:
+    - Verified player initial spawn cleanly on Central Dais `(0, 540.40, -5000)` at `HubSpawnLocation`.
+    - Verified lightning storm engine running cleanly in background; lightning bolts strike spires, sky flashes, and thunder plays with 0 errors.
+    - Verified all 539 descendants, Merchant Pavilion, Altar of Ascension, and Bastion DPS dummy active in Edit mode.
+- **Status:** Complete, Verified & In Production.

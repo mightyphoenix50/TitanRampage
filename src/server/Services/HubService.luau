@@ -1,17 +1,20 @@
 --!strict
 --[[
     HubService.luau
+    Authoritative construction, visual management, and micro-loops for the Central Kaiju Hub.
     Responsibility:
-    - Server-authoritative construction, visual management, and micro-loops for the Central Kaiju Hub.
-    - Grand 4-tier Volcanic Caldera Sanctuary (450+ studs):
-        Tier 1: Grand Central Plaza (Y = 520, 220-stud dia arena, master spawn, Altar of Ascension)
-        Tier 2: The Hall of Titans (Y = 535, 1:1 illuminated statues of Ravager & Brontara with 3D stat cards)
-        Tier 3: The Stargate Promontory (Y = 550, SmallTown and Metrovale deployment stargates)
-        Tier 4: The Colosseum Proving Grounds (Y = 492, 200x200 sunken pit, Bastion DPS dummy, practice monoliths)
-    - High-velocity directional Titan Launch/Boost Pads with impulse physics and particle bursts.
-    - Bastion Titan DPS & Combo Testing Dummy with live damage-per-second, streak, and hit readout.
-    - Full atmospheric profile (volcanic twilight Atmosphere, Bloom, ColorCorrection, skybeams, braziers).
-    - Production performance optimization: 100% Anchored, CanCollide=false on cosmetics, CastShadow=false on trim.
+    - Colossal 4-Tier Volcanic Caldera Sanctuary (850+ studs across):
+        Tier 1: Grand Central Plaza (Y = 520, 380-stud dia arena, master spawn, flame core, merchant pavilion, Altar of Ascension)
+        Tier 2: The Hall of Titans (Y = 540, 280x140 amphitheater, 8 Tesla columns, illuminated statues of Ravager & Brontara with 3D stat cards)
+        Tier 3: The Stargate Promontory (Y = 560, 260x120 high ridge, 42-stud SmallTown and Metrovale electric deployment stargates)
+        Tier 4: The Colosseum Proving Grounds (Y = 480, 360x360 sunken pit, Bastion DPS dummy, 5 practice monoliths, 170-stud grand bridge)
+    - Dynamic Volcanic Thunderstorm Engine:
+        Procedural multi-segmented jagged lightning bolts striking 27 caldera targets every 3.5–6.5s.
+        Sky illumination brightness flashes, spatial thunder claps, and impact spark bursts.
+        Persistent Tesla lightning conductor rods on columns, skybeam bases, and stargates.
+    - Inter-Tier High-Velocity Titan Magma Launch Pads with impulse physics and burst VFX.
+    - Bastion Titan DPS & Combo Testing Dummy with live rolling damage-per-second, streak, and hit readout.
+    - Master Initial Spawn Enforcer: Guarantees HubSpawnLocation is the sole active spawn in the game.
 --]]
 
 local Workspace = game:GetService("Workspace")
@@ -41,7 +44,10 @@ local dummyCombatState = {
 -- Launch pad cooldown debounce per player
 local launchDebounce: { [number]: number } = {}
 
--- Forward declaration of helper
+-- Registry of lightning strike target locations
+local lightningStrikeTargets: { Vector3 } = {}
+
+-- Helper to create styled, anchored static parts
 local function createPart(parent: Instance, name: string, size: Vector3, cframe: CFrame, material: Enum.Material, color: Color3, canCollide: boolean?): Part
     local p = Instance.new("Part")
     p.Name = name
@@ -64,10 +70,10 @@ end
 ]=]
 local function setupAtmosphere()
     pcall(function()
-        Lighting.ClockTime = 18.25 -- Atmospheric sunset/twilight
-        Lighting.Brightness = 1.8
-        Lighting.OutdoorAmbient = Color3.fromRGB(80, 50, 45)
-        Lighting.Ambient = Color3.fromRGB(60, 40, 40)
+        Lighting.ClockTime = 18.25 -- Atmospheric volcanic twilight
+        Lighting.Brightness = 2.2 -- Enhanced brightness for vast 850-stud vista
+        Lighting.OutdoorAmbient = Color3.fromRGB(110, 75, 70)
+        Lighting.Ambient = Color3.fromRGB(85, 60, 58)
         Lighting.ShadowSoftness = 0.2
     end)
 
@@ -77,12 +83,12 @@ local function setupAtmosphere()
         atmosphere = Instance.new("Atmosphere")
         atmosphere.Parent = Lighting
     end
-    atmosphere.Density = 0.32
+    atmosphere.Density = 0.28
     atmosphere.Offset = 0.25
-    atmosphere.Color = Color3.fromRGB(180, 80, 45)
-    atmosphere.Decay = Color3.fromRGB(50, 20, 20)
-    atmosphere.Glare = 0.4
-    atmosphere.Haze = 2.0
+    atmosphere.Color = Color3.fromRGB(195, 95, 55)
+    atmosphere.Decay = Color3.fromRGB(65, 30, 25)
+    atmosphere.Glare = 0.45
+    atmosphere.Haze = 1.6
 
     -- Crisp Magma Bloom
     local bloom = Lighting:FindFirstChildOfClass("BloomEffect")
@@ -90,7 +96,7 @@ local function setupAtmosphere()
         bloom = Instance.new("BloomEffect")
         bloom.Parent = Lighting
     end
-    bloom.Intensity = 0.75
+    bloom.Intensity = 0.70
     bloom.Size = 24
     bloom.Threshold = 1.1
 
@@ -100,10 +106,76 @@ local function setupAtmosphere()
         cc = Instance.new("ColorCorrectionEffect")
         cc.Parent = Lighting
     end
-    cc.Brightness = 0.02
-    cc.Contrast = 0.12
-    cc.Saturation = 0.18
-    cc.TintColor = Color3.fromRGB(255, 240, 235)
+    cc.Brightness = 0.03
+    cc.Contrast = 0.14
+    cc.Saturation = 0.20
+    cc.TintColor = Color3.fromRGB(255, 245, 238)
+end
+
+--[=[
+    Attaches a Tesla Lightning Conductor Rod to an architectural pillar or roof peak.
+]=]
+local function createLightningConductor(parent: Instance, pos: Vector3, height: number): Part
+    local rod = Instance.new("Part")
+    rod.Name = "LightningConductorRod"
+    rod.Size = Vector3.new(1.8, height, 1.8)
+    rod.Position = pos + Vector3.new(0, height / 2, 0)
+    rod.Material = Enum.Material.Metal
+    rod.Color = Color3.fromRGB(170, 130, 80)
+    rod.Anchored = true
+    rod.CanCollide = false
+    rod.CastShadow = false
+    rod.Parent = parent
+
+    local tip = Instance.new("Part")
+    tip.Name = "ConductorTip"
+    tip.Shape = Enum.PartType.Ball
+    tip.Size = Vector3.new(3.6, 3.6, 3.6)
+    tip.Position = pos + Vector3.new(0, height, 0)
+    tip.Material = Enum.Material.Neon
+    tip.Color = Color3.fromRGB(0, 230, 255)
+    tip.Anchored = true
+    tip.CanCollide = false
+    tip.CastShadow = false
+    tip.Parent = rod
+
+    local att = Instance.new("Attachment")
+    att.Parent = tip
+
+    local arcEmitter = Instance.new("ParticleEmitter")
+    arcEmitter.Name = "ElectricArcs"
+    arcEmitter.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 240, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(200, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 170, 255)),
+    })
+    arcEmitter.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1.0),
+        NumberSequenceKeypoint.new(0.6, 2.8),
+        NumberSequenceKeypoint.new(1, 0),
+    })
+    arcEmitter.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.1),
+        NumberSequenceKeypoint.new(0.7, 0.3),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    arcEmitter.Speed = NumberRange.new(4, 10)
+    arcEmitter.SpreadAngle = Vector2.new(180, 180)
+    arcEmitter.Lifetime = NumberRange.new(0.3, 0.6)
+    arcEmitter.Rate = 16
+    arcEmitter.LightEmission = 1
+    arcEmitter.LightInfluence = 0
+    arcEmitter.Parent = att
+
+    local tipLight = Instance.new("PointLight")
+    tipLight.Color = Color3.fromRGB(0, 220, 255)
+    tipLight.Brightness = 3.0
+    tipLight.Range = 26
+    tipLight.Shadows = false
+    tipLight.Parent = tip
+
+    table.insert(lightningStrikeTargets, tip.Position)
+    return tip
 end
 
 --[=[
@@ -112,16 +184,16 @@ end
 local function createTitanHoloCard(parent: Instance, titanName: string, title: string, subtitle: string, stats: { Health: string, Speed: string, Power: string, Reach: string }, abilities: { string }, accentColor: Color3)
     local bg = Instance.new("BillboardGui")
     bg.Name = "TitanHoloCard"
-    bg.Size = UDim2.new(0, 420, 0, 260)
-    bg.StudsOffset = Vector3.new(0, 16, 0)
+    bg.Size = UDim2.new(0, 440, 0, 270)
+    bg.StudsOffset = Vector3.new(0, 18, 0)
     bg.AlwaysOnTop = true
-    bg.MaxDistance = 140
+    bg.MaxDistance = 160
     bg.Parent = parent
 
     local mainFrame = Instance.new("Frame")
     mainFrame.Size = UDim2.new(1, 0, 1, 0)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 14)
-    mainFrame.BackgroundTransparency = 0.25
+    mainFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 16)
+    mainFrame.BackgroundTransparency = 0.22
     mainFrame.BorderSizePixel = 0
     mainFrame.Parent = bg
 
@@ -132,99 +204,110 @@ local function createTitanHoloCard(parent: Instance, titanName: string, title: s
     local stroke = Instance.new("UIStroke")
     stroke.Color = accentColor
     stroke.Thickness = 2.5
-    stroke.Transparency = 0.2
+    stroke.Transparency = 0.15
     stroke.Parent = mainFrame
 
     -- Title
     local titleLbl = Instance.new("TextLabel")
-    titleLbl.Size = UDim2.new(1, -20, 0, 40)
+    titleLbl.Size = UDim2.new(1, -20, 0, 42)
     titleLbl.Position = UDim2.new(0, 10, 0, 8)
     titleLbl.BackgroundTransparency = 1
     titleLbl.Text = string.upper(title)
     titleLbl.TextColor3 = accentColor
     titleLbl.Font = Enum.Font.GothamBlack
-    titleLbl.TextSize = 26
+    titleLbl.TextSize = 28
     titleLbl.TextXAlignment = Enum.TextXAlignment.Center
     titleLbl.Parent = mainFrame
 
     -- Subtitle Archetype
     local subLbl = Instance.new("TextLabel")
-    subLbl.Size = UDim2.new(1, -20, 0, 20)
-    subLbl.Position = UDim2.new(0, 10, 0, 46)
+    subLbl.Size = UDim2.new(1, -20, 0, 22)
+    subLbl.Position = UDim2.new(0, 10, 0, 48)
     subLbl.BackgroundTransparency = 1
     subLbl.Text = subtitle
-    subLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-    subLbl.Font = Enum.Font.GothamMedium
-    subLbl.TextSize = 14
+    subLbl.TextColor3 = Color3.fromRGB(220, 225, 235)
+    subLbl.Font = Enum.Font.GothamBold
+    subLbl.TextSize = 13
     subLbl.TextXAlignment = Enum.TextXAlignment.Center
     subLbl.Parent = mainFrame
 
-    -- Divider
-    local div = Instance.new("Frame")
-    div.Size = UDim2.new(0.85, 0, 0, 1)
-    div.Position = UDim2.new(0.075, 0, 0, 72)
-    div.BackgroundColor3 = accentColor
-    div.BackgroundTransparency = 0.5
-    div.BorderSizePixel = 0
-    div.Parent = mainFrame
-
-    -- Stat grid
-    local statY = 82
+    -- Stats Container Grid
     local statRows = {
-        { "VITALITY", stats.Health },
-        { "MOBILITY", stats.Speed },
-        { "MIGHT", stats.Power },
-        { "REACH", stats.Reach },
+        { Label = "HEALTH", Value = stats.Health },
+        { Label = "SPEED", Value = stats.Speed },
+        { Label = "POWER", Value = stats.Power },
+        { Label = "REACH", Value = stats.Reach },
     }
 
-    for i, s in ipairs(statRows) do
-        local rowY = statY + ((i - 1) * 22)
-        local keyLbl = Instance.new("TextLabel")
-        keyLbl.Size = UDim2.new(0.4, 0, 0, 18)
-        keyLbl.Position = UDim2.new(0.08, 0, 0, rowY)
-        keyLbl.BackgroundTransparency = 1
-        keyLbl.Text = s[1]
-        keyLbl.TextColor3 = Color3.fromRGB(160, 160, 170)
-        keyLbl.Font = Enum.Font.GothamBold
-        keyLbl.TextSize = 12
-        keyLbl.TextXAlignment = Enum.TextXAlignment.Left
-        keyLbl.Parent = mainFrame
+    local statsContainer = Instance.new("Frame")
+    statsContainer.Size = UDim2.new(1, -24, 0, 80)
+    statsContainer.Position = UDim2.new(0, 12, 0, 76)
+    statsContainer.BackgroundTransparency = 1
+    statsContainer.Parent = mainFrame
 
-        local valLbl = Instance.new("TextLabel")
-        valLbl.Size = UDim2.new(0.44, 0, 0, 18)
-        valLbl.Position = UDim2.new(0.48, 0, 0, rowY)
-        valLbl.BackgroundTransparency = 1
-        valLbl.Text = s[2]
-        valLbl.TextColor3 = Color3.fromRGB(240, 240, 240)
-        valLbl.Font = Enum.Font.GothamSemibold
-        valLbl.TextSize = 12
-        valLbl.TextXAlignment = Enum.TextXAlignment.Right
-        valLbl.Parent = mainFrame
+    local grid = Instance.new("UIGridLayout")
+    grid.CellSize = UDim2.new(0.48, 0, 0.45, 0)
+    grid.CellPadding = UDim2.new(0.04, 0, 0.1, 0)
+    grid.Parent = statsContainer
+
+    for _, s in ipairs(statRows) do
+        local box = Instance.new("Frame")
+        box.BackgroundColor3 = Color3.fromRGB(25, 22, 28)
+        box.BorderSizePixel = 0
+        box.Parent = statsContainer
+
+        local bCorner = Instance.new("UICorner")
+        bCorner.CornerRadius = UDim.new(0, 6)
+        bCorner.Parent = box
+
+        local sLbl = Instance.new("TextLabel")
+        sLbl.Size = UDim2.new(0.45, 0, 1, 0)
+        sLbl.Position = UDim2.new(0, 8, 0, 0)
+        sLbl.BackgroundTransparency = 1
+        sLbl.Text = s.Label .. ":"
+        sLbl.TextColor3 = Color3.fromRGB(160, 170, 185)
+        sLbl.Font = Enum.Font.GothamBold
+        sLbl.TextSize = 11
+        sLbl.TextXAlignment = Enum.TextXAlignment.Left
+        sLbl.Parent = box
+
+        local sVal = Instance.new("TextLabel")
+        sVal.Size = UDim2.new(0.55, -12, 1, 0)
+        sVal.Position = UDim2.new(0.45, 0, 0, 0)
+        sVal.BackgroundTransparency = 1
+        sVal.Text = s.Value
+        sVal.TextColor3 = Color3.fromRGB(255, 255, 255)
+        sVal.Font = Enum.Font.GothamBlack
+        sVal.TextSize = 11
+        sVal.TextXAlignment = Enum.TextXAlignment.Right
+        sVal.Parent = box
     end
 
-    -- Abilities label
-    local abTitle = Instance.new("TextLabel")
-    abTitle.Size = UDim2.new(1, -20, 0, 16)
-    abTitle.Position = UDim2.new(0, 10, 0, 178)
-    abTitle.BackgroundTransparency = 1
-    abTitle.Text = "SIGNATURE COMBAT KIT"
-    abTitle.TextColor3 = accentColor
-    abTitle.Font = Enum.Font.GothamBold
-    abTitle.TextSize = 11
-    abTitle.TextXAlignment = Enum.TextXAlignment.Center
-    abTitle.Parent = mainFrame
+    -- Abilities List
+    local abHeader = Instance.new("TextLabel")
+    abHeader.Size = UDim2.new(1, -24, 0, 20)
+    abHeader.Position = UDim2.new(0, 12, 0, 164)
+    abHeader.BackgroundTransparency = 1
+    abHeader.Text = "SIGNATURE COMBAT ARSENAL"
+    abHeader.TextColor3 = accentColor
+    abHeader.Font = Enum.Font.GothamBlack
+    abHeader.TextSize = 11
+    abHeader.TextXAlignment = Enum.TextXAlignment.Left
+    abHeader.Parent = mainFrame
 
     local abList = Instance.new("TextLabel")
-    abList.Size = UDim2.new(1, -20, 0, 48)
-    abList.Position = UDim2.new(0, 10, 0, 196)
+    abList.Size = UDim2.new(1, -24, 0, 50)
+    abList.Position = UDim2.new(0, 12, 0, 186)
     abList.BackgroundTransparency = 1
-    abList.Text = table.concat(abilities, "  •  ")
-    abList.TextColor3 = Color3.fromRGB(220, 220, 220)
+    abList.Text = "• " .. table.concat(abilities, "\n• ")
+    abList.TextColor3 = Color3.fromRGB(210, 220, 235)
     abList.Font = Enum.Font.Gotham
-    abList.TextSize = 12
-    abList.TextWrapped = true
-    abList.TextXAlignment = Enum.TextXAlignment.Center
+    abList.TextSize = 11
+    abList.TextXAlignment = Enum.TextXAlignment.Left
+    abList.TextYAlignment = Enum.TextYAlignment.Top
     abList.Parent = mainFrame
+
+    return bg
 end
 
 --[=[
@@ -240,7 +323,6 @@ local function createDisplayStatue(parent: Instance, titanId: string, modelTempl
     local statue = template:Clone()
     statue.Name = titanId .. "_DisplayStatue"
 
-    -- Strip scripts, humanoid animators, and non-visual logic to save physics overhead
     for _, desc in ipairs(statue:GetDescendants()) do
         if desc:IsA("Script") or desc:IsA("LocalScript") or desc:IsA("Animator") then
             desc:Destroy()
@@ -266,15 +348,15 @@ local function createDisplayStatue(parent: Instance, titanId: string, modelTempl
     local underLight = Instance.new("PointLight")
     underLight.Name = "StageUnderglow"
     underLight.Color = accentColor
-    underLight.Range = 32
-    underLight.Brightness = 4
+    underLight.Range = 36
+    underLight.Brightness = 4.5
     underLight.Shadows = false
     underLight.Parent = parent
 
     local spotPart = Instance.new("Part")
     spotPart.Name = "SpotlightRig"
     spotPart.Size = Vector3.new(2, 2, 2)
-    spotPart.CFrame = statueCFrame * CFrame.new(0, 35, 18) * CFrame.Angles(math.rad(-60), 0, 0)
+    spotPart.CFrame = statueCFrame * CFrame.new(0, 42, 24) * CFrame.Angles(math.rad(-60), 0, 0)
     spotPart.Transparency = 1
     spotPart.Anchored = true
     spotPart.CanCollide = false
@@ -282,10 +364,10 @@ local function createDisplayStatue(parent: Instance, titanId: string, modelTempl
     spotPart.Parent = parent
 
     local spot = Instance.new("SpotLight")
-    spot.Color = Color3.fromRGB(255, 230, 200)
-    spot.Range = 60
-    spot.Brightness = 3
-    spot.Angle = 45
+    spot.Color = Color3.fromRGB(255, 235, 205)
+    spot.Range = 75
+    spot.Brightness = 3.5
+    spot.Angle = 50
     spot.Shadows = true
     spot.Parent = spotPart
 
@@ -300,34 +382,34 @@ local function createLaunchPad(parent: Instance, name: string, cframe: CFrame, l
     padModel.Name = name
 
     -- Outer ring
-    local base = createPart(padModel, "PadBase", Vector3.new(18, 1.2, 18), cframe, Enum.Material.SmoothPlastic, Color3.fromRGB(20, 20, 24), true)
+    local base = createPart(padModel, "PadBase", Vector3.new(22, 1.4, 22), cframe, Enum.Material.SmoothPlastic, Color3.fromRGB(20, 20, 25), true)
     base.CastShadow = false
 
     -- Glowing inner pad
-    local inner = createPart(padModel, "TriggerPad", Vector3.new(14, 1.4, 14), cframe * CFrame.new(0, 0.2, 0), Enum.Material.Neon, Color3.fromRGB(255, 95, 15), false)
+    local inner = createPart(padModel, "TriggerPad", Vector3.new(18, 1.6, 18), cframe * CFrame.new(0, 0.25, 0), Enum.Material.Neon, Color3.fromRGB(255, 95, 15), false)
     inner.CastShadow = false
 
     local light = Instance.new("PointLight")
     light.Color = Color3.fromRGB(255, 110, 20)
-    light.Range = 24
-    light.Brightness = 3
+    light.Range = 30
+    light.Brightness = 3.5
     light.Parent = inner
 
     -- Overhead holographic billboard
     local bg = Instance.new("BillboardGui")
-    bg.Size = UDim2.new(0, 160, 0, 40)
-    bg.StudsOffset = Vector3.new(0, 4, 0)
+    bg.Size = UDim2.new(0, 180, 0, 42)
+    bg.StudsOffset = Vector3.new(0, 5, 0)
     bg.AlwaysOnTop = true
-    bg.MaxDistance = 80
+    bg.MaxDistance = 100
     bg.Parent = inner
 
     local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.new(1, 0, 1, 0)
     lbl.BackgroundTransparency = 1
     lbl.Text = "▲ " .. label .. " ▲"
-    lbl.TextColor3 = Color3.fromRGB(255, 180, 50)
+    lbl.TextColor3 = Color3.fromRGB(255, 190, 60)
     lbl.Font = Enum.Font.GothamBlack
-    lbl.TextSize = 14
+    lbl.TextSize = 15
     lbl.Parent = bg
 
     -- Launch impulse binding
@@ -344,21 +426,20 @@ local function createLaunchPad(parent: Instance, name: string, cframe: CFrame, l
         local hrp = character:FindFirstChild("HumanoidRootPart") :: BasePart? or character.PrimaryPart
         if hrp and not hrp.Anchored then
             hrp.AssemblyLinearVelocity = launchVelocity
-            
-            -- Spawn fiery launch burst
+
             local burst = Instance.new("Part")
-            burst.Size = Vector3.new(12, 1, 12)
+            burst.Size = Vector3.new(16, 1.2, 16)
             burst.CFrame = inner.CFrame
             burst.Anchored = true
             burst.CanCollide = false
             burst.CanTouch = false
             burst.Material = Enum.Material.Neon
-            burst.Color = Color3.fromRGB(255, 150, 40)
-            burst.Transparency = 0.2
+            burst.Color = Color3.fromRGB(255, 160, 45)
+            burst.Transparency = 0.15
             burst.Parent = Workspace
 
-            local tw = TweenService:Create(burst, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = Vector3.new(24, 0.5, 24),
+            local tw = TweenService:Create(burst, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = Vector3.new(36, 0.6, 36),
                 Transparency = 1,
             })
             tw:Play()
@@ -373,46 +454,52 @@ local function createLaunchPad(parent: Instance, name: string, cframe: CFrame, l
 end
 
 --[=[
-    Constructs the Bastion Titan DPS dummy with live overhead damage readout.
+    Constructs the Bastion Titan DPS dummy with live overhead damage readout and lightning rod.
 ]=]
 local function createBastionDPSDummy(parent: Instance, cframe: CFrame): Model
     local dummyModel = Instance.new("Model")
     dummyModel.Name = "Bastion_Titan_Dummy"
 
-    local core = createPart(dummyModel, "Core", Vector3.new(14, 38, 14), cframe * CFrame.new(0, 19, 0), Enum.Material.Basalt, Color3.fromRGB(30, 28, 32), true)
+    -- Base plinth
+    local plinth = createPart(dummyModel, "Plinth", Vector3.new(24, 3, 24), cframe * CFrame.new(0, 1.5, 0), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
+
+    -- Heavy Core Monolith
+    local core = createPart(dummyModel, "Core", Vector3.new(16, 42, 16), cframe * CFrame.new(0, 24, 0), Enum.Material.Basalt, Color3.fromRGB(30, 28, 34))
+    core:SetAttribute("BuildingId", "Bastion_Titan_Dummy")
+    core:SetAttribute("BuildingName", "Bastion Titan Combat Dummy")
+    core:SetAttribute("BuildingType", "TrainingDummy")
+    core:SetAttribute("MaxHealth", 50000)
+    core:SetAttribute("CurrentHealth", 50000)
+    core:SetAttribute("DestructionReward", 0)
+    core:SetAttribute("DestructionPoints", 15)
+    core:SetAttribute("DestructionTier", 3)
+    core:SetAttribute("IsTrainingDummy", true)
+    core:SetAttribute("IsDestroyed", false)
+
     dummyModel.PrimaryPart = core
 
-    -- Armor plates
-    local chest = createPart(dummyModel, "ChestPlate", Vector3.new(16, 14, 16), cframe * CFrame.new(0, 26, 0), Enum.Material.Slate, Color3.fromRGB(45, 42, 48), true)
-    local head = createPart(dummyModel, "HeadCore", Vector3.new(8, 8, 8), cframe * CFrame.new(0, 38, 0), Enum.Material.Basalt, Color3.fromRGB(25, 25, 30), true)
-    
-    local eye = createPart(dummyModel, "EyeCore", Vector3.new(4, 1.5, 1), cframe * CFrame.new(0, 38, 4.2), Enum.Material.Neon, Color3.fromRGB(255, 60, 20), false)
-    eye.CastShadow = false
+    -- Magma Rune Rings on Core
+    for _, yOff in ipairs({ 8, 16, 24, 32 }) do
+        local rune = createPart(dummyModel, "RuneRing_" .. yOff, Vector3.new(17.2, 1.8, 17.2), cframe * CFrame.new(0, yOff, 0), Enum.Material.Neon, Color3.fromRGB(255, 80, 15), false)
+        rune.CastShadow = false
+    end
 
-    -- Dummy attributes
-    dummyModel:SetAttribute("BuildingId", "Bastion_DPS_Dummy")
-    dummyModel:SetAttribute("BuildingName", "Ancient Bastion Monolith")
-    dummyModel:SetAttribute("BuildingType", "TrainingDummy")
-    dummyModel:SetAttribute("MaxHealth", 50000)
-    dummyModel:SetAttribute("CurrentHealth", 50000)
-    dummyModel:SetAttribute("DestructionReward", 0)
-    dummyModel:SetAttribute("DestructionPoints", 15)
-    dummyModel:SetAttribute("DestructionTier", 3)
-    dummyModel:SetAttribute("IsTrainingDummy", true)
-    dummyModel:SetAttribute("IsDestroyed", false)
+    -- Lightning Conductor Spire on top of Bastion Dummy
+    createLightningConductor(dummyModel, (cframe * CFrame.new(0, 45, 0)).Position, 16)
 
-    -- Live DPS Billboard
+    -- Live Rolling DPS & Combo Billboard GUI
     local bg = Instance.new("BillboardGui")
     bg.Name = "DPS_Billboard"
-    bg.Size = UDim2.new(0, 340, 0, 180)
-    bg.StudsOffset = Vector3.new(0, 24, 0)
+    bg.Size = UDim2.new(0, 360, 0, 170)
+    bg.StudsOffset = Vector3.new(0, 32, 0)
     bg.AlwaysOnTop = true
-    bg.MaxDistance = 150
+    bg.MaxDistance = 180
     bg.Parent = core
 
     local frame = Instance.new("Frame")
+    frame.Name = "Frame"
     frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.BackgroundColor3 = Color3.fromRGB(15, 12, 18)
+    frame.BackgroundColor3 = Color3.fromRGB(15, 12, 16)
     frame.BackgroundTransparency = 0.2
     frame.BorderSizePixel = 0
     frame.Parent = bg
@@ -422,55 +509,54 @@ local function createBastionDPSDummy(parent: Instance, cframe: CFrame): Model
     corner.Parent = frame
 
     local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(255, 90, 20)
+    stroke.Color = Color3.fromRGB(255, 100, 20)
     stroke.Thickness = 2
     stroke.Parent = frame
 
-    local title = Instance.new("TextLabel")
-    title.Name = "DummyTitle"
-    title.Size = UDim2.new(1, 0, 0, 28)
-    title.Position = UDim2.new(0, 0, 0, 6)
-    title.BackgroundTransparency = 1
-    title.Text = "ANCIENT BASTION MONOLITH"
-    title.TextColor3 = Color3.fromRGB(255, 120, 40)
-    title.Font = Enum.Font.GothamBlack
-    title.TextSize = 16
-    title.Parent = frame
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Name = "TitleLabel"
+    titleLbl.Size = UDim2.new(1, 0, 0, 26)
+    titleLbl.Position = UDim2.new(0, 0, 0, 6)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = "BASTION TITAN • 50,000 HP"
+    titleLbl.TextColor3 = Color3.fromRGB(255, 190, 50)
+    titleLbl.Font = Enum.Font.GothamBlack
+    titleLbl.TextSize = 14
+    titleLbl.Parent = frame
 
     local dpsLbl = Instance.new("TextLabel")
     dpsLbl.Name = "DPSLabel"
-    dpsLbl.Size = UDim2.new(1, 0, 0, 40)
-    dpsLbl.Position = UDim2.new(0, 0, 0, 36)
+    dpsLbl.Size = UDim2.new(1, 0, 0, 46)
+    dpsLbl.Position = UDim2.new(0, 0, 0, 32)
     dpsLbl.BackgroundTransparency = 1
     dpsLbl.Text = "0 DPS"
-    dpsLbl.TextColor3 = Color3.fromRGB(255, 230, 80)
+    dpsLbl.TextColor3 = Color3.fromRGB(255, 235, 60)
     dpsLbl.Font = Enum.Font.GothamBlack
-    dpsLbl.TextSize = 30
+    dpsLbl.TextSize = 34
     dpsLbl.Parent = frame
 
     local streakLbl = Instance.new("TextLabel")
     streakLbl.Name = "StreakLabel"
     streakLbl.Size = UDim2.new(1, 0, 0, 22)
-    streakLbl.Position = UDim2.new(0, 0, 0, 80)
+    streakLbl.Position = UDim2.new(0, 0, 0, 78)
     streakLbl.BackgroundTransparency = 1
     streakLbl.Text = "0 HITS  •  1.0x COMBO"
-    streakLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+    streakLbl.TextColor3 = Color3.fromRGB(255, 140, 30)
     streakLbl.Font = Enum.Font.GothamBold
     streakLbl.TextSize = 13
     streakLbl.Parent = frame
 
-    local dmgLbl = Instance.new("TextLabel")
-    dmgLbl.Name = "TotalDamageLabel"
-    dmgLbl.Size = UDim2.new(1, 0, 0, 20)
-    dmgLbl.Position = UDim2.new(0, 0, 0, 104)
-    dmgLbl.BackgroundTransparency = 1
-    dmgLbl.Text = "Total Damage: 0  |  Best Hit: 0"
-    dmgLbl.TextColor3 = Color3.fromRGB(160, 160, 170)
-    dmgLbl.Font = Enum.Font.GothamMedium
-    dmgLbl.TextSize = 12
-    dmgLbl.Parent = frame
+    local totalDmgLbl = Instance.new("TextLabel")
+    totalDmgLbl.Name = "TotalDamageLabel"
+    totalDmgLbl.Size = UDim2.new(1, 0, 0, 20)
+    totalDmgLbl.Position = UDim2.new(0, 0, 0, 102)
+    totalDmgLbl.BackgroundTransparency = 1
+    totalDmgLbl.Text = "Total: 0  |  Best: 0"
+    totalDmgLbl.TextColor3 = Color3.fromRGB(180, 195, 215)
+    totalDmgLbl.Font = Enum.Font.Gotham
+    totalDmgLbl.TextSize = 12
+    totalDmgLbl.Parent = frame
 
-    -- Health bar background
     local barBg = Instance.new("Frame")
     barBg.Name = "HealthBarBg"
     barBg.Size = UDim2.new(0.85, 0, 0, 14)
@@ -499,10 +585,154 @@ local function createBastionDPSDummy(parent: Instance, cframe: CFrame): Model
 end
 
 --[=[
-    Constructs the entire 4-Tier Volcanic Caldera Sanctuary in Workspace.
+    Spawns a multi-segmented jagged lightning strike from the stormy sky down to targetPos.
+]=]
+local function spawnLightningStrike(targetPos: Vector3)
+    local boltModel = Instance.new("Model")
+    boltModel.Name = "LightningStrike"
+
+    local skyY = 1350
+    local skyX = targetPos.X + math.random(-35, 35)
+    local skyZ = targetPos.Z + math.random(-35, 35)
+    local startPos = Vector3.new(skyX, skyY, skyZ)
+
+    local segments = 6
+    local currentPos = startPos
+    local totalDelta = targetPos - startPos
+
+    local isCyan = (math.random() > 0.35)
+    local boltColor = if isCyan then Color3.fromRGB(110, 235, 255) else Color3.fromRGB(255, 255, 225)
+
+    for i = 1, segments do
+        local progress = i / segments
+        local nextPos: Vector3
+        if i == segments then
+            nextPos = targetPos
+        else
+            local idealPos = startPos + (totalDelta * progress)
+            local jitterX = math.random(-24, 24)
+            local jitterZ = math.random(-24, 24)
+            local jitterY = math.random(-12, 12)
+            nextPos = idealPos + Vector3.new(jitterX, jitterY, jitterZ)
+        end
+
+        local segVector = nextPos - currentPos
+        local segLength = segVector.Magnitude
+        local segCFrame = CFrame.lookAt(currentPos + (segVector * 0.5), nextPos)
+
+        local part = Instance.new("Part")
+        part.Name = "BoltSeg_" .. i
+        part.Size = Vector3.new(2.4, 2.4, segLength)
+        part.CFrame = segCFrame
+        part.Material = Enum.Material.Neon
+        part.Color = boltColor
+        part.Anchored = true
+        part.CanCollide = false
+        part.CanTouch = false
+        part.CanQuery = false
+        part.CastShadow = false
+        part.Parent = boltModel
+
+        currentPos = nextPos
+    end
+
+    -- Bright PointLight on bolt midpoint
+    local lightPart = Instance.new("Part")
+    lightPart.Name = "BoltLightPart"
+    lightPart.Size = Vector3.new(1, 1, 1)
+    lightPart.Position = targetPos + Vector3.new(0, 45, 0)
+    lightPart.Transparency = 1
+    lightPart.Anchored = true
+    lightPart.CanCollide = false
+    lightPart.CanTouch = false
+    lightPart.Parent = boltModel
+
+    local light = Instance.new("PointLight")
+    light.Color = boltColor
+    light.Range = 140
+    light.Brightness = 14
+    light.Parent = lightPart
+
+    -- Impact Flash Ball
+    local impact = Instance.new("Part")
+    impact.Name = "ImpactFlash"
+    impact.Shape = Enum.PartType.Ball
+    impact.Size = Vector3.new(18, 18, 18)
+    impact.Position = targetPos
+    impact.Material = Enum.Material.Neon
+    impact.Color = boltColor
+    impact.Anchored = true
+    impact.CanCollide = false
+    impact.CanTouch = false
+    impact.CanQuery = false
+    impact.CastShadow = false
+    impact.Parent = boltModel
+
+    -- Impact Spark Particle Emitter
+    local att = Instance.new("Attachment")
+    att.Position = targetPos
+    att.Parent = lightPart
+
+    local sparks = Instance.new("ParticleEmitter")
+    sparks.Color = ColorSequence.new(boltColor, Color3.fromRGB(255, 255, 255))
+    sparks.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.8), NumberSequenceKeypoint.new(1, 0) })
+    sparks.Speed = NumberRange.new(40, 85)
+    sparks.SpreadAngle = Vector2.new(180, 180)
+    sparks.Lifetime = NumberRange.new(0.4, 0.8)
+    sparks.Rate = 250
+    sparks.LightEmission = 1
+    sparks.LightInfluence = 0
+    sparks.Parent = att
+    sparks:Emit(40)
+
+    -- Thunder Audio
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxasset://sounds/impact_explosion_03.mp3"
+    sound.Volume = 1.6
+    sound.PlaybackSpeed = 1.35
+    sound.RollOffMaxDistance = 1400
+    sound.RollOffMinDistance = 120
+    sound.Parent = lightPart
+    sound:Play()
+
+    boltModel.Parent = Workspace
+
+    -- Full Sky Illumination Flash
+    pcall(function()
+        Lighting.Brightness = 3.8
+        task.delay(0.06, function()
+            TweenService:Create(Lighting, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Brightness = 2.2,
+            }):Play()
+        end)
+    end)
+
+    -- Flicker and fade
+    task.delay(0.08, function()
+        for _, p in ipairs(boltModel:GetChildren()) do
+            if p:IsA("BasePart") and p ~= lightPart then
+                p.Transparency = 0.4
+            end
+        end
+    end)
+    task.delay(0.20, function()
+        boltModel:Destroy()
+    end)
+end
+
+--[=[
+    Constructs the entire 4-Tier Volcanic Caldera Sanctuary in Workspace (850+ studs across).
 ]=]
 function HubService.ConstructGrandSanctuary()
-    print("[HubService] 🌋 Constructing Grand Volcanic Kaiju Sanctuary (450+ studs)...")
+    print("[HubService] 🌋 Constructing Grand Volcanic Kaiju Megastructure (850+ studs)...")
+
+    table.clear(lightningStrikeTargets)
+
+    -- Guarantee default spawn in root is cleaned up
+    local defaultSpawn = Workspace:FindFirstChild("SpawnLocation")
+    if defaultSpawn then
+        defaultSpawn:Destroy()
+    end
 
     local existing = Workspace:FindFirstChild("KaijuHub")
     if existing then
@@ -515,58 +745,184 @@ function HubService.ConstructGrandSanctuary()
     local hubOrigin = Vector3.new(0, 520, -5000)
 
     -- =========================================================================
-    -- TIER 1: GRAND CENTRAL PLAZA (Y = 520, 220 studs diameter)
+    -- TIER 1: GRAND CENTRAL PLAZA (Y = 520, 380 studs diameter)
     -- =========================================================================
     local plazaFolder = Instance.new("Folder")
     plazaFolder.Name = "GrandCentralPlaza"
     plazaFolder.Parent = hub
 
-    -- Main Arena Disc
-    local mainFloor = createPart(plazaFolder, "PlazaFloor", Vector3.new(220, 6, 220), CFrame.new(hubOrigin.X, hubOrigin.Y - 3, hubOrigin.Z), Enum.Material.Basalt, Color3.fromRGB(32, 30, 35))
+    -- Main Arena Disc (380 studs diameter)
+    local mainFloor = createPart(plazaFolder, "PlazaFloor", Vector3.new(380, 8, 380), CFrame.new(hubOrigin.X, hubOrigin.Y - 4, hubOrigin.Z), Enum.Material.Basalt, Color3.fromRGB(32, 30, 35))
     mainFloor.CastShadow = true
 
-    -- Concentric Magma Ley-Line Rings
-    local ring1 = createPart(plazaFolder, "MagmaRune_Ring1", Vector3.new(200, 0.4, 200), CFrame.new(hubOrigin.X, hubOrigin.Y + 0.2, hubOrigin.Z), Enum.Material.Neon, Color3.fromRGB(255, 80, 15), false)
-    ring1.CastShadow = false
+    -- 4 Concentric Magma Ley-Line Rings
+    local ringRadii = { 360, 280, 200, 120 }
+    for idx, r in ipairs(ringRadii) do
+        local rune = createPart(plazaFolder, "MagmaRune_Ring" .. idx, Vector3.new(r, 0.5, r), CFrame.new(hubOrigin.X, hubOrigin.Y + 0.2 + (idx * 0.05), hubOrigin.Z), Enum.Material.Neon, if idx % 2 == 1 then Color3.fromRGB(255, 80, 15) else Color3.fromRGB(255, 120, 30), false)
+        rune.CastShadow = false
+    end
 
-    local ring2 = createPart(plazaFolder, "MagmaRune_Ring2", Vector3.new(140, 0.5, 140), CFrame.new(hubOrigin.X, hubOrigin.Y + 0.25, hubOrigin.Z), Enum.Material.Neon, Color3.fromRGB(255, 110, 25), false)
-    ring2.CastShadow = false
+    -- Central Raised Spawn Dais (70 x 70 studs)
+    local centerDais = createPart(plazaFolder, "CenterDais", Vector3.new(70, 3.5, 70), CFrame.new(hubOrigin.X, hubOrigin.Y + 1.75, hubOrigin.Z), Enum.Material.Slate, Color3.fromRGB(42, 40, 46))
+    centerDais.CastShadow = true
 
-    -- Central Elevated Spawn Dais
-    local centerDais = createPart(plazaFolder, "CenterDais", Vector3.new(50, 2.5, 50), CFrame.new(hubOrigin.X, hubOrigin.Y + 1.25, hubOrigin.Z), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
-    
+    -- Master HubSpawnLocation (Exclusive player spawn)
     local spawnLoc = Instance.new("SpawnLocation")
     spawnLoc.Name = "HubSpawnLocation"
-    spawnLoc.Size = Vector3.new(20, 1.2, 20)
-    spawnLoc.CFrame = CFrame.new(hubOrigin.X, hubOrigin.Y + 3.1, hubOrigin.Z)
+    spawnLoc.Size = Vector3.new(28, 1.5, 28)
+    spawnLoc.CFrame = CFrame.new(hubOrigin.X, hubOrigin.Y + 4.0, hubOrigin.Z)
     spawnLoc.Anchored = true
     spawnLoc.CanCollide = true
     spawnLoc.Material = Enum.Material.Neon
-    spawnLoc.Color = Color3.fromRGB(255, 130, 30)
+    spawnLoc.Color = Color3.fromRGB(255, 140, 30)
     spawnLoc.Duration = 0
     spawnLoc.Neutral = true
+    spawnLoc.Enabled = true
     spawnLoc.Parent = hub
 
     local spawnLight = Instance.new("PointLight")
-    spawnLight.Color = Color3.fromRGB(255, 130, 30)
-    spawnLight.Range = 35
-    spawnLight.Brightness = 3
+    spawnLight.Color = Color3.fromRGB(255, 150, 40)
+    spawnLight.Range = 45
+    spawnLight.Brightness = 4.0
     spawnLight.Parent = spawnLoc
+
+    -- Central Blazing Magma Flame Core
+    local flameCore = createPart(plazaFolder, "MagmaFlameCore", Vector3.new(6, 18, 6), CFrame.new(hubOrigin.X, hubOrigin.Y + 12, hubOrigin.Z), Enum.Material.Neon, Color3.fromRGB(255, 110, 20), false)
+    flameCore.CastShadow = false
+
+    local flameEmitter = Instance.new("ParticleEmitter")
+    flameEmitter.Name = "SanctuaryFlames"
+    flameEmitter.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 230, 80)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 120, 20)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 30, 10)),
+    })
+    flameEmitter.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 4),
+        NumberSequenceKeypoint.new(0.7, 8),
+        NumberSequenceKeypoint.new(1, 0),
+    })
+    flameEmitter.Speed = NumberRange.new(12, 24)
+    flameEmitter.SpreadAngle = Vector2.new(20, 20)
+    flameEmitter.Lifetime = NumberRange.new(1.0, 1.8)
+    flameEmitter.Rate = 35
+    flameEmitter.LightEmission = 0.9
+    flameEmitter.Parent = flameCore
+
+    -- 4 Monumental Entrance Promenades with Basalt Fire Braziers
+    local cardinalAngles = { 0, 90, 180, 270 }
+    for _, angleDeg in ipairs(cardinalAngles) do
+        local rad = math.rad(angleDeg)
+        for dist = 60, 160, 40 do
+            local bx = hubOrigin.X + math.cos(rad) * dist
+            local bz = hubOrigin.Z + math.sin(rad) * dist
+            local brazier = createPart(plazaFolder, "Brazier_" .. angleDeg .. "_" .. dist, Vector3.new(5, 7, 5), CFrame.new(bx, hubOrigin.Y + 3.5, bz), Enum.Material.Basalt, Color3.fromRGB(28, 26, 32))
+
+            local brazierFlame = createPart(brazier, "Flame", Vector3.new(3, 2, 3), CFrame.new(bx, hubOrigin.Y + 7.5, bz), Enum.Material.Neon, Color3.fromRGB(255, 130, 25), false)
+            brazierFlame.CastShadow = false
+
+            local bLight = Instance.new("PointLight")
+            bLight.Color = Color3.fromRGB(255, 140, 40)
+            bLight.Brightness = 2.5
+            bLight.Range = 28
+            bLight.Parent = brazierFlame
+        end
+    end
+
+    -- Merchant Pavilion (Titan Marketplace Kiosk)
+    local merchantX = hubOrigin.X + 95
+    local merchantY = hubOrigin.Y
+    local merchantZ = hubOrigin.Z + 60
+
+    local pavilionModel = Instance.new("Model")
+    pavilionModel.Name = "MerchantPavilion"
+
+    local pBase = createPart(pavilionModel, "BasePedestal", Vector3.new(2, 28, 28), CFrame.new(merchantX, merchantY + 1, merchantZ) * CFrame.Angles(0, 0, math.rad(90)), Enum.Material.Slate, Color3.fromRGB(38, 42, 50))
+    pBase.Shape = Enum.PartType.Cylinder
+
+    local pRing = createPart(pavilionModel, "MagmaRing", Vector3.new(0.5, 30, 30), CFrame.new(merchantX, merchantY + 1.2, merchantZ) * CFrame.Angles(0, 0, math.rad(90)), Enum.Material.Neon, Color3.fromRGB(255, 130, 20), false)
+    pRing.Shape = Enum.PartType.Cylinder
+
+    local pPillarOffsets = { Vector3.new(9, 0, 9), Vector3.new(-9, 0, 9), Vector3.new(9, 0, -9), Vector3.new(-9, 0, -9) }
+    for i, off in ipairs(pPillarOffsets) do
+        createPart(pavilionModel, "Pillar_" .. i, Vector3.new(3, 16, 3), CFrame.new(merchantX + off.X, merchantY + 9, merchantZ + off.Z), Enum.Material.Cobblestone, Color3.fromRGB(28, 30, 36))
+        createPart(pavilionModel, "PillarCap_" .. i, Vector3.new(4, 1, 4), CFrame.new(merchantX + off.X, merchantY + 17, merchantZ + off.Z), Enum.Material.Neon, Color3.fromRGB(255, 150, 30), false)
+    end
+
+    local pRoof = createPart(pavilionModel, "CanopyRoof", Vector3.new(26, 2.5, 26), CFrame.new(merchantX, merchantY + 18, merchantZ), Enum.Material.Granite, Color3.fromRGB(35, 38, 46))
+    local pRoofTrim = createPart(pavilionModel, "RoofTrim", Vector3.new(28, 0.8, 28), CFrame.new(merchantX, merchantY + 19.4, merchantZ), Enum.Material.Neon, Color3.fromRGB(255, 120, 20), false)
+
+    createLightningConductor(pavilionModel, Vector3.new(merchantX, merchantY + 20, merchantZ), 12)
+
+    local pCounter = createPart(pavilionModel, "TraderCounter", Vector3.new(12, 4.5, 4.5), CFrame.new(merchantX, merchantY + 3.2, merchantZ), Enum.Material.WoodPlanks, Color3.fromRGB(58, 42, 30))
+
+    local pGold = createPart(pavilionModel, "GoldBarDisplay", Vector3.new(3.5, 1.4, 2), CFrame.new(merchantX - 2.5, merchantY + 6.1, merchantZ), Enum.Material.Metal, Color3.fromRGB(255, 215, 0), false)
+    local pCrystal = createPart(pavilionModel, "CrystalDisplay", Vector3.new(2.2, 2.8, 2.2), CFrame.new(merchantX + 2.8, merchantY + 6.8, merchantZ), Enum.Material.Neon, Color3.fromRGB(0, 220, 255), false)
+
+    local pPrompt = Instance.new("ProximityPrompt")
+    pPrompt.Name = "MarketPavilionPrompt"
+    pPrompt.ActionText = "Open Marketplace"
+    pPrompt.ObjectText = "Titan Trader [B]"
+    pPrompt.KeyboardKeyCode = Enum.KeyCode.E
+    pPrompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+    pPrompt.MaxActivationDistance = 24
+    pPrompt.RequiresLineOfSight = false
+    pPrompt.HoldDuration = 0
+    pPrompt.Parent = pCounter
+
+    -- 3D Holographic Billboard
+    local pSignGui = Instance.new("BillboardGui")
+    pSignGui.Name = "MarketBillboard"
+    pSignGui.Size = UDim2.new(0, 300, 0, 80)
+    pSignGui.StudsOffset = Vector3.new(0, 8, 0)
+    pSignGui.AlwaysOnTop = true
+    pSignGui.MaxDistance = 200
+    pSignGui.Adornee = pRoofTrim
+    pSignGui.Parent = pRoofTrim
+
+    local pSignTitle = Instance.new("TextLabel")
+    pSignTitle.Size = UDim2.new(1, 0, 0, 38)
+    pSignTitle.Position = UDim2.new(0, 0, 0, 0)
+    pSignTitle.BackgroundTransparency = 1
+    pSignTitle.Text = "🛒 TITAN TRADER MARKET 🛒"
+    pSignTitle.Font = Enum.Font.GothamBlack
+    pSignTitle.TextSize = 22
+    pSignTitle.TextColor3 = Color3.fromRGB(255, 220, 50)
+    pSignTitle.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    pSignTitle.TextStrokeTransparency = 0.2
+    pSignTitle.Parent = pSignGui
+
+    local pSignDesc = Instance.new("TextLabel")
+    pSignDesc.Size = UDim2.new(1, 0, 0, 24)
+    pSignDesc.Position = UDim2.new(0, 0, 0, 36)
+    pSignDesc.BackgroundTransparency = 1
+    pSignDesc.Text = "Multipliers • Currency Packs • Combat Boosts"
+    pSignDesc.Font = Enum.Font.GothamBold
+    pSignDesc.TextSize = 13
+    pSignDesc.TextColor3 = Color3.fromRGB(255, 170, 40)
+    pSignDesc.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    pSignDesc.TextStrokeTransparency = 0.3
+    pSignDesc.Parent = pSignGui
+
+    pavilionModel.PrimaryPart = pCounter
+    pavilionModel.Parent = plazaFolder
 
     -- Altar of Ascension (Progression Altar)
     local altarModel = Instance.new("Model")
     altarModel.Name = "AltarOfAscension"
-    local altarBase = createPart(altarModel, "AltarBase", Vector3.new(18, 3, 18), CFrame.new(hubOrigin.X, hubOrigin.Y + 1.5, hubOrigin.Z + 75), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
-    local altarMonolith = createPart(altarModel, "Monolith", Vector3.new(10, 24, 6), CFrame.new(hubOrigin.X, hubOrigin.Y + 14, hubOrigin.Z + 75), Enum.Material.Slate, Color3.fromRGB(38, 35, 42))
-    local runeCore = createPart(altarModel, "RuneCore", Vector3.new(6, 16, 2), CFrame.new(hubOrigin.X, hubOrigin.Y + 15, hubOrigin.Z + 72.5), Enum.Material.Neon, Color3.fromRGB(255, 120, 20), false)
+    local altarBase = createPart(altarModel, "AltarBase", Vector3.new(26, 4, 26), CFrame.new(hubOrigin.X, hubOrigin.Y + 2, hubOrigin.Z + 140), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
+    local altarMonolith = createPart(altarModel, "Monolith", Vector3.new(14, 32, 8), CFrame.new(hubOrigin.X, hubOrigin.Y + 18, hubOrigin.Z + 140), Enum.Material.Slate, Color3.fromRGB(38, 35, 42))
+    local runeCore = createPart(altarModel, "RuneCore", Vector3.new(8, 22, 3), CFrame.new(hubOrigin.X, hubOrigin.Y + 19, hubOrigin.Z + 136.5), Enum.Material.Neon, Color3.fromRGB(255, 120, 20), false)
     runeCore.CastShadow = false
+
+    createLightningConductor(altarModel, Vector3.new(hubOrigin.X, hubOrigin.Y + 34, hubOrigin.Z + 140), 10)
 
     local altarPrompt = Instance.new("ProximityPrompt")
     altarPrompt.Name = "Prompt"
     altarPrompt.ActionText = "Ascend Titan Stats"
     altarPrompt.ObjectText = "Altar of Ascension"
     altarPrompt.HoldDuration = 0.5
-    altarPrompt.MaxActivationDistance = 22
+    altarPrompt.MaxActivationDistance = 26
     altarPrompt.RequiresLineOfSight = false
     altarPrompt.Parent = altarMonolith
 
@@ -574,35 +930,37 @@ function HubService.ConstructGrandSanctuary()
     altarModel.Parent = plazaFolder
 
     -- =========================================================================
-    -- TIER 2: THE HALL OF TITANS (Y = 535, Elevated North Terrace)
+    -- TIER 2: THE HALL OF TITANS (Y = 540, 280 x 140 studs Elevated North Terrace)
     -- =========================================================================
     local hallFolder = Instance.new("Folder")
     hallFolder.Name = "HallOfTitans"
     hallFolder.Parent = hub
 
-    local terraceOrigin = hubOrigin + Vector3.new(0, 14, -80)
+    local terraceOrigin = hubOrigin + Vector3.new(0, 20, -140)
 
-    -- Elevated Terrace Foundation
-    local terraceFloor = createPart(hallFolder, "TerraceFloor", Vector3.new(160, 6, 80), CFrame.new(terraceOrigin.X, terraceOrigin.Y - 3, terraceOrigin.Z), Enum.Material.Basalt, Color3.fromRGB(28, 26, 30))
+    -- Elevated Terrace Foundation (280 x 140 studs)
+    local terraceFloor = createPart(hallFolder, "TerraceFloor", Vector3.new(280, 8, 140), CFrame.new(terraceOrigin.X, terraceOrigin.Y - 4, terraceOrigin.Z), Enum.Material.Basalt, Color3.fromRGB(28, 26, 30))
     terraceFloor.CastShadow = true
 
-    -- Grand Steps connecting Plaza to Terrace
-    for i = 1, 7 do
+    -- Grand Sweeping Steps (100 studs wide)
+    for i = 1, 10 do
         local stepY = hubOrigin.Y + (i * 2)
-        local stepZ = hubOrigin.Z - 40 - (i * 5)
-        createPart(hallFolder, "Step_" .. i, Vector3.new(60, 2, 6), CFrame.new(hubOrigin.X, stepY - 1, stepZ), Enum.Material.Slate, Color3.fromRGB(35, 33, 38))
+        local stepZ = hubOrigin.Z - 65 - (i * 6)
+        createPart(hallFolder, "Step_" .. i, Vector3.new(100, 2, 7), CFrame.new(hubOrigin.X, stepY - 1, stepZ), Enum.Material.Slate, Color3.fromRGB(36, 34, 40))
     end
 
-    -- Flanking Obsidian Columns
-    for _, xOff in ipairs({ -70, -25, 25, 70 }) do
-        local col = createPart(hallFolder, "Pillar_" .. xOff, Vector3.new(8, 48, 8), CFrame.new(terraceOrigin.X + xOff, terraceOrigin.Y + 24, terraceOrigin.Z - 30), Enum.Material.Basalt, Color3.fromRGB(20, 18, 22))
-        local cap = createPart(hallFolder, "PillarCap_" .. xOff, Vector3.new(12, 4, 12), CFrame.new(terraceOrigin.X + xOff, terraceOrigin.Y + 48, terraceOrigin.Z - 30), Enum.Material.Slate, Color3.fromRGB(35, 32, 38))
+    -- 8 Monumental Flanking Columns with Tesla Lightning Conductors
+    local colOffsets = { -120, -85, -50, -20, 20, 50, 85, 120 }
+    for _, xOff in ipairs(colOffsets) do
+        local col = createPart(hallFolder, "Pillar_" .. xOff, Vector3.new(10, 60, 10), CFrame.new(terraceOrigin.X + xOff, terraceOrigin.Y + 30, terraceOrigin.Z - 50), Enum.Material.Basalt, Color3.fromRGB(20, 18, 22))
+        local cap = createPart(hallFolder, "PillarCap_" .. xOff, Vector3.new(14, 4, 14), CFrame.new(terraceOrigin.X + xOff, terraceOrigin.Y + 62, terraceOrigin.Z - 50), Enum.Material.Slate, Color3.fromRGB(36, 33, 40))
+        createLightningConductor(hallFolder, Vector3.new(terraceOrigin.X + xOff, terraceOrigin.Y + 64, terraceOrigin.Z - 50), 14)
     end
 
-    -- Ravager Pedestal (Left)
-    local pedRavPos = terraceOrigin + Vector3.new(-42, 1.5, 0)
-    local pedRav = createPart(hallFolder, "Pedestal_Ravager", Vector3.new(22, 3, 22), CFrame.new(pedRavPos), Enum.Material.Basalt, Color3.fromRGB(22, 20, 25))
-    local pedRavGlow = createPart(hallFolder, "PedRav_GlowRing", Vector3.new(24, 0.4, 24), CFrame.new(pedRavPos + Vector3.new(0, -1.2, 0)), Enum.Material.Neon, Color3.fromRGB(255, 95, 15), false)
+    -- Ravager Pedestal (Left, 34 x 34 studs)
+    local pedRavPos = terraceOrigin + Vector3.new(-75, 2, 0)
+    local pedRav = createPart(hallFolder, "Pedestal_Ravager", Vector3.new(34, 4, 34), CFrame.new(pedRavPos), Enum.Material.Basalt, Color3.fromRGB(22, 20, 25))
+    local pedRavGlow = createPart(hallFolder, "PedRav_GlowRing", Vector3.new(36, 0.5, 36), CFrame.new(pedRavPos + Vector3.new(0, -1.7, 0)), Enum.Material.Neon, Color3.fromRGB(255, 95, 15), false)
     pedRavGlow.CastShadow = false
 
     local promptRav = Instance.new("ProximityPrompt")
@@ -610,23 +968,23 @@ function HubService.ConstructGrandSanctuary()
     promptRav.ObjectText = "Ravager"
     promptRav.ActionText = "Awaken The Ravager"
     promptRav.HoldDuration = 0.5
-    promptRav.MaxActivationDistance = 24
+    promptRav.MaxActivationDistance = 28
     promptRav.RequiresLineOfSight = false
     promptRav.Parent = pedRav
 
     createTitanHoloCard(pedRav, "Ravager", "The Ravager", "[Colossal Apex Brawler]", {
         Health = "3,000 HP",
-        Speed = "28 Studs/s",
+        Speed = "28 / 44 Sprint",
         Power = "Extreme Burst",
         Reach = "Close Quarters",
     }, { "Claw Swipe Combo", "Ground Stomp", "Primal Roar" }, Color3.fromRGB(255, 110, 20))
 
-    createDisplayStatue(hallFolder, "Ravager", "Ravager", CFrame.new(pedRavPos + Vector3.new(0, 1.5, 0)) * CFrame.Angles(0, math.rad(180), 0), Color3.fromRGB(255, 100, 20))
+    createDisplayStatue(hallFolder, "Ravager", "Ravager", CFrame.new(pedRavPos + Vector3.new(0, 2, 0)) * CFrame.Angles(0, math.rad(180), 0), Color3.fromRGB(255, 100, 20))
 
-    -- Brontara Pedestal (Right)
-    local pedBronPos = terraceOrigin + Vector3.new(42, 1.5, 0)
-    local pedBron = createPart(hallFolder, "Pedestal_Brontara", Vector3.new(26, 3, 26), CFrame.new(pedBronPos), Enum.Material.Basalt, Color3.fromRGB(22, 20, 25))
-    local pedBronGlow = createPart(hallFolder, "PedBron_GlowRing", Vector3.new(28, 0.4, 28), CFrame.new(pedBronPos + Vector3.new(0, -1.2, 0)), Enum.Material.Neon, Color3.fromRGB(255, 50, 15), false)
+    -- Brontara Pedestal (Right, 38 x 38 studs)
+    local pedBronPos = terraceOrigin + Vector3.new(75, 2, 0)
+    local pedBron = createPart(hallFolder, "Pedestal_Brontara", Vector3.new(38, 4, 38), CFrame.new(pedBronPos), Enum.Material.Basalt, Color3.fromRGB(22, 20, 25))
+    local pedBronGlow = createPart(hallFolder, "PedBron_GlowRing", Vector3.new(40, 0.5, 40), CFrame.new(pedBronPos + Vector3.new(0, -1.7, 0)), Enum.Material.Neon, Color3.fromRGB(255, 50, 15), false)
     pedBronGlow.CastShadow = false
 
     local promptBron = Instance.new("ProximityPrompt")
@@ -634,54 +992,56 @@ function HubService.ConstructGrandSanctuary()
     promptBron.ObjectText = "Brontara"
     promptBron.ActionText = "Awaken Brontara"
     promptBron.HoldDuration = 0.5
-    promptBron.MaxActivationDistance = 26
+    promptBron.MaxActivationDistance = 30
     promptBron.RequiresLineOfSight = false
     promptBron.Parent = pedBron
 
     createTitanHoloCard(pedBron, "Brontara", "Brontara", "[Armored Behemoth Colossus]", {
         Health = "5,500 HP",
-        Speed = "18 Studs/s",
+        Speed = "18 / 28 Sprint",
         Power = "Crushing Cleave",
         Reach = "Colossal Sweeping Arc",
     }, { "Heavy Tail Sweep", "Seismic Heavy Stomp", "Volcanic Neck Strike", "Magma Roar" }, Color3.fromRGB(255, 55, 20))
 
-    createDisplayStatue(hallFolder, "Brontara", "Brontara", CFrame.new(pedBronPos + Vector3.new(0, 1.5, 0)) * CFrame.Angles(0, math.rad(180), 0), Color3.fromRGB(255, 55, 20))
+    createDisplayStatue(hallFolder, "Brontara", "Brontara", CFrame.new(pedBronPos + Vector3.new(0, 2, 0)) * CFrame.Angles(0, math.rad(180), 0), Color3.fromRGB(255, 55, 20))
 
     -- =========================================================================
-    -- TIER 3: THE STARGATE PROMONTORY (Y = 550, Elevated South Ridge)
+    -- TIER 3: THE STARGATE PROMONTORY (Y = 560, 260 x 120 studs High Ridge)
     -- =========================================================================
     local stargateFolder = Instance.new("Folder")
     stargateFolder.Name = "StargatePromontory"
     stargateFolder.Parent = hub
 
-    local promontoryOrigin = hubOrigin + Vector3.new(0, 30, 95)
-    local promFloor = createPart(stargateFolder, "PromontoryFloor", Vector3.new(150, 6, 60), CFrame.new(promontoryOrigin.X, promontoryOrigin.Y - 3, promontoryOrigin.Z), Enum.Material.Basalt, Color3.fromRGB(28, 26, 32))
+    local promontoryOrigin = hubOrigin + Vector3.new(0, 40, 180)
+    local promFloor = createPart(stargateFolder, "PromontoryFloor", Vector3.new(260, 8, 120), CFrame.new(promontoryOrigin.X, promontoryOrigin.Y - 4, promontoryOrigin.Z), Enum.Material.Basalt, Color3.fromRGB(28, 26, 32))
     promFloor.CastShadow = true
 
-    -- Grand Stairs from Plaza to Promontory
-    for i = 1, 10 do
-        local stepY = hubOrigin.Y + (i * 3)
-        local stepZ = hubOrigin.Z + 45 + (i * 5)
-        createPart(stargateFolder, "PromStep_" .. i, Vector3.new(50, 3, 6), CFrame.new(hubOrigin.X, stepY - 1.5, stepZ), Enum.Material.Slate, Color3.fromRGB(36, 34, 40))
+    -- Grand Ascending Stairs (70 studs wide)
+    for i = 1, 14 do
+        local stepY = hubOrigin.Y + (i * 2.85)
+        local stepZ = hubOrigin.Z + 75 + (i * 7)
+        createPart(stargateFolder, "PromStep_" .. i, Vector3.new(70, 3, 7.5), CFrame.new(hubOrigin.X, stepY - 1.5, stepZ), Enum.Material.Slate, Color3.fromRGB(36, 34, 40))
     end
 
-    -- Portal: SmallTown (Left Arch)
-    local portalSTPos = promontoryOrigin + Vector3.new(-45, 0, 0)
+    -- Portal: SmallTown (42-stud Runic Stargate, Left Arch)
+    local portalSTPos = promontoryOrigin + Vector3.new(-70, 0, 0)
     local portalSTModel = Instance.new("Model")
     portalSTModel.Name = "Portal_SmallTown"
-    
-    local archST_L = createPart(portalSTModel, "ArchPillar_L", Vector3.new(5, 32, 5), CFrame.new(portalSTPos + Vector3.new(-12, 16, 0)), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
-    local archST_R = createPart(portalSTModel, "ArchPillar_R", Vector3.new(5, 32, 5), CFrame.new(portalSTPos + Vector3.new(12, 16, 0)), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
-    local archST_Top = createPart(portalSTModel, "ArchBeam", Vector3.new(29, 6, 6), CFrame.new(portalSTPos + Vector3.new(0, 32, 0)), Enum.Material.Slate, Color3.fromRGB(35, 32, 38))
-    
-    local fieldST = createPart(portalSTModel, "PortalField", Vector3.new(20, 26, 2), CFrame.new(portalSTPos + Vector3.new(0, 14, 0)), Enum.Material.Neon, Color3.fromRGB(0, 210, 255), false)
-    fieldST.Transparency = 0.35
+
+    local archST_L = createPart(portalSTModel, "ArchPillar_L", Vector3.new(6, 42, 6), CFrame.new(portalSTPos + Vector3.new(-16, 21, 0)), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
+    local archST_R = createPart(portalSTModel, "ArchPillar_R", Vector3.new(6, 42, 6), CFrame.new(portalSTPos + Vector3.new(16, 21, 0)), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
+    local archST_Top = createPart(portalSTModel, "ArchBeam", Vector3.new(38, 8, 8), CFrame.new(portalSTPos + Vector3.new(0, 42, 0)), Enum.Material.Slate, Color3.fromRGB(35, 32, 38))
+
+    createLightningConductor(portalSTModel, Vector3.new(portalSTPos.X, promontoryOrigin.Y + 46, portalSTPos.Z), 14)
+
+    local fieldST = createPart(portalSTModel, "PortalField", Vector3.new(26, 34, 2.5), CFrame.new(portalSTPos + Vector3.new(0, 18, 0)), Enum.Material.Neon, Color3.fromRGB(0, 215, 255), false)
+    fieldST.Transparency = 0.3
     fieldST.CastShadow = false
 
     local lightST = Instance.new("PointLight")
-    lightST.Color = Color3.fromRGB(0, 210, 255)
-    lightST.Range = 35
-    lightST.Brightness = 4
+    lightST.Color = Color3.fromRGB(0, 215, 255)
+    lightST.Range = 45
+    lightST.Brightness = 4.5
     lightST.Parent = fieldST
 
     local promptST = Instance.new("ProximityPrompt")
@@ -689,30 +1049,32 @@ function HubService.ConstructGrandSanctuary()
     promptST.ObjectText = "SmallTown"
     promptST.ActionText = "Deploy to SmallTown"
     promptST.HoldDuration = 0.5
-    promptST.MaxActivationDistance = 24
+    promptST.MaxActivationDistance = 28
     promptST.RequiresLineOfSight = false
     promptST.Parent = fieldST
 
     portalSTModel.PrimaryPart = archST_Top
     portalSTModel.Parent = stargateFolder
 
-    -- Portal: Metrovale (Right Arch)
-    local portalMVPos = promontoryOrigin + Vector3.new(45, 0, 0)
+    -- Portal: Metrovale (42-stud Runic Stargate, Right Arch)
+    local portalMVPos = promontoryOrigin + Vector3.new(70, 0, 0)
     local portalMVModel = Instance.new("Model")
     portalMVModel.Name = "Portal_Metrovale"
 
-    local archMV_L = createPart(portalMVModel, "ArchPillar_L", Vector3.new(5, 32, 5), CFrame.new(portalMVPos + Vector3.new(-12, 16, 0)), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
-    local archMV_R = createPart(portalMVModel, "ArchPillar_R", Vector3.new(5, 32, 5), CFrame.new(portalMVPos + Vector3.new(12, 16, 0)), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
-    local archMV_Top = createPart(portalMVModel, "ArchBeam", Vector3.new(29, 6, 6), CFrame.new(portalMVPos + Vector3.new(0, 32, 0)), Enum.Material.Slate, Color3.fromRGB(35, 32, 38))
+    local archMV_L = createPart(portalMVModel, "ArchPillar_L", Vector3.new(6, 42, 6), CFrame.new(portalMVPos + Vector3.new(-16, 21, 0)), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
+    local archMV_R = createPart(portalMVModel, "ArchPillar_R", Vector3.new(6, 42, 6), CFrame.new(portalMVPos + Vector3.new(16, 21, 0)), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
+    local archMV_Top = createPart(portalMVModel, "ArchBeam", Vector3.new(38, 8, 8), CFrame.new(portalMVPos + Vector3.new(0, 42, 0)), Enum.Material.Slate, Color3.fromRGB(35, 32, 38))
 
-    local fieldMV = createPart(portalMVModel, "PortalField", Vector3.new(20, 26, 2), CFrame.new(portalMVPos + Vector3.new(0, 14, 0)), Enum.Material.Neon, Color3.fromRGB(180, 50, 255), false)
-    fieldMV.Transparency = 0.35
+    createLightningConductor(portalMVModel, Vector3.new(portalMVPos.X, promontoryOrigin.Y + 46, portalMVPos.Z), 14)
+
+    local fieldMV = createPart(portalMVModel, "PortalField", Vector3.new(26, 34, 2.5), CFrame.new(portalMVPos + Vector3.new(0, 18, 0)), Enum.Material.Neon, Color3.fromRGB(190, 60, 255), false)
+    fieldMV.Transparency = 0.3
     fieldMV.CastShadow = false
 
     local lightMV = Instance.new("PointLight")
-    lightMV.Color = Color3.fromRGB(180, 50, 255)
-    lightMV.Range = 35
-    lightMV.Brightness = 4
+    lightMV.Color = Color3.fromRGB(190, 60, 255)
+    lightMV.Range = 45
+    lightMV.Brightness = 4.5
     lightMV.Parent = fieldMV
 
     local promptMV = Instance.new("ProximityPrompt")
@@ -720,7 +1082,7 @@ function HubService.ConstructGrandSanctuary()
     promptMV.ObjectText = "Metrovale"
     promptMV.ActionText = "Deploy to Metrovale"
     promptMV.HoldDuration = 0.5
-    promptMV.MaxActivationDistance = 24
+    promptMV.MaxActivationDistance = 28
     promptMV.RequiresLineOfSight = false
     promptMV.Parent = fieldMV
 
@@ -728,44 +1090,46 @@ function HubService.ConstructGrandSanctuary()
     portalMVModel.Parent = stargateFolder
 
     -- =========================================================================
-    -- TIER 4: THE COLOSSEUM PROVING GROUNDS (Y = 492, Sunken South-West Pit)
+    -- TIER 4: THE COLOSSEUM PROVING GROUNDS (Y = 480, 360 x 360 studs Sunken Pit)
     -- =========================================================================
     local arenaFolder = Instance.new("Folder")
     arenaFolder.Name = "ColosseumProvingGrounds"
     arenaFolder.Parent = hub
 
-    local arenaOrigin = hubOrigin + Vector3.new(0, -28, -230)
+    local arenaOrigin = hubOrigin + Vector3.new(0, -40, -420)
 
-    -- Colosseum Sunken Arena Floor (200 x 200 studs)
-    local arenaFloor = createPart(arenaFolder, "ColosseumFloor", Vector3.new(200, 8, 200), CFrame.new(arenaOrigin.X, arenaOrigin.Y - 4, arenaOrigin.Z), Enum.Material.Basalt, Color3.fromRGB(30, 28, 34))
+    -- Sunken Arena Floor (360 x 360 studs)
+    local arenaFloor = createPart(arenaFolder, "ColosseumFloor", Vector3.new(360, 10, 360), CFrame.new(arenaOrigin.X, arenaOrigin.Y - 5, arenaOrigin.Z), Enum.Material.Basalt, Color3.fromRGB(30, 28, 34))
     arenaFloor.CastShadow = true
 
-    -- Perimeter Colosseum Wall
-    local wallThickness = 8
-    local wallHeight = 24
-    createPart(arenaFolder, "Wall_North", Vector3.new(200, wallHeight, wallThickness), CFrame.new(arenaOrigin.X, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z - 100), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
-    createPart(arenaFolder, "Wall_South", Vector3.new(200, wallHeight, wallThickness), CFrame.new(arenaOrigin.X, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z + 100), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
-    createPart(arenaFolder, "Wall_West", Vector3.new(wallThickness, wallHeight, 200), CFrame.new(arenaOrigin.X - 100, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
-    createPart(arenaFolder, "Wall_East", Vector3.new(wallThickness, wallHeight, 200), CFrame.new(arenaOrigin.X + 100, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
+    -- Perimeter Colosseum Amphitheater Walls (45 studs tall)
+    local wallThickness = 12
+    local wallHeight = 45
+    createPart(arenaFolder, "Wall_North", Vector3.new(360, wallHeight, wallThickness), CFrame.new(arenaOrigin.X, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z - 180), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
+    createPart(arenaFolder, "Wall_South", Vector3.new(360, wallHeight, wallThickness), CFrame.new(arenaOrigin.X, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z + 180), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
+    createPart(arenaFolder, "Wall_West", Vector3.new(wallThickness, wallHeight, 360), CFrame.new(arenaOrigin.X - 180, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
+    createPart(arenaFolder, "Wall_East", Vector3.new(wallThickness, wallHeight, 360), CFrame.new(arenaOrigin.X + 180, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
 
-    -- Grand Descending Bridge from Plaza to Colosseum
-    local bridgeLength = 110
+    -- Grand Descending Bridge from Plaza to Colosseum (46 studs wide, 170 studs long)
+    local bridgeLength = 170
     local bridgeAngle = math.rad(-14)
-    local bridgeCFrame = CFrame.new(hubOrigin.X, hubOrigin.Y - 14, hubOrigin.Z - 115) * CFrame.Angles(bridgeAngle, 0, 0)
-    createPart(arenaFolder, "ColosseumBridge", Vector3.new(34, 4, bridgeLength), bridgeCFrame, Enum.Material.Slate, Color3.fromRGB(38, 36, 42))
+    local bridgeCFrame = CFrame.new(hubOrigin.X, hubOrigin.Y - 20, hubOrigin.Z - 215) * CFrame.Angles(bridgeAngle, 0, 0)
+    local bridge = createPart(arenaFolder, "ColosseumBridge", Vector3.new(46, 5, bridgeLength), bridgeCFrame, Enum.Material.Slate, Color3.fromRGB(38, 36, 42))
 
-    -- Bastion Titan DPS Dummy (Center)
+    -- Bastion Titan DPS Dummy (Centered in Colosseum)
     createBastionDPSDummy(arenaFolder, CFrame.new(arenaOrigin.X, arenaOrigin.Y, arenaOrigin.Z))
 
-    -- Perimeter Training Pillars
+    -- 5 Strategic Practice Monoliths across Colosseum
     local pillarPositions = {
-        { Name = "Pillar_Alpha", Pos = arenaOrigin + Vector3.new(-45, 0, -35) },
-        { Name = "Pillar_Beta", Pos = arenaOrigin + Vector3.new(45, 0, -35) },
-        { Name = "Pillar_Gamma", Pos = arenaOrigin + Vector3.new(0, 0, 50) },
+        { Name = "Pillar_Alpha", Pos = arenaOrigin + Vector3.new(-85, 0, -75) },
+        { Name = "Pillar_Beta", Pos = arenaOrigin + Vector3.new(85, 0, -75) },
+        { Name = "Pillar_Gamma", Pos = arenaOrigin + Vector3.new(-110, 0, 65) },
+        { Name = "Pillar_Delta", Pos = arenaOrigin + Vector3.new(110, 0, 65) },
+        { Name = "Pillar_Epsilon", Pos = arenaOrigin + Vector3.new(0, 0, 110) },
     }
 
     for _, pInfo in ipairs(pillarPositions) do
-        local pil = createPart(arenaFolder, pInfo.Name, Vector3.new(8, 32, 8), CFrame.new(pInfo.Pos + Vector3.new(0, 16, 0)), Enum.Material.Basalt, Color3.fromRGB(35, 32, 38))
+        local pil = createPart(arenaFolder, pInfo.Name, Vector3.new(10, 38, 10), CFrame.new(pInfo.Pos + Vector3.new(0, 19, 0)), Enum.Material.Basalt, Color3.fromRGB(35, 32, 38))
         pil:SetAttribute("BuildingId", pInfo.Name)
         pil:SetAttribute("BuildingName", "Practice Monolith")
         pil:SetAttribute("BuildingType", "TrainingPillar")
@@ -777,8 +1141,10 @@ function HubService.ConstructGrandSanctuary()
         pil:SetAttribute("IsTrainingDummy", true)
         pil:SetAttribute("IsDestroyed", false)
 
-        local core = createPart(pil, pInfo.Name .. "_Core", Vector3.new(4, 26, 4), CFrame.new(pInfo.Pos + Vector3.new(0, 16, 0)), Enum.Material.Neon, Color3.fromRGB(255, 95, 15), false)
+        local core = createPart(pil, pInfo.Name .. "_Core", Vector3.new(5, 32, 5), CFrame.new(pInfo.Pos + Vector3.new(0, 19, 0)), Enum.Material.Neon, Color3.fromRGB(255, 95, 15), false)
         core.CastShadow = false
+
+        createLightningConductor(pil, pInfo.Pos + Vector3.new(0, 38, 0), 10)
     end
 
     -- =========================================================================
@@ -789,50 +1155,71 @@ function HubService.ConstructGrandSanctuary()
     launchFolder.Parent = hub
 
     -- 1. Plaza -> Colosseum Jump Pad (Launches South down into Arena)
-    createLaunchPad(launchFolder, "Pad_PlazaToColosseum", CFrame.new(hubOrigin.X, hubOrigin.Y + 0.6, hubOrigin.Z - 90), Vector3.new(0, 95, -165), "TO PROVING GROUNDS")
+    createLaunchPad(launchFolder, "Pad_PlazaToColosseum", CFrame.new(hubOrigin.X, hubOrigin.Y + 0.8, hubOrigin.Z - 170), Vector3.new(0, 140, -280), "TO PROVING GROUNDS")
 
     -- 2. Colosseum -> Plaza Jump Pad (Launches North back up to Plaza)
-    createLaunchPad(launchFolder, "Pad_ColosseumToPlaza", CFrame.new(arenaOrigin.X, arenaOrigin.Y + 0.6, arenaOrigin.Z + 75), Vector3.new(0, 125, 165), "RETURN TO PLAZA")
+    createLaunchPad(launchFolder, "Pad_ColosseumToPlaza", CFrame.new(arenaOrigin.X, arenaOrigin.Y + 0.8, arenaOrigin.Z + 155), Vector3.new(0, 180, 280), "RETURN TO PLAZA")
 
     -- 3. Plaza -> Stargate Spire Jump Pad (Launches South up to Promontory)
-    createLaunchPad(launchFolder, "Pad_PlazaToStargates", CFrame.new(hubOrigin.X, hubOrigin.Y + 0.6, hubOrigin.Z + 45), Vector3.new(0, 105, 115), "TO STARGATES")
+    createLaunchPad(launchFolder, "Pad_PlazaToStargates", CFrame.new(hubOrigin.X, hubOrigin.Y + 0.8, hubOrigin.Z + 95), Vector3.new(0, 145, 200), "TO STARGATES")
+
+    -- 4. Plaza -> Hall of Titans Jump Pad (Launches North up to Showcase)
+    createLaunchPad(launchFolder, "Pad_PlazaToTitans", CFrame.new(hubOrigin.X, hubOrigin.Y + 0.8, hubOrigin.Z - 60), Vector3.new(0, 120, -160), "TO HALL OF TITANS")
 
     -- =========================================================================
-    -- VOLCANIC CALDERA MONOLITHS & SKYBEAMS (Atmospheric Scale)
+    -- VOLCANIC CALDERA MONOLITHS & SKYBEAMS (460 studs radius)
     -- =========================================================================
     local vistaFolder = Instance.new("Folder")
     vistaFolder.Name = "CalderaVista"
     vistaFolder.Parent = hub
 
-    -- 12 Towering Jagged Perimeter Basalt Spires
-    for i = 1, 12 do
-        local angle = math.rad((i - 1) * 30)
-        local radius = 220
+    -- 16 Towering Jagged Perimeter Basalt Spires (460 studs radius)
+    for i = 1, 16 do
+        local angle = math.rad((i - 1) * 22.5)
+        local radius = 460
         local spireX = hubOrigin.X + math.cos(angle) * radius
         local spireZ = hubOrigin.Z + math.sin(angle) * radius
-        local spireHeight = 120 + ((i % 4) * 35)
+        local spireHeight = 180 + ((i % 5) * 35)
 
-        local spire = createPart(vistaFolder, "Spire_" .. i, Vector3.new(18, spireHeight, 18), CFrame.new(spireX, hubOrigin.Y + (spireHeight / 2) - 40, spireZ) * CFrame.Angles(math.rad((i % 3) * 4), 0, math.rad((i % 2) * -5)), Enum.Material.Basalt, Color3.fromRGB(20, 18, 22), false)
+        local spire = createPart(vistaFolder, "Spire_" .. i, Vector3.new(24, spireHeight, 24), CFrame.new(spireX, hubOrigin.Y + (spireHeight / 2) - 60, spireZ) * CFrame.Angles(math.rad((i % 3) * 3), 0, math.rad((i % 2) * -4)), Enum.Material.Basalt, Color3.fromRGB(20, 18, 22), false)
         spire.CastShadow = false
+
+        -- Conductor tip on spire summit
+        local tipPos = Vector3.new(spireX, hubOrigin.Y + spireHeight - 60, spireZ)
+        createLightningConductor(spire, tipPos, 14)
     end
 
-    -- 4 Colossal Skybeams (Cardinal Directions)
+    -- 4 Colossal Cardinal Skybeams (1600 studs tall) with Vertical Lightning Helixes
     local beamOffsets = {
-        Vector3.new(0, 0, -115),
-        Vector3.new(0, 0, 115),
-        Vector3.new(-115, 0, 0),
-        Vector3.new(115, 0, 0),
+        Vector3.new(0, 0, -200),
+        Vector3.new(0, 0, 200),
+        Vector3.new(-200, 0, 0),
+        Vector3.new(200, 0, 0),
     }
 
     for idx, bOff in ipairs(beamOffsets) do
         local beamPos = hubOrigin + bOff
-        local beam = createPart(vistaFolder, "SkyBeam_" .. idx, Vector3.new(4, 1200, 4), CFrame.new(beamPos.X, hubOrigin.Y + 600, beamPos.Z), Enum.Material.Neon, if idx % 2 == 0 then Color3.fromRGB(255, 95, 15) else Color3.fromRGB(0, 200, 255), false)
-        beam.Transparency = 0.5
+        local beam = createPart(vistaFolder, "SkyBeam_" .. idx, Vector3.new(5, 1600, 5), CFrame.new(beamPos.X, hubOrigin.Y + 800, beamPos.Z), Enum.Material.Neon, if idx % 2 == 0 then Color3.fromRGB(255, 110, 20) else Color3.fromRGB(0, 220, 255), false)
+        beam.Transparency = 0.45
         beam.CastShadow = false
+
+        local bAtt = Instance.new("Attachment")
+        bAtt.Position = beamPos + Vector3.new(0, 10, 0)
+        bAtt.Parent = beam
+
+        local bEmitter = Instance.new("ParticleEmitter")
+        bEmitter.Color = ColorSequence.new(Color3.fromRGB(0, 230, 255), Color3.fromRGB(255, 255, 255))
+        bEmitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 2), NumberSequenceKeypoint.new(1, 0) })
+        bEmitter.Speed = NumberRange.new(50, 120)
+        bEmitter.SpreadAngle = Vector2.new(5, 5)
+        bEmitter.Lifetime = NumberRange.new(1.5, 3.0)
+        bEmitter.Rate = 25
+        bEmitter.LightEmission = 1
+        bEmitter.Parent = bAtt
     end
 
     hub.Parent = Workspace
-    print(string.format("[HubService] ✅ Grand Kaiju Sanctuary successfully built with %d descendants!", #hub:GetDescendants()))
+    print(string.format("[HubService] ✅ Grand Kaiju Megastructure successfully built with %d descendants across 850+ studs!", #hub:GetDescendants()))
 
     return hub
 end
@@ -861,7 +1248,6 @@ function HubService.RecordDummyDamage(building: Model, actualDamage: number, new
 
         table.insert(dummyCombatState.DamageWindow, { Time = now, Damage = actualDamage })
 
-        -- Calculate rolling 3s DPS
         local windowStart = now - 3.0
         local windowDmg = 0
         local filtered = {}
@@ -875,7 +1261,6 @@ function HubService.RecordDummyDamage(building: Model, actualDamage: number, new
 
         local rollingDPS = math.floor(windowDmg / 3.0)
 
-        -- Update Billboard GUI
         local core = building:FindFirstChild("Core")
         local bg = core and core:FindFirstChild("DPS_Billboard")
         local frame = bg and bg:FindFirstChild("Frame")
@@ -907,12 +1292,37 @@ function HubService.RecordDummyDamage(building: Model, actualDamage: number, new
 end
 
 --[=[
-    Starts HubService runtime bindings: DPS dummy calculation and visual feedback.
+    Starts the dynamic Volcanic Lightning Storm simulation.
+]=]
+function HubService.StartLightningStorm()
+    print("[HubService] ⚡ Starting Volcanic Thunderstorm Engine...")
+    task.spawn(function()
+        while true do
+            -- Random strike interval: 3.5 to 6.5 seconds
+            task.wait(math.random(35, 65) / 10)
+
+            local hub = Workspace:FindFirstChild("KaijuHub")
+            if hub and #lightningStrikeTargets > 0 then
+                local targetIdx = math.random(1, #lightningStrikeTargets)
+                local targetPos = lightningStrikeTargets[targetIdx]
+                if targetPos then
+                    spawnLightningStrike(targetPos)
+                end
+            end
+        end
+    end)
+end
+
+--[=[
+    Starts HubService runtime bindings: DPS dummy calculation and lightning storm.
 ]=]
 function HubService.Start()
     print("[HubService] Starting HubService runtime listeners...")
 
-    -- Inactivity reset loop for DPS dummy (every 1.5s, no polling cost)
+    -- Launch Volcanic Thunderstorm Cycle
+    HubService.StartLightningStorm()
+
+    -- Inactivity reset loop for DPS dummy
     task.spawn(function()
         while true do
             task.wait(1.5)

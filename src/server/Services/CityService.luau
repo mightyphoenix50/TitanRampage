@@ -263,6 +263,10 @@ function CityService.Init()
             if player.Parent then
                 CityFeedbackRemote:FireClient(player, "CityProgressUpdate", CityService.GetCityStats())
                 CityFeedbackRemote:FireClient(player, "CityListSync", CityService.GetAvailableCities(player))
+                local hubLighting = CityConfig.GetLightingProfile("KaijuHub")
+                if hubLighting then
+                    CityFeedbackRemote:FireClient(player, "CityLightingChanged", hubLighting)
+                end
             end
         end)
     end)
@@ -562,7 +566,7 @@ function CityService.ReturnToHub(player: Player): (boolean, string)
         player.Character:PivotTo(hubSpawn.CFrame + Vector3.new(0, 8, 0))
         local hubLighting = CityConfig.GetLightingProfile("KaijuHub")
         if hubLighting then
-            CityFeedbackRemote:FireAllClients("CityLightingChanged", hubLighting)
+            CityFeedbackRemote:FireClient(player, "CityLightingChanged", hubLighting)
         end
         return true, "Returned to Kaiju Hub"
     end

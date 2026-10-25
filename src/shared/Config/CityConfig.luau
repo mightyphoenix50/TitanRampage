@@ -79,28 +79,28 @@ export type CityConfigType = {
 
 local HubLightingProfile: LightingProfile = {
     ClockTime = 18.25,
-    Brightness = 1.8,
-    OutdoorAmbient = Color3.fromRGB(80, 50, 45),
-    Ambient = Color3.fromRGB(60, 40, 40),
+    Brightness = 2.2, -- Enhanced illumination for massive sanctuary vista
+    OutdoorAmbient = Color3.fromRGB(110, 75, 70), -- Clear ambient shadow illumination
+    Ambient = Color3.fromRGB(85, 60, 58),
     ShadowSoftness = 0.2,
     Atmosphere = {
-        Density = 0.32,
+        Density = 0.28,
         Offset = 0.25,
-        Color = Color3.fromRGB(180, 80, 45),
-        Decay = Color3.fromRGB(50, 20, 20),
-        Glare = 0.4,
-        Haze = 2.0,
+        Color = Color3.fromRGB(195, 95, 55),
+        Decay = Color3.fromRGB(65, 30, 25),
+        Glare = 0.45,
+        Haze = 1.6,
     },
     Bloom = {
-        Intensity = 0.75,
+        Intensity = 0.70,
         Size = 24,
         Threshold = 1.1,
     },
     ColorCorrection = {
-        Brightness = 0.02,
-        Contrast = 0.12,
-        Saturation = 0.18,
-        TintColor = Color3.fromRGB(255, 240, 235),
+        Brightness = 0.03,
+        Contrast = 0.14,
+        Saturation = 0.20,
+        TintColor = Color3.fromRGB(255, 245, 238),
     },
 }
 

@@ -45,6 +45,7 @@ local activeTitans: { [number]: string } = {}
 local playerAttackVariantIndex: { [number]: number } = {}
 local ATTACK_VARIANTS = { "LeftSwipe", "RightSwipe", "DownwardSmash" }
 local isSpawning: { [number]: boolean } = {}
+local hasSpawnedInSession: { [number]: boolean } = {}
 
 --[=[
     Initializes service data structures and binds remote events.
@@ -136,6 +137,7 @@ function MonsterService.Init()
         activeTitans[player.UserId] = nil
         playerAttackVariantIndex[player.UserId] = nil
         isSpawning[player.UserId] = nil
+        hasSpawnedInSession[player.UserId] = nil
     end)
 end
 
@@ -255,7 +257,10 @@ function MonsterService.SpawnPlayerTitan(player: Player, titanId: string)
     local oldChar = player.Character
     local spawnCFrame: CFrame? = nil
 
-    if oldChar and oldChar.PrimaryPart then
+    local isFirstSpawn = not hasSpawnedInSession[player.UserId]
+    hasSpawnedInSession[player.UserId] = true
+
+    if not isFirstSpawn and oldChar and oldChar.PrimaryPart then
         spawnCFrame = oldChar.PrimaryPart.CFrame + Vector3.new(0, 2, 0)
     else
         local hub = Workspace:FindFirstChild("KaijuHub")
@@ -263,14 +268,7 @@ function MonsterService.SpawnPlayerTitan(player: Player, titanId: string)
         if hubSpawn and hubSpawn:IsA("BasePart") then
             spawnCFrame = hubSpawn.CFrame + Vector3.new(0, 8, 0)
         else
-            local cityFolder = Workspace:FindFirstChild("Cities")
-            local smallTown = cityFolder and cityFolder:FindFirstChild("SmallTown")
-            local spawnPart = smallTown and smallTown:FindFirstChild("SpawnLocation")
-            if spawnPart and spawnPart:IsA("BasePart") then
-                spawnCFrame = spawnPart.CFrame + Vector3.new(0, 8, 0)
-            else
-                spawnCFrame = CFrame.new(0, 15, 0)
-            end
+            spawnCFrame = CFrame.new(0, 528, -5000)
         end
     end
 
