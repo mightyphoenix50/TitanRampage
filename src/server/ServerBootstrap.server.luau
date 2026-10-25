@@ -9,6 +9,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local ServicesFolder = ServerScriptService:WaitForChild("Services")
 
 local PlayerDataService = require(ServicesFolder:WaitForChild("PlayerDataService") :: ModuleScript)
+local MonetizationService = require(ServicesFolder:WaitForChild("MonetizationService") :: ModuleScript)
 local CityService = require(ServicesFolder:WaitForChild("CityService") :: ModuleScript)
 local DestructionService = require(ServicesFolder:WaitForChild("DestructionService") :: ModuleScript)
 local ProgressionService = require(ServicesFolder:WaitForChild("ProgressionService") :: ModuleScript)
@@ -17,6 +18,7 @@ local MonsterService = require(ServicesFolder:WaitForChild("MonsterService") :: 
 
 local services = {
     PlayerDataService,
+    MonetizationService,
     CityService,
     DestructionService,
     ProgressionService,

@@ -1,0 +1,12 @@
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+*~
+
+# Temporary Logs & Transcripts
+transcript.jsonl
+transcript_full.jsonl
+*.log
+scratch/

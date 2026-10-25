@@ -102,6 +102,9 @@ function DestructionService.GetPlayerCombo(player: Player): number
 
     local now = os.clock()
     if (now - combo.LastHitTime) > DestructionConfig.Combo.Timeout then
+        if player:GetAttribute("ComboShieldActive") == true then
+            return combo.Multiplier
+        end
         combo.Multiplier = 1
         combo.Hits = 0
     end
@@ -119,7 +122,8 @@ local function registerComboActivity(player: Player): number
     end
 
     local now = os.clock()
-    if (now - combo.LastHitTime) <= DestructionConfig.Combo.Timeout then
+    local isShielded = player:GetAttribute("ComboShieldActive") == true
+    if (now - combo.LastHitTime) <= DestructionConfig.Combo.Timeout or isShielded then
         combo.Hits += 1
         combo.Multiplier = math.clamp(combo.Multiplier + DestructionConfig.Combo.MultiplierPerHit, 1, DestructionConfig.Combo.MaxMultiplier)
     else
@@ -134,13 +138,17 @@ local function registerComboActivity(player: Player): number
     DestructionFeedbackRemote:FireClient(player, "ComboUpdate", {
         Multiplier = activeMult,
         Hits = combo.Hits,
-        Timeout = DestructionConfig.Combo.Timeout,
+        Timeout = if isShielded then 60.0 else DestructionConfig.Combo.Timeout,
     })
 
     -- Schedule combo expiration reset check
     task.delay(DestructionConfig.Combo.Timeout + 0.1, function()
         local current = playerCombos[player.UserId]
         if current and (os.clock() - current.LastHitTime) >= DestructionConfig.Combo.Timeout then
+            if player:GetAttribute("ComboShieldActive") == true then
+                -- Protected by Combo Shield!
+                return
+            end
             if current.Multiplier > 1 then
                 current.Multiplier = 1
                 current.Hits = 0

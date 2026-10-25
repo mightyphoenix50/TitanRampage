@@ -53,8 +53,13 @@ function MonsterService.Init()
     print("[MonsterService] Initializing MonsterService...")
 
     -- Bind client action requests
-    TitanActionRemote.OnServerEvent:Connect(function(player: Player, actionName: any)
+    TitanActionRemote.OnServerEvent:Connect(function(player: Player, actionName: any, extraData: any)
         if type(actionName) ~= "string" then return end
+        if actionName == "SetSprintState" then
+            local isSprinting = (extraData == true)
+            MonsterService.SetSprintState(player, isSprinting)
+            return
+        end
         MonsterService.ProcessAbilityRequest(player, actionName)
     end)
 
@@ -214,6 +219,22 @@ function MonsterService.SelectTitan(player: Player, titanId: string)
         Titans = PlayerDataService.GetTitansData(player),
     })
     print(string.format("[MonsterService] ✅ %s successfully selected Titan %s", player.Name, titanId))
+end
+
+function MonsterService.SetSprintState(player: Player, isSprinting: boolean)
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+
+    local titanId = activeTitans[player.UserId] or "Ravager"
+    local titanDef = TitanRegistry.Get(titanId)
+    if not titanDef then return end
+
+    local baseSpeed = titanDef.WalkSpeed or 28
+    local sprintSpeed = titanDef.SprintSpeed or math.floor(baseSpeed * 1.5)
+
+    hum.WalkSpeed = if isSprinting then sprintSpeed else baseSpeed
 end
 
 --[=[

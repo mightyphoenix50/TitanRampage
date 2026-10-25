@@ -52,13 +52,15 @@ export type PlayerProfile = {
     Cities: { [string]: CityProgress },
     Titans: { [string]: { Unlocked: boolean } },
     SelectedTitan: string,
+    Gamepasses: { [string]: boolean },
+    ProcessedReceipts: { [string]: boolean },
     Statistics: LifetimeStatistics,
 }
 
 local PlayerDataService = {}
 
 local DATASTORE_NAME = "TitanRampage_PlayerData_v1"
-local CURRENT_SCHEMA_VERSION = 3
+local CURRENT_SCHEMA_VERSION = 4
 local AUTOSAVE_INTERVAL = 300 -- 5 minutes
 local MAX_RETRIES = 3
 local RETRY_BASE_DELAY = 1.0
@@ -181,6 +183,8 @@ function PlayerDataService.CreateDefaultProfile(): PlayerProfile
             Brontara = { Unlocked = false },
         },
         SelectedTitan = "Ravager",
+        Gamepasses = {},
+        ProcessedReceipts = {},
         Statistics = {
             TotalBuildingsDestroyed = 0,
             TotalDamageDealt = 0,
@@ -282,6 +286,17 @@ function PlayerDataService.MigrateProfile(data: any): any
         data.SchemaVersion = 3
     end
 
+    if version < 4 then
+        print(string.format("[PlayerDataService] 🔄 Migrating player profile from Schema %d to Schema 4...", version))
+        if type(data.Gamepasses) ~= "table" then
+            data.Gamepasses = {}
+        end
+        if type(data.ProcessedReceipts) ~= "table" then
+            data.ProcessedReceipts = {}
+        end
+        data.SchemaVersion = 4
+    end
+
     data.SchemaVersion = CURRENT_SCHEMA_VERSION
     return data
 end
@@ -306,6 +321,8 @@ function PlayerDataService.ValidateProfile(raw: any): PlayerProfile
             Brontara = { Unlocked = false },
         },
         SelectedTitan = "Ravager",
+        Gamepasses = {},
+        ProcessedReceipts = {},
         Statistics = defaults.Statistics,
     }
 
@@ -388,6 +405,21 @@ function PlayerDataService.ValidateProfile(raw: any): PlayerProfile
         profile.SelectedTitan = "Ravager"
     end
 
+    -- Validate Gamepasses & ProcessedReceipts
+    local rawGamepasses = if type(data.Gamepasses) == "table" then data.Gamepasses else {}
+    for passId, owns in pairs(rawGamepasses) do
+        if type(passId) == "string" and owns == true then
+            profile.Gamepasses[passId] = true
+        end
+    end
+
+    local rawReceipts = if type(data.ProcessedReceipts) == "table" then data.ProcessedReceipts else {}
+    for recId, processed in pairs(rawReceipts) do
+        if type(recId) == "string" and processed == true then
+            profile.ProcessedReceipts[recId] = true
+        end
+    end
+
     return profile
 end
 
@@ -411,6 +443,49 @@ function PlayerDataService.SetSelectedTitan(player: Player, titanId: string): bo
         mockStorage[player.UserId].SelectedTitan = titanId
     end
     return true
+end
+
+--[=[
+    Monetization & Purchase Accessors.
+]=]
+function PlayerDataService.IsReceiptProcessed(player: Player, purchaseId: string): boolean
+    local profile = PlayerDataService.GetProfile(player)
+    if not profile or not profile.ProcessedReceipts then return false end
+    return profile.ProcessedReceipts[purchaseId] == true
+end
+
+function PlayerDataService.MarkReceiptProcessed(player: Player, purchaseId: string): boolean
+    return PlayerDataService.UpdateProfile(player, function(profile)
+        if not profile.ProcessedReceipts then
+            profile.ProcessedReceipts = {}
+        end
+        profile.ProcessedReceipts[purchaseId] = true
+    end)
+end
+
+function PlayerDataService.HasGamepass(player: Player, passId: string): boolean
+    local profile = PlayerDataService.GetProfile(player)
+    if not profile or not profile.Gamepasses then return false end
+    return profile.Gamepasses[passId] == true
+end
+
+function PlayerDataService.SetGamepass(player: Player, passId: string, owns: boolean): boolean
+    return PlayerDataService.UpdateProfile(player, function(profile)
+        if not profile.Gamepasses then
+            profile.Gamepasses = {}
+        end
+        profile.Gamepasses[passId] = owns
+    end)
+end
+
+function PlayerDataService.GetGamepasses(player: Player): { [string]: boolean }
+    local profile = PlayerDataService.GetProfile(player)
+    if not profile or not profile.Gamepasses then return {} end
+    local copy = {}
+    for k, v in pairs(profile.Gamepasses) do
+        copy[k] = v
+    end
+    return copy
 end
 
 function PlayerDataService.CheckTitanUnlocks(player: Player): { [string]: boolean }

@@ -26,12 +26,22 @@ local CitySelectRequestRemote = RemotesFolder:WaitForChild("CitySelectRequest") 
 local ProgressionService = require(script.Parent:WaitForChild("ProgressionService") :: ModuleScript)
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService") :: ModuleScript)
 local DestructionService = nil
+local MonetizationService = nil
 
 local function getDestructionService()
     if not DestructionService then
         DestructionService = require(script.Parent:WaitForChild("DestructionService") :: ModuleScript)
     end
     return DestructionService
+end
+
+local function getMonetizationService()
+    if not MonetizationService then
+        pcall(function()
+            MonetizationService = require(script.Parent:WaitForChild("MonetizationService") :: ModuleScript)
+        end)
+    end
+    return MonetizationService
 end
 
 export type BuildingVisualBackup = {
@@ -530,6 +540,9 @@ function CityService.LoadCity(cityId: string, player: Player?): (boolean, string
         Stats = stats,
     })
     CityFeedbackRemote:FireAllClients("CityProgressUpdate", stats)
+    if cityDef.LightingProfile then
+        CityFeedbackRemote:FireAllClients("CityLightingChanged", cityDef.LightingProfile)
+    end
 
     for _, p in ipairs(Players:GetPlayers()) do
         CityFeedbackRemote:FireClient(p, "CityListSync", CityService.GetAvailableCities(p))
@@ -547,6 +560,10 @@ function CityService.ReturnToHub(player: Player): (boolean, string)
 
     if player.Character and player.Character.PrimaryPart then
         player.Character:PivotTo(hubSpawn.CFrame + Vector3.new(0, 8, 0))
+        local hubLighting = CityConfig.GetLightingProfile("KaijuHub")
+        if hubLighting then
+            CityFeedbackRemote:FireAllClients("CityLightingChanged", hubLighting)
+        end
         return true, "Returned to Kaiju Hub"
     end
     return false, "Player character not found"
@@ -993,9 +1010,11 @@ function CityService.ResetCity(requestingPlayer: Player?): (boolean, string)
 
     local stats = CityService.GetCityStats()
     local isCompleted = currentRun.CityCompleted or (stats.DestroyedBuildings >= stats.TotalBuildings and stats.TotalBuildings > 0)
+    local monService = getMonetizationService()
+    local hasInstantRebuild = if requestingPlayer and monService then monService.HasInstantRebuild(requestingPlayer) else false
 
-    -- Security validation: only allow rebuilding if city is completed (or if invoked directly on server)
-    if requestingPlayer and not isCompleted then
+    -- Security validation: only allow rebuilding if city is completed (or player has InstantRebuild gamepass)
+    if requestingPlayer and not isCompleted and not hasInstantRebuild then
         warn(string.format("[CityService] Rejected rebuild request from %s: City is not yet completed!", requestingPlayer.Name))
         return false, "City is not completed"
     end

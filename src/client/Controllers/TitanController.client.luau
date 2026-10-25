@@ -16,6 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -34,12 +35,58 @@ local TitanFeedbackRemote = RemotesFolder:WaitForChild("TitanFeedback") :: Remot
 local currentTitanId = "Ravager"
 local currentTitanDef = TitanRegistry.Get(currentTitanId)
 
+-- Sprint & Stamina State
+local isSprinting = false
+local isExhausted = false
+local currentStamina = 100.0
+local maxStamina = 100.0
+local sprintDrainRate = 20.0
+local staminaRegenRate = 15.0
+local normalFOV = 70.0
+local sprintFOV = 82.0
+local targetFOV = normalFOV
+
+local SprintToggleBindable = RemotesFolder:FindFirstChild("SprintToggle") :: BindableEvent?
+if not SprintToggleBindable then
+    SprintToggleBindable = Instance.new("BindableEvent")
+    SprintToggleBindable.Name = "SprintToggle"
+    SprintToggleBindable.Parent = RemotesFolder
+end
+
+local function setSprint(active: boolean)
+    if isSprinting == active then return end
+    if active and (isExhausted or currentStamina < 10) then return end
+
+    isSprinting = active
+    TitanActionRemote:FireServer("SetSprintState", isSprinting)
+
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum and currentTitanDef then
+        hum.WalkSpeed = if isSprinting then (currentTitanDef.SprintSpeed or currentTitanDef.WalkSpeed) else currentTitanDef.WalkSpeed
+    end
+end
+
+SprintToggleBindable.Event:Connect(function(forcedState: boolean?)
+    if forcedState ~= nil then
+        setSprint(forcedState)
+    else
+        setSprint(not isSprinting)
+    end
+end)
+
 local function updateActiveTitan(titanId: string)
     local def = TitanRegistry.Get(titanId)
     if not def then return end
     currentTitanId = titanId
     currentTitanDef = def
     table.clear(clientCooldowns)
+    if def.MaxStamina then maxStamina = def.MaxStamina end
+    if def.SprintDrain then sprintDrainRate = def.SprintDrain end
+    if def.StaminaRegen then staminaRegenRate = def.StaminaRegen end
+    currentStamina = maxStamina
+    isSprinting = false
+    isExhausted = false
     print("[TitanController] Active Titan switched to: " .. titanId)
 end
 
@@ -199,6 +246,50 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     elseif input.KeyCode == Enum.KeyCode.R or input.KeyCode == Enum.KeyCode.Three then
         local ability = getAbilityNameBySlot("Utility")
         if ability then tryRequestAbility(ability) end
+    elseif input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift or input.KeyCode == Enum.KeyCode.ButtonL3 then
+        setSprint(true)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, _gameProcessed)
+    if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift or input.KeyCode == Enum.KeyCode.ButtonL3 then
+        setSprint(false)
+    end
+end)
+
+-- Main Movement, Stamina & Dynamic FOV Loop
+RunService.RenderStepped:Connect(function(dt: number)
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local isMoving = hum and hum.MoveDirection.Magnitude > 0.1
+
+    if isSprinting and isMoving and not isExhausted then
+        currentStamina = math.max(0, currentStamina - (sprintDrainRate * dt))
+        targetFOV = sprintFOV
+        if currentStamina <= 0 then
+            isExhausted = true
+            setSprint(false)
+        end
+    else
+        currentStamina = math.min(maxStamina, currentStamina + (staminaRegenRate * dt))
+        targetFOV = normalFOV
+        if isExhausted and currentStamina >= 25 then
+            isExhausted = false
+        end
+    end
+
+    -- Smooth dynamic FOV punch
+    if Camera then
+        local curFOV = Camera.FieldOfView
+        Camera.FieldOfView = curFOV + (targetFOV - curFOV) * math.clamp(dt * 8, 0, 1)
+    end
+
+    -- Replicate stamina state to attributes for DestructionHUD to render
+    if char then
+        char:SetAttribute("SprintStamina", math.floor(currentStamina))
+        char:SetAttribute("SprintMaxStamina", maxStamina)
+        char:SetAttribute("IsSprinting", isSprinting and isMoving and not isExhausted)
+        char:SetAttribute("IsExhausted", isExhausted)
     end
 end)
 

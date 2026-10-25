@@ -703,3 +703,54 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
     - Tested Magma Launch Pad: velocity impulse `(0, 95, -165)` applied with burst VFX.
     - Tested Stargate travel: deployed to SmallTown `(0, 16.65, 0)` and returned to Grand Hub `(0, 532.58, -5000)` via return portal.
 - **Status:** Complete, Verified & In Production.
+
+
+---
+
+### [2026-10-25 15:30 UTC] — Milestone 12: Production Monetization, City Lighting Overhaul, and Titan Sprint System
+- **Goal:** Implement production-grade server-authoritative monetization (Gamepasses, Developer Products, idempotency, ShopHUD, and Hub Market Pavilion), overhaul city lighting with warm sunny day and golden hour twilight profiles, and implement dynamic Titan Sprint mechanics with stamina gauge and camera FOV punch.
+- **Actions Executed:**
+  - **1. Safety Snapshots & Baseline Verification**:
+    - Archived pre-milestone state in `ServerStorage.PreMilestone12_Backups`: `KaijuHub_Pre12` (248 desc), `SmallTown_Pre12` (535 desc), `Metrovale_Pre12` (593 desc), `Brontara_Pre12` (52 desc), and `Ravager_Pre12` (28 desc).
+  - **2. City Lighting Overhaul & Ambient Illumination (Issue Resolution: Dark Battlegrounds)**:
+    - `src/shared/Config/CityConfig.luau`: Configured environment and lighting profiles:
+      - `SmallTown`: Bright sunny coastal afternoon ($ClockTime = 14.2$, $Brightness = 2.4$, $OutdoorAmbient = (125, 130, 135)$, coastal skyblue Atmosphere, Density 0.26).
+      - `Metrovale`: Golden hour metropolitan twilight ($ClockTime = 16.5$, $Brightness = 2.2$, $OutdoorAmbient = (115, 110, 120)$, warm amber Atmosphere, Density 0.34, Haze 1.4).
+      - `KaijuHub`: Volcanic caldera twilight ($ClockTime = 18.25$, $Brightness = 1.8$, Density 0.32).
+    - `src/server/Services/CityService.luau`: Fires `CityFeedbackRemote:FireAllClients("CityLightingChanged", profile)` on `LoadCity` and `ReturnToHub`.
+    - `src/client/Controllers/LightingController.client.luau`: Smoothly interpolates `Lighting.ClockTime`, `Brightness`, `OutdoorAmbient`, and `Atmosphere` over $1.2\text{ seconds}$ via `TweenService`.
+    - DataModel Streetlamps: Outfitted 10 streetlamps in SmallTown and 40 in Metrovale with warm `PointLight` fixtures.
+  - **3. Titan Sprint & Stamina Mechanics**:
+    - `src/shared/Shared/TitanRegistry.luau`: Configured sprint speeds:
+      - Ravager: $WalkSpeed = 28 \to 44$ sprint speed ($+57\%$), $SprintDrain = 20$, $StaminaRegen = 15$, $MaxStamina = 100$.
+      - Brontara: $WalkSpeed = 18 \to 28$ sprint speed ($+55\%$), $SprintDrain = 20$, $StaminaRegen = 15$, $MaxStamina = 100$.
+    - `src/client/Controllers/TitanController.client.luau`: LeftShift/RightShift/ButtonL3 input handlers, local stamina depletion/regen on `RenderStepped`, dynamic camera FOV punch ($70^\circ \to 82^\circ$), and replication to character attributes (`SprintStamina`, `SprintMaxStamina`, `IsSprinting`, `IsExhausted`).
+    - `src/server/Services/MonsterService.luau`: Authoritative `SetSprintState` handler setting `humanoid.WalkSpeed = if isSprinting then sprintSpeed else baseSpeed`.
+    - `src/client/UI/DestructionHUD.client.luau`: Sleek electric cyan/orange/crimson stamina gauge positioned above abilities bar, responding live to character stamina attributes with exhaustion warnings, plus mobile sprint button for touch devices.
+  - **4. Production Monetization Architecture (Gamepasses & Developer Products)**:
+    - `src/shared/Config/MonetizationConfig.luau`:
+      - Gamepasses: `DoubleCash` (2x Cash multiplier, 249 R$), `DoubleXP` (2x XP multiplier, 199 R$), `InstantRebuild` (0-cooldown instant city reset, 149 R$), `VIPTitanAura` (cosmetic golden corona aura, 299 R$), and `AutoCollect` (district-wide reward magnet, 99 R$).
+      - Developer Products: `CashSurge_Small` (+$25,000 Cash, 49 R$), `CashSurge_Large` (+$150,000 Cash, 199 R$), `XPBlast_Small` (+5,000 XP, 79 R$), `InstantCooldownReset` (immediate cooldown reset, 25 R$), and `ComboShield` (60s combo freeze shield, 39 R$).
+    - `src/server/Services/PlayerDataService.luau`: Upgraded profile to Schema 4 with persistent `ProcessedReceipts` (idempotency) and `Gamepasses` tables with safe schema migrations.
+    - `src/server/Services/MonetizationService.luau`:
+      - Authoritative `MarketplaceService.ProcessReceipt` handler with duplicate protection and retry safety.
+      - Cached gamepass ownership verification with DataStore fallback.
+      - Studio sandbox mock mode for zero-cost developer testing.
+      - Dynamic multiplier getters: `GetCashMultiplier`, `GetXPMultiplier`, `HasInstantRebuild`, `HasVIPTitanAura`, `IsComboShieldActive`.
+      - Radiant VIP Titan Aura particle corona emitter attached to character root parts.
+    - `src/server/ServerBootstrap.server.luau`: Registered `MonetizationService` in deterministic startup lifecycle.
+  - **5. Shop Interface & Hub Market Pavilion**:
+    - `src/client/UI/ShopHUD.client.luau`: Tabbed modal GUI (`[Gamepasses]`, `[Currency & XP]`, `[Combat Boosts]`) bound to keybind `B`, `StatsFrame.ShopButton`, and in-world ProximityPrompts.
+    - `Workspace.KaijuHub.GrandCentralPlaza.MerchantPavilion`: Physical 21-part trading kiosk with glowing lava ring, stone canopy, gold display goods, warm lanterns, 3D holographic billboard sign, and `MarketPavilionPrompt` ProximityPrompt.
+  - **6. Multiplier & Product Integration**:
+    - `src/server/Services/ProgressionService.luau`: `AddRewards` dynamically applies `MonetizationService.GetCashMultiplier` and `GetXPMultiplier` to all building damage, destruction, combo streaks, and city completion rewards.
+    - `src/server/Services/CityService.luau`: `ResetCity` bypasses completion requirement if player owns `InstantRebuild`.
+    - `src/server/Services/DestructionService.luau`: `registerComboActivity` and `GetPlayerCombo` respect active `ComboShieldActive` attribute to prevent combo timeout decay.
+  - **7. Live In-Studio Playtest Verification**:
+    - Spawning: Player spawned cleanly at `KaijuHub` with initial 1x multipliers and 100 Stamina.
+    - Monetization & Multipliers: Sandbox purchase of `DoubleCash` updated cash multiplier to 2.0x; `DoubleXP` updated XP multiplier to 2.0x; `CashSurge_Small` awarded $+50,000$ Cash ($25,000 \times 2.0$).
+    - VIP Aura: Sandbox purchase of `VIPTitanAura` instantly instantiated `VIPTitanCorona` golden ember emitter and PointLight on the Titan.
+    - Sprint Mechanics: Verified Ravager WalkSpeed jumped from 32 to 44 on sprint trigger and returned cleanly to base speed; verified Stamina UI label at `⚡ STAMINA: 100 / 100`.
+    - Lighting Overhaul: Verified smooth real-time tweening between SmallTown ($ClockTime = 14.2$, $Brightness = 2.4$), Metrovale ($ClockTime = 16.5$, $Brightness = 2.2$), and Kaiju Hub caldera ($ClockTime = 18.25$, $Brightness = 1.8$).
+    - Shop HUD: Opened via `ShopToggleBindable` and verified 5 gamepasses rendered cleanly with purchase buttons and safe sandbox status.
+- **Status:** Complete, Verified & In Production.

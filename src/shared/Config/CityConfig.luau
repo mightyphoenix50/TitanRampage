@@ -21,6 +21,39 @@ export type CityBounds = {
     Size: Vector3,
 }
 
+export type AtmosphereSettings = {
+    Density: number,
+    Offset: number,
+    Color: Color3,
+    Decay: Color3,
+    Glare: number,
+    Haze: number,
+}
+
+export type BloomSettings = {
+    Intensity: number,
+    Size: number,
+    Threshold: number,
+}
+
+export type ColorCorrectionSettings = {
+    Brightness: number,
+    Contrast: number,
+    Saturation: number,
+    TintColor: Color3,
+}
+
+export type LightingProfile = {
+    ClockTime: number,
+    Brightness: number,
+    OutdoorAmbient: Color3,
+    Ambient: Color3,
+    ShadowSoftness: number,
+    Atmosphere: AtmosphereSettings,
+    Bloom: BloomSettings,
+    ColorCorrection: ColorCorrectionSettings,
+}
+
 export type CityDefinition = {
     CityId: string,
     DisplayName: string,
@@ -33,6 +66,7 @@ export type CityDefinition = {
     TargetTotalHP: number,
     CityBounds: CityBounds,
     SpawnPosition: Vector3,
+    LightingProfile: LightingProfile,
 }
 
 export type CityConfigType = {
@@ -40,6 +74,34 @@ export type CityConfigType = {
     DisplayOrder: { string },
     GetCity: (cityId: string) -> CityDefinition?,
     GetCityList: () -> { CityDefinition },
+    GetLightingProfile: (zoneId: string) -> LightingProfile?,
+}
+
+local HubLightingProfile: LightingProfile = {
+    ClockTime = 18.25,
+    Brightness = 1.8,
+    OutdoorAmbient = Color3.fromRGB(80, 50, 45),
+    Ambient = Color3.fromRGB(60, 40, 40),
+    ShadowSoftness = 0.2,
+    Atmosphere = {
+        Density = 0.32,
+        Offset = 0.25,
+        Color = Color3.fromRGB(180, 80, 45),
+        Decay = Color3.fromRGB(50, 20, 20),
+        Glare = 0.4,
+        Haze = 2.0,
+    },
+    Bloom = {
+        Intensity = 0.75,
+        Size = 24,
+        Threshold = 1.1,
+    },
+    ColorCorrection = {
+        Brightness = 0.02,
+        Contrast = 0.12,
+        Saturation = 0.18,
+        TintColor = Color3.fromRGB(255, 240, 235),
+    },
 }
 
 local Cities: { [string]: CityDefinition } = {
@@ -66,6 +128,32 @@ local Cities: { [string]: CityDefinition } = {
             Size = Vector3.new(270, 80, 252),
         },
         SpawnPosition = Vector3.new(0, 5, 0),
+        LightingProfile = {
+            ClockTime = 14.2, -- Bright, clear sunny afternoon
+            Brightness = 2.4,
+            OutdoorAmbient = Color3.fromRGB(125, 130, 135), -- Clear, bright shadows
+            Ambient = Color3.fromRGB(80, 80, 85),
+            ShadowSoftness = 0.2,
+            Atmosphere = {
+                Density = 0.26,
+                Offset = 0.2,
+                Color = Color3.fromRGB(195, 220, 255), -- Coastal sky blue
+                Decay = Color3.fromRGB(100, 140, 190),
+                Glare = 0.3,
+                Haze = 0.8,
+            },
+            Bloom = {
+                Intensity = 0.5,
+                Size = 18,
+                Threshold = 1.2,
+            },
+            ColorCorrection = {
+                Brightness = 0.0,
+                Contrast = 0.08,
+                Saturation = 0.12,
+                TintColor = Color3.fromRGB(255, 255, 255),
+            },
+        },
     },
 
     Metrovale = {
@@ -91,6 +179,32 @@ local Cities: { [string]: CityDefinition } = {
             Size = Vector3.new(360, 160, 380),
         },
         SpawnPosition = Vector3.new(1200, 5, -20),
+        LightingProfile = {
+            ClockTime = 16.5, -- High-stakes metropolitan golden hour
+            Brightness = 2.2,
+            OutdoorAmbient = Color3.fromRGB(115, 110, 120),
+            Ambient = Color3.fromRGB(75, 70, 80),
+            ShadowSoftness = 0.2,
+            Atmosphere = {
+                Density = 0.34,
+                Offset = 0.25,
+                Color = Color3.fromRGB(220, 170, 130), -- Warm amber city haze
+                Decay = Color3.fromRGB(120, 70, 50),
+                Glare = 0.5,
+                Haze = 1.4,
+            },
+            Bloom = {
+                Intensity = 0.6,
+                Size = 22,
+                Threshold = 1.15,
+            },
+            ColorCorrection = {
+                Brightness = 0.02,
+                Contrast = 0.12,
+                Saturation = 0.15,
+                TintColor = Color3.fromRGB(255, 245, 240),
+            },
+        },
     },
 }
 
@@ -116,6 +230,14 @@ local CityConfig = {
             end
         end
         return list
+    end,
+
+    GetLightingProfile = function(zoneId: string): LightingProfile?
+        if zoneId == "KaijuHub" then
+            return HubLightingProfile
+        end
+        local city = Cities[zoneId]
+        return if city then city.LightingProfile else nil
     end,
 }
 

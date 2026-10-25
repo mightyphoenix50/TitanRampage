@@ -19,7 +19,7 @@ local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"
 local ProgressionUpdateRemote = RemotesFolder:WaitForChild("ProgressionUpdate") :: RemoteEvent
 local UpgradeRequestRemote = RemotesFolder:WaitForChild("UpgradeRequest") :: RemoteEvent
 
--- Reference to MonsterService (resolved via lazy getter)
+-- Reference to MonsterService and MonetizationService (resolved via lazy getters)
 local MonsterService = nil
 local function getMonsterService()
     if not MonsterService then
@@ -28,6 +28,16 @@ local function getMonsterService()
         end)
     end
     return MonsterService
+end
+
+local MonetizationService = nil
+local function getMonetizationService()
+    if not MonetizationService then
+        pcall(function()
+            MonetizationService = require(script.Parent:WaitForChild("MonetizationService") :: ModuleScript)
+        end)
+    end
+    return MonetizationService
 end
 
 export type PlayerProgression = {
@@ -200,9 +210,13 @@ end
     Applies scalable XP curve and carries over excess XP upon leveling up.
 ]=]
 function ProgressionService.AddRewards(player: Player, cash: number, points: number, xp: number)
-    local addedCash = math.max(0, math.floor(cash))
+    local monService = getMonetizationService()
+    local cashMult = if monService then monService.GetCashMultiplier(player) else 1.0
+    local xpMult = if monService then monService.GetXPMultiplier(player) else 1.0
+
+    local addedCash = math.max(0, math.floor(cash * cashMult))
     local addedPoints = math.max(0, math.floor(points))
-    local addedXP = math.max(0, math.floor(xp))
+    local addedXP = math.max(0, math.floor(xp * xpMult))
 
     local leveledUp = false
     local previousLevel = 1

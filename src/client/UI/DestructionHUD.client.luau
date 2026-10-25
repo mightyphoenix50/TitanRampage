@@ -726,6 +726,174 @@ local activeTitanIdForHUD = "Ravager"
 local abilitySlotWidgets: { [TitanRegistry.AbilitySlot]: AbilitySlotUI } = {}
 local activeAbilityCooldowns: { [string]: { EndTime: number, Duration: number } } = {}
 
+--------------------------------------------------------------------------------
+-- Titan Stamina Gauge & Mobile Sprint Controller (Milestone 12C)
+--------------------------------------------------------------------------------
+local SprintToggleBindable = RemotesFolder:FindFirstChild("SprintToggle") :: BindableEvent?
+if not SprintToggleBindable then
+    SprintToggleBindable = Instance.new("BindableEvent")
+    SprintToggleBindable.Name = "SprintToggle"
+    SprintToggleBindable.Parent = RemotesFolder
+end
+
+local StaminaFrame = MainUI:FindFirstChild("StaminaFrame") :: Frame?
+if not StaminaFrame then
+    StaminaFrame = Instance.new("Frame")
+    StaminaFrame.Name = "StaminaFrame"
+    StaminaFrame.Size = UDim2.new(0, 360, 0, 18)
+    StaminaFrame.Position = UDim2.new(0.5, 0, 1, -94)
+    StaminaFrame.AnchorPoint = Vector2.new(0.5, 1)
+    StaminaFrame.BackgroundColor3 = Color3.fromRGB(14, 17, 24)
+    StaminaFrame.BackgroundTransparency = 0.25
+    StaminaFrame.BorderSizePixel = 0
+    StaminaFrame.ZIndex = 15
+    StaminaFrame.Parent = MainUI
+
+    local staminaCorner = Instance.new("UICorner")
+    staminaCorner.CornerRadius = UDim.new(0, 8)
+    staminaCorner.Parent = StaminaFrame
+
+    local staminaStroke = Instance.new("UIStroke")
+    staminaStroke.Name = "StaminaStroke"
+    staminaStroke.Color = Color3.fromRGB(48, 62, 85)
+    staminaStroke.Thickness = 1.5
+    staminaStroke.Parent = StaminaFrame
+end
+
+local StaminaBarFill = StaminaFrame:FindFirstChild("StaminaFill") :: Frame?
+if not StaminaBarFill then
+    StaminaBarFill = Instance.new("Frame")
+    StaminaBarFill.Name = "StaminaFill"
+    StaminaBarFill.Size = UDim2.new(1, 0, 1, 0)
+    StaminaBarFill.BackgroundColor3 = Color3.fromRGB(0, 220, 255)
+    StaminaBarFill.BorderSizePixel = 0
+    StaminaBarFill.ZIndex = 16
+    StaminaBarFill.Parent = StaminaFrame
+
+    local fillCorner = Instance.new("UICorner")
+    fillCorner.CornerRadius = UDim.new(0, 6)
+    fillCorner.Parent = StaminaBarFill
+
+    local fillGrad = Instance.new("UIGradient")
+    fillGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 210, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 255, 180)),
+    })
+    fillGrad.Parent = StaminaBarFill
+end
+
+local StaminaLabel = StaminaFrame:FindFirstChild("StaminaLabel") :: TextLabel?
+if not StaminaLabel then
+    StaminaLabel = Instance.new("TextLabel")
+    StaminaLabel.Name = "StaminaLabel"
+    StaminaLabel.Size = UDim2.new(1, 0, 1, 0)
+    StaminaLabel.BackgroundTransparency = 1
+    StaminaLabel.Font = Enum.Font.GothamBold
+    StaminaLabel.TextSize = 11
+    StaminaLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    StaminaLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    StaminaLabel.TextStrokeTransparency = 0.4
+    StaminaLabel.Text = "⚡ STAMINA: 100 / 100"
+    StaminaLabel.ZIndex = 17
+    StaminaLabel.Parent = StaminaFrame
+end
+
+-- Mobile Sprint Touch Button (Visible on Touch devices)
+local MobileSprintButton = MainUI:FindFirstChild("MobileSprintButton") :: TextButton?
+if not MobileSprintButton and UserInputService.TouchEnabled then
+    MobileSprintButton = Instance.new("TextButton")
+    MobileSprintButton.Name = "MobileSprintButton"
+    MobileSprintButton.Size = UDim2.new(0, 64, 0, 64)
+    MobileSprintButton.Position = UDim2.new(1, -85, 1, -155)
+    MobileSprintButton.AnchorPoint = Vector2.new(1, 1)
+    MobileSprintButton.BackgroundColor3 = Color3.fromRGB(24, 30, 42)
+    MobileSprintButton.BackgroundTransparency = 0.2
+    MobileSprintButton.Text = "⚡\nSPRINT"
+    MobileSprintButton.Font = Enum.Font.GothamBlack
+    MobileSprintButton.TextSize = 12
+    MobileSprintButton.TextColor3 = Color3.fromRGB(0, 220, 255)
+    MobileSprintButton.ZIndex = 25
+    MobileSprintButton.Parent = MainUI
+
+    local mbCorner = Instance.new("UICorner")
+    mbCorner.CornerRadius = UDim.new(1, 0)
+    mbCorner.Parent = MobileSprintButton
+
+    local mbStroke = Instance.new("UIStroke")
+    mbStroke.Name = "Stroke"
+    mbStroke.Color = Color3.fromRGB(0, 200, 255)
+    mbStroke.Thickness = 2
+    mbStroke.Parent = MobileSprintButton
+
+    MobileSprintButton.MouseButton1Click:Connect(function()
+        if SprintToggleBindable then
+            SprintToggleBindable:Fire()
+        end
+    end)
+end
+
+-- Attribute observer for character stamina
+local function bindCharacterStamina(character: Model)
+    local function updateStaminaUI()
+        local cur = character:GetAttribute("SprintStamina")
+        local max = character:GetAttribute("SprintMaxStamina")
+        local isExhausted = character:GetAttribute("IsExhausted") == true
+        local isSprinting = character:GetAttribute("IsSprinting") == true
+
+        local curStaminaVal = if type(cur) == "number" then cur else 100
+        local maxStaminaVal = if type(max) == "number" then math.max(1, max) else 100
+        local ratio = math.clamp(curStaminaVal / maxStaminaVal, 0, 1)
+
+        if StaminaBarFill then
+            TweenService:Create(StaminaBarFill, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(ratio, 0, 1, 0),
+            }):Play()
+
+            if isExhausted then
+                StaminaBarFill.BackgroundColor3 = Color3.fromRGB(240, 50, 50)
+            elseif ratio <= 0.3 then
+                StaminaBarFill.BackgroundColor3 = Color3.fromRGB(255, 140, 20)
+            else
+                StaminaBarFill.BackgroundColor3 = Color3.fromRGB(0, 220, 255)
+            end
+        end
+
+        if StaminaLabel then
+            if isExhausted then
+                StaminaLabel.Text = "⚠️ EXHAUSTED (RECOVERING...)"
+                StaminaLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            elseif isSprinting then
+                StaminaLabel.Text = string.format("⚡ SPRINTING: %d / %d", curStaminaVal, maxStaminaVal)
+                StaminaLabel.TextColor3 = Color3.fromRGB(255, 240, 120)
+            else
+                StaminaLabel.Text = string.format("⚡ STAMINA: %d / %d", curStaminaVal, maxStaminaVal)
+                StaminaLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            end
+        end
+
+        if MobileSprintButton then
+            if isSprinting then
+                MobileSprintButton.BackgroundColor3 = Color3.fromRGB(0, 140, 180)
+                MobileSprintButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            else
+                MobileSprintButton.BackgroundColor3 = Color3.fromRGB(24, 30, 42)
+                MobileSprintButton.TextColor3 = Color3.fromRGB(0, 220, 255)
+            end
+        end
+    end
+
+    character:GetAttributeChangedSignal("SprintStamina"):Connect(updateStaminaUI)
+    character:GetAttributeChangedSignal("SprintMaxStamina"):Connect(updateStaminaUI)
+    character:GetAttributeChangedSignal("IsSprinting"):Connect(updateStaminaUI)
+    character:GetAttributeChangedSignal("IsExhausted"):Connect(updateStaminaUI)
+    updateStaminaUI()
+end
+
+if LocalPlayer.Character then
+    bindCharacterStamina(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(bindCharacterStamina)
+
 local AbilitiesFrame = MainUI:FindFirstChild("AbilitiesFrame") :: Frame?
 if not AbilitiesFrame then
     AbilitiesFrame = Instance.new("Frame")
