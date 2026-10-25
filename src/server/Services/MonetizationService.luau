@@ -122,7 +122,14 @@ function MonetizationService.HasVIPTitanAura(player: Player): boolean
 end
 
 function MonetizationService.HasAutoCollect(player: Player): boolean
-    return MonetizationService.HasGamepass(player, "AutoCollect")
+    if player:GetAttribute("HasAutoCollect") == true then
+        return true
+    end
+    local owns = MonetizationService.HasGamepass(player, "AutoCollect")
+    if owns then
+        player:SetAttribute("HasAutoCollect", true)
+    end
+    return owns
 end
 
 --[=[
@@ -470,6 +477,7 @@ function MonetizationService.Start()
 
     local function onCharacterAdded(player: Player, character: Model)
         task.wait(0.2)
+        player:SetAttribute("HasAutoCollect", MonetizationService.HasAutoCollect(player))
         if MonetizationService.HasVIPTitanAura(player) then
             MonetizationService.ApplyVIPAura(player, character)
         end

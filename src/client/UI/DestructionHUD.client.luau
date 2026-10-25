@@ -1473,6 +1473,143 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+--[=[
+    Spawns juicy building impact particles: concrete dust clouds and masonry friction sparks.
+]=]
+local function spawnBuildingImpactVFX(pos: Vector3, tier: number)
+    local vfxPart = Instance.new("Part")
+    vfxPart.Name = "BuildingImpactVFX"
+    vfxPart.Size = Vector3.new(1, 1, 1)
+    vfxPart.CFrame = CFrame.new(pos)
+    vfxPart.Transparency = 1
+    vfxPart.Anchored = true
+    vfxPart.CanCollide = false
+    vfxPart.CanTouch = false
+    vfxPart.CanQuery = false
+    vfxPart.Parent = Workspace
+
+    local att = Instance.new("Attachment")
+    att.Parent = vfxPart
+
+    -- 1. Billowing Concrete Dust Puff
+    local dust = Instance.new("ParticleEmitter")
+    dust.Name = "ConcreteDust"
+    dust.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(195, 185, 175)),
+        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(160, 150, 140)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(110, 105, 100)),
+    })
+    dust.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 3.5),
+        NumberSequenceKeypoint.new(0.4, 7.5 + (tier * 1.5)),
+        NumberSequenceKeypoint.new(1, 11.0 + (tier * 2.0)),
+    })
+    dust.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.25),
+        NumberSequenceKeypoint.new(0.6, 0.45),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    dust.Speed = NumberRange.new(14, 28 + (tier * 6))
+    dust.SpreadAngle = Vector2.new(180, 180)
+    dust.Lifetime = NumberRange.new(0.5, 0.85)
+    dust.Rate = 0
+    dust.LightEmission = 0
+    dust.LightInfluence = 0.5
+    dust.Parent = att
+    dust:Emit(22 + (tier * 6))
+
+    -- 2. Flying Masonry Friction Sparks
+    local sparks = Instance.new("ParticleEmitter")
+    sparks.Name = "MasonrySparks"
+    sparks.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 230, 120)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 150, 40)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 60, 10)),
+    })
+    sparks.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1.0),
+        NumberSequenceKeypoint.new(1, 0),
+    })
+    sparks.Speed = NumberRange.new(30, 70 + (tier * 10))
+    sparks.SpreadAngle = Vector2.new(180, 180)
+    sparks.Lifetime = NumberRange.new(0.3, 0.6)
+    sparks.Rate = 0
+    sparks.LightEmission = 1
+    sparks.LightInfluence = 0
+    sparks.Acceleration = Vector3.new(0, -45, 0)
+    sparks.Parent = att
+    sparks:Emit(25 + (tier * 8))
+
+    -- 3. High-impact Flash Disc
+    local flash = Instance.new("Part")
+    flash.Name = "ImpactFlashDisc"
+    flash.Shape = Enum.PartType.Ball
+    flash.Size = Vector3.new(4 + tier * 2, 4 + tier * 2, 4 + tier * 2)
+    flash.CFrame = CFrame.new(pos)
+    flash.Material = Enum.Material.Neon
+    flash.Color = Color3.fromRGB(255, 225, 160)
+    flash.Anchored = true
+    flash.CanCollide = false
+    flash.CanTouch = false
+    flash.CanQuery = false
+    flash.Parent = Workspace
+
+    local ft = TweenService:Create(flash, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = Vector3.new(10 + tier * 4, 10 + tier * 4, 10 + tier * 4),
+        Transparency = 1,
+    })
+    ft:Play()
+    ft.Completed:Connect(function() flash:Destroy() end)
+
+    task.delay(1.0, function()
+        vfxPart:Destroy()
+    end)
+end
+
+--[=[
+    Spawns massive collapse dust explosion and rubble debris.
+]=]
+local function spawnCollapseDustVFX(pos: Vector3, tier: number)
+    local vfxPart = Instance.new("Part")
+    vfxPart.Name = "CollapseDustVFX"
+    vfxPart.Size = Vector3.new(1, 1, 1)
+    vfxPart.CFrame = CFrame.new(pos)
+    vfxPart.Transparency = 1
+    vfxPart.Anchored = true
+    vfxPart.CanCollide = false
+    vfxPart.CanTouch = false
+    vfxPart.CanQuery = false
+    vfxPart.Parent = Workspace
+
+    local att = Instance.new("Attachment")
+    att.Parent = vfxPart
+
+    local dustRing = Instance.new("ParticleEmitter")
+    dustRing.Name = "CollapseDustRing"
+    dustRing.Color = ColorSequence.new(Color3.fromRGB(150, 140, 130), Color3.fromRGB(90, 85, 80))
+    dustRing.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 6.0),
+        NumberSequenceKeypoint.new(0.5, 18.0 + (tier * 4.0)),
+        NumberSequenceKeypoint.new(1, 26.0 + (tier * 6.0)),
+    })
+    dustRing.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.3),
+        NumberSequenceKeypoint.new(0.7, 0.6),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    dustRing.Speed = NumberRange.new(25, 60 + (tier * 12))
+    dustRing.SpreadAngle = Vector2.new(180, 45)
+    dustRing.Lifetime = NumberRange.new(1.0, 1.8)
+    dustRing.Rate = 0
+    dustRing.Acceleration = Vector3.new(0, 8, 0)
+    dustRing.Parent = att
+    dustRing:Emit(45 + (tier * 15))
+
+    task.delay(2.2, function()
+        vfxPart:Destroy()
+    end)
+end
+
 -- Remote Event: DestructionFeedback (Visuals & Audio)
 DestructionFeedback.OnClientEvent:Connect(function(eventType: string, data: any)
     if eventType == "ComboUpdate" then
@@ -1570,6 +1707,9 @@ DestructionFeedback.OnClientEvent:Connect(function(eventType: string, data: any)
         AudioController.PlayBuildingImpact(tier, pos)
         AudioController.PlayReward(combo)
 
+        -- Concrete dust puff and masonry friction sparks on building impact
+        spawnBuildingImpactVFX(pos, tier)
+
         -- Spawn distinct, throttled floating damage number
         spawnDamageNumber(pos, dmg, combo, source)
 
@@ -1589,6 +1729,9 @@ DestructionFeedback.OnClientEvent:Connect(function(eventType: string, data: any)
 
         AudioController.PlayCollapseSequence(tier, pos)
         AudioController.PlayReward(combo)
+
+        -- Massive building collapse dust plume
+        spawnCollapseDustVFX(pos, tier)
 
         local billboard = Instance.new("BillboardGui")
         billboard.Name = "DestroyedBillboard"
@@ -1634,4 +1777,100 @@ DestructionFeedback.OnClientEvent:Connect(function(eventType: string, data: any)
     end
 end)
 
-print("[DestructionHUD] City progress and completion tracking initialized.")
+-- Remote Event: DropFeedback (Cash pickup chime and green sparkle burst)
+local DropFeedbackRemote = RemotesFolder:FindFirstChild("DropFeedback") :: RemoteEvent?
+if not DropFeedbackRemote then
+    pcall(function()
+        DropFeedbackRemote = RemotesFolder:WaitForChild("DropFeedback", 4) :: RemoteEvent?
+    end)
+end
+
+if DropFeedbackRemote then
+    DropFeedbackRemote.OnClientEvent:Connect(function(actionType: string, data: any)
+        if actionType == "CashCollected" then
+            local amt = data.Amount or 0
+            local pos = data.Position or Vector3.zero
+
+            -- Play crisp currency chime sound
+            local chime = Instance.new("Sound")
+            chime.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+            chime.Volume = 0.50
+            chime.PlaybackSpeed = math.random(115, 140) / 100
+            chime.Parent = Workspace
+            chime:Play()
+            chime.Ended:Connect(function() chime:Destroy() end)
+
+            -- Floating green cash indicator "+$50"
+            local billboard = Instance.new("BillboardGui")
+            billboard.Size = UDim2.new(0, 130, 0, 38)
+            billboard.AlwaysOnTop = true
+
+            local anchor = Instance.new("Part")
+            anchor.Transparency = 1
+            anchor.CanCollide = false
+            anchor.CanQuery = false
+            anchor.CanTouch = false
+            anchor.Anchored = true
+            anchor.Size = Vector3.new(0.5, 0.5, 0.5)
+            anchor.Position = pos + Vector3.new(0, 2, 0)
+            anchor.Parent = Workspace
+
+            billboard.Adornee = anchor
+            billboard.Parent = anchor
+
+            local lbl = Instance.new("TextLabel")
+            lbl.Size = UDim2.new(1, 0, 1, 0)
+            lbl.BackgroundTransparency = 1
+            lbl.Text = string.format("💵 +$%d", amt)
+            lbl.TextColor3 = Color3.fromRGB(100, 255, 130)
+            lbl.TextStrokeColor3 = Color3.fromRGB(0, 45, 15)
+            lbl.TextStrokeTransparency = 0.2
+            lbl.Font = Enum.Font.GothamBlack
+            lbl.TextSize = 20
+            lbl.Parent = billboard
+
+            local tw = TweenService:Create(billboard, TweenInfo.new(0.75, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                StudsOffset = Vector3.new(0, 5, 0),
+            })
+            local ft = TweenService:Create(lbl, TweenInfo.new(0.75, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                TextTransparency = 1,
+                TextStrokeTransparency = 1,
+            })
+            tw:Play()
+            ft:Play()
+            task.delay(0.8, function()
+                anchor:Destroy()
+            end)
+
+        elseif actionType == "CashPop" then
+            local pos = data.Position or Vector3.zero
+            local popPart = Instance.new("Part")
+            popPart.Size = Vector3.new(1, 1, 1)
+            popPart.CFrame = CFrame.new(pos)
+            popPart.Transparency = 1
+            popPart.Anchored = true
+            popPart.CanCollide = false
+            popPart.CanTouch = false
+            popPart.CanQuery = false
+            popPart.Parent = Workspace
+
+            local att = Instance.new("Attachment")
+            att.Parent = popPart
+
+            local p = Instance.new("ParticleEmitter")
+            p.Color = ColorSequence.new(Color3.fromRGB(80, 255, 120), Color3.fromRGB(255, 255, 255))
+            p.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.0), NumberSequenceKeypoint.new(1, 0) })
+            p.Speed = NumberRange.new(10, 25)
+            p.SpreadAngle = Vector2.new(180, 180)
+            p.Lifetime = NumberRange.new(0.3, 0.5)
+            p.Rate = 0
+            p.LightEmission = 1
+            p.Parent = att
+            p:Emit(18)
+
+            task.delay(0.6, function() popPart:Destroy() end)
+        end
+    end)
+end
+
+print("[DestructionHUD] City progress, completion tracking, and cash drops initialized.")

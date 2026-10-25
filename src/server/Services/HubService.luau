@@ -609,7 +609,178 @@ local function createBastionDPSDummy(parent: Instance, cframe: CFrame): Model
 end
 
 --[=[
+    Constructs high-intensity stadium floodlights, glowing magma/electric ground runes,
+    monolith combat uplighting, and bridge guidance lamps for the Colosseum Proving Grounds.
+]=]
+local function setupColosseumLighting(arenaFolder: Folder, arenaOrigin: Vector3, hubOrigin: Vector3)
+    local lightingFolder = arenaFolder:FindFirstChild("ArenaLighting") :: Folder?
+    if not lightingFolder then
+        lightingFolder = Instance.new("Folder")
+        lightingFolder.Name = "ArenaLighting"
+        lightingFolder.Parent = arenaFolder
+    end
+
+    -- 1. 8 Wall Perimeter Floodlight Towers (atop 45-stud walls)
+    local pylonHeight = 45
+    local pylonPositions = {
+        { Pos = arenaOrigin + Vector3.new(0, pylonHeight, -180), Angle = Vector3.new(0, 0, 0) },      -- North Wall
+        { Pos = arenaOrigin + Vector3.new(0, pylonHeight, 180), Angle = Vector3.new(0, 180, 0) },     -- South Wall
+        { Pos = arenaOrigin + Vector3.new(-180, pylonHeight, 0), Angle = Vector3.new(0, 90, 0) },     -- West Wall
+        { Pos = arenaOrigin + Vector3.new(180, pylonHeight, 0), Angle = Vector3.new(0, -90, 0) },     -- East Wall
+        { Pos = arenaOrigin + Vector3.new(-170, pylonHeight, -170), Angle = Vector3.new(0, 45, 0) },  -- NW Corner
+        { Pos = arenaOrigin + Vector3.new(170, pylonHeight, -170), Angle = Vector3.new(0, -45, 0) },  -- NE Corner
+        { Pos = arenaOrigin + Vector3.new(-170, pylonHeight, 170), Angle = Vector3.new(0, 135, 0) },  -- SW Corner
+        { Pos = arenaOrigin + Vector3.new(170, pylonHeight, 170), Angle = Vector3.new(0, -135, 0) },  -- SE Corner
+    }
+
+    for idx, pDef in ipairs(pylonPositions) do
+        local pylonPost = createPart(lightingFolder, "FloodPylon_" .. idx, Vector3.new(4, 14, 4), CFrame.new(pDef.Pos + Vector3.new(0, 7, 0)), Enum.Material.Metal, Color3.fromRGB(40, 42, 48))
+        local lampHead = createPart(pylonPost, "LampHead", Vector3.new(8, 3, 4), CFrame.new(pDef.Pos + Vector3.new(0, 14, 0)) * CFrame.Angles(math.rad(-25), math.rad(pDef.Angle.Y), 0), Enum.Material.Neon, Color3.fromRGB(255, 235, 190), false)
+        lampHead.CastShadow = false
+
+        -- High-intensity angled arena floodlight
+        local spot = Instance.new("SpotLight")
+        spot.Name = "StadiumSpot"
+        spot.Color = Color3.fromRGB(255, 220, 170)
+        spot.Range = 180
+        spot.Angle = 82
+        spot.Brightness = 4.2
+        spot.Shadows = true
+        spot.Face = Enum.NormalId.Front
+        spot.Parent = lampHead
+
+        local fill = Instance.new("PointLight")
+        fill.Name = "PylonFill"
+        fill.Color = Color3.fromRGB(255, 200, 140)
+        fill.Range = 40
+        fill.Brightness = 2.2
+        fill.Parent = lampHead
+    end
+
+    -- 2. Inlaid Floor Combat Runes & Ambient Lighting (Y = arenaOrigin.Y + 0.1)
+    local floorRunesFolder = Instance.new("Folder")
+    floorRunesFolder.Name = "FloorRunes"
+    floorRunesFolder.Parent = lightingFolder
+
+    -- Inner Magma Combat Ring (Radius 42 studs around Bastion Dummy)
+    local innerRadius = 42
+    local innerSegs = 16
+    for i = 1, innerSegs do
+        local ang = (i - 1) * (math.pi * 2 / innerSegs)
+        local rx = arenaOrigin.X + math.cos(ang) * innerRadius
+        local rz = arenaOrigin.Z + math.sin(ang) * innerRadius
+        local chord = (math.pi * 2 * innerRadius) / innerSegs
+        local segPart = createPart(floorRunesFolder, "InnerRune_" .. i, Vector3.new(chord, 0.4, 2.5), CFrame.new(rx, arenaOrigin.Y + 0.15, rz) * CFrame.Angles(0, -ang + (math.pi / 2), 0), Enum.Material.Neon, Color3.fromRGB(255, 110, 15), false)
+        segPart.CastShadow = false
+    end
+
+    -- Outer Electric Combat Ring (Radius 120 studs)
+    local outerRadius = 120
+    local outerSegs = 24
+    for i = 1, outerSegs do
+        local ang = (i - 1) * (math.pi * 2 / outerSegs)
+        local rx = arenaOrigin.X + math.cos(ang) * outerRadius
+        local rz = arenaOrigin.Z + math.sin(ang) * outerRadius
+        local chord = (math.pi * 2 * outerRadius) / outerSegs
+        local segPart = createPart(floorRunesFolder, "OuterRune_" .. i, Vector3.new(chord, 0.4, 3.2), CFrame.new(rx, arenaOrigin.Y + 0.15, rz) * CFrame.Angles(0, -ang + (math.pi / 2), 0), Enum.Material.Neon, Color3.fromRGB(40, 215, 255), false)
+        segPart.CastShadow = false
+    end
+
+    -- 4 Floor Ambient Field PointLights
+    local floorLightOffsets = {
+        Vector3.new(0, 4, -75),
+        Vector3.new(0, 4, 75),
+        Vector3.new(-75, 4, 0),
+        Vector3.new(75, 4, 0),
+    }
+    for idx, fOff in ipairs(floorLightOffsets) do
+        local lightPart = createPart(floorRunesFolder, "ArenaFieldLight_" .. idx, Vector3.new(1, 1, 1), CFrame.new(arenaOrigin + fOff), Enum.Material.Air, Color3.fromRGB(0, 0, 0), false)
+        lightPart.Transparency = 1
+        lightPart.CanQuery = false
+        lightPart.CanTouch = false
+
+        local pLight = Instance.new("PointLight")
+        pLight.Color = if idx % 2 == 0 then Color3.fromRGB(255, 140, 40) else Color3.fromRGB(60, 210, 255)
+        pLight.Range = 85
+        pLight.Brightness = 3.6
+        pLight.Shadows = false
+        pLight.Parent = lightPart
+    end
+
+    -- 3. Bastion Titan DPS Dummy Center Stage Spotlights
+    local dummyStagePart = createPart(lightingFolder, "BastionStageRig", Vector3.new(4, 2, 4), CFrame.new(arenaOrigin + Vector3.new(0, 42, 0)), Enum.Material.Slate, Color3.fromRGB(25, 25, 30), false)
+    dummyStagePart.Transparency = 1
+    dummyStagePart.CanQuery = false
+    dummyStagePart.CanTouch = false
+
+    local dummySpot = Instance.new("SpotLight")
+    dummySpot.Name = "BastionFocusSpot"
+    dummySpot.Color = Color3.fromRGB(255, 245, 220)
+    dummySpot.Range = 58
+    dummySpot.Angle = 65
+    dummySpot.Brightness = 5.5
+    dummySpot.Face = Enum.NormalId.Bottom
+    dummySpot.Shadows = true
+    dummySpot.Parent = dummyStagePart
+
+    -- Ground ring at dummy base
+    local dummyRing = createPart(lightingFolder, "BastionBaseGlow", Vector3.new(22, 0.4, 22), CFrame.new(arenaOrigin + Vector3.new(0, 0.2, 0)), Enum.Material.Neon, Color3.fromRGB(255, 80, 20), false)
+    dummyRing.CastShadow = false
+
+    -- 4. Practice Monoliths Combat Uplighting
+    local monolithPositions = {
+        arenaOrigin + Vector3.new(-85, 0, -75),
+        arenaOrigin + Vector3.new(85, 0, -75),
+        arenaOrigin + Vector3.new(-110, 0, 65),
+        arenaOrigin + Vector3.new(110, 0, 65),
+        arenaOrigin + Vector3.new(0, 0, 110),
+    }
+    for idx, mPos in ipairs(monolithPositions) do
+        local mRing = createPart(lightingFolder, "MonolithGlowRing_" .. idx, Vector3.new(14, 0.4, 14), CFrame.new(mPos + Vector3.new(0, 0.2, 0)), Enum.Material.Neon, Color3.fromRGB(255, 120, 20), false)
+        mRing.CastShadow = false
+
+        local upSpot = Instance.new("SpotLight")
+        upSpot.Name = "UplightSpot"
+        upSpot.Color = Color3.fromRGB(255, 140, 30)
+        upSpot.Range = 55
+        upSpot.Angle = 65
+        upSpot.Brightness = 4.2
+        upSpot.Face = Enum.NormalId.Top
+        upSpot.Parent = mRing
+    end
+
+    -- 5. Grand Descending Bridge Runway Lanterns (6 pairs along 170-stud bridge)
+    local bridgeSteps = 6
+    local bridgeLength = 170
+    local bridgeAngle = math.rad(-14)
+    local bridgeStart = hubOrigin + Vector3.new(0, -20, -215)
+    for b = 1, bridgeSteps do
+        local frac = (b - 0.5) / bridgeSteps
+        local offsetZ = (frac - 0.5) * bridgeLength
+        local localPos = Vector3.new(0, offsetZ * math.sin(bridgeAngle), offsetZ * math.cos(bridgeAngle))
+        local postCenter = bridgeStart + localPos
+
+        for _, sideX in ipairs({ -22, 22 }) do
+            local lantern = createPart(lightingFolder, string.format("BridgeLantern_%d_%d", b, sideX), Vector3.new(1.8, 4.5, 1.8), CFrame.new(postCenter + Vector3.new(sideX, 3.5, 0)), Enum.Material.Neon, Color3.fromRGB(255, 190, 80), false)
+            lantern.CastShadow = false
+
+            local lLight = Instance.new("PointLight")
+            lLight.Color = Color3.fromRGB(255, 180, 70)
+            lLight.Range = 26
+            lLight.Brightness = 2.8
+            lLight.Parent = lantern
+        end
+    end
+end
+
+--[=[
     Spawns a multi-segmented jagged lightning strike from the stormy sky down to targetPos.
+    Features:
+    - Dual-layer photorealistic bolt geometry (neon plasma sheath + supercharged white core).
+    - Branching secondary forked bolts splitting off the trunk.
+    - Ground impact expanding shockwave disc and vertical plasma spark fountains.
+    - Softened acoustic thunder rumble (low volume, bassy, realistic distance attenuation).
+    - Cinematic stroboscopic multi-stage flicker and smooth fade.
 ]=]
 local function spawnLightningStrike(targetPos: Vector3)
     local boltModel = Instance.new("Model")
@@ -620,13 +791,56 @@ local function spawnLightningStrike(targetPos: Vector3)
     local skyZ = targetPos.Z + math.random(-35, 35)
     local startPos = Vector3.new(skyX, skyY, skyZ)
 
-    local segments = 6
+    local segments = 7
     local currentPos = startPos
     local totalDelta = targetPos - startPos
 
     local isCyan = (math.random() > 0.35)
-    local boltColor = if isCyan then Color3.fromRGB(110, 235, 255) else Color3.fromRGB(255, 255, 225)
+    local boltColor = if isCyan then Color3.fromRGB(80, 225, 255) else Color3.fromRGB(200, 140, 255)
 
+    local allBolts: { BasePart } = {}
+
+    -- Helper to create a dual-layered bolt segment (core + plasma sheath)
+    local function createDualSegment(p1: Vector3, p2: Vector3, coreWidth: number, sheathWidth: number, namePrefix: string)
+        local delta = p2 - p1
+        local len = delta.Magnitude
+        if len < 0.1 then return end
+        local cf = CFrame.lookAt(p1 + (delta * 0.5), p2)
+
+        -- Outer plasma sheath
+        local sheath = Instance.new("Part")
+        sheath.Name = namePrefix .. "_Sheath"
+        sheath.Size = Vector3.new(sheathWidth, sheathWidth, len)
+        sheath.CFrame = cf
+        sheath.Material = Enum.Material.Neon
+        sheath.Color = boltColor
+        sheath.Transparency = 0.28
+        sheath.Anchored = true
+        sheath.CanCollide = false
+        sheath.CanTouch = false
+        sheath.CanQuery = false
+        sheath.CastShadow = false
+        sheath.Parent = boltModel
+        table.insert(allBolts, sheath)
+
+        -- Inner supercharged white core
+        local core = Instance.new("Part")
+        core.Name = namePrefix .. "_Core"
+        core.Size = Vector3.new(coreWidth, coreWidth, len + 0.15)
+        core.CFrame = cf
+        core.Material = Enum.Material.Neon
+        core.Color = Color3.fromRGB(255, 255, 255)
+        core.Transparency = 0.0
+        core.Anchored = true
+        core.CanCollide = false
+        core.CanTouch = false
+        core.CanQuery = false
+        core.CastShadow = false
+        core.Parent = boltModel
+        table.insert(allBolts, core)
+    end
+
+    -- Main trunk generation
     for i = 1, segments do
         local progress = i / segments
         local nextPos: Vector3
@@ -634,37 +848,37 @@ local function spawnLightningStrike(targetPos: Vector3)
             nextPos = targetPos
         else
             local idealPos = startPos + (totalDelta * progress)
-            local jitterX = math.random(-24, 24)
-            local jitterZ = math.random(-24, 24)
-            local jitterY = math.random(-12, 12)
+            local jitterX = math.random(-26, 26)
+            local jitterZ = math.random(-26, 26)
+            local jitterY = math.random(-14, 14)
             nextPos = idealPos + Vector3.new(jitterX, jitterY, jitterZ)
         end
 
-        local segVector = nextPos - currentPos
-        local segLength = segVector.Magnitude
-        local segCFrame = CFrame.lookAt(currentPos + (segVector * 0.5), nextPos)
+        createDualSegment(currentPos, nextPos, 1.4, 3.4, "Trunk_" .. i)
 
-        local part = Instance.new("Part")
-        part.Name = "BoltSeg_" .. i
-        part.Size = Vector3.new(2.4, 2.4, segLength)
-        part.CFrame = segCFrame
-        part.Material = Enum.Material.Neon
-        part.Color = boltColor
-        part.Anchored = true
-        part.CanCollide = false
-        part.CanTouch = false
-        part.CanQuery = false
-        part.CastShadow = false
-        part.Parent = boltModel
+        -- Branching secondary fork bolts at middle segments
+        if (i == 2 or i == 4 or i == 5) and math.random() < 0.65 then
+            task.spawn(function()
+                local branchCurrent = nextPos
+                local branchSteps = math.random(2, 4)
+                local branchDir = Vector3.new(math.random(-38, 38), math.random(-40, -10), math.random(-38, 38))
+                for b = 1, branchSteps do
+                    local bProgress = b / branchSteps
+                    local branchNext = branchCurrent + (branchDir * (1 / branchSteps)) + Vector3.new(math.random(-12, 12), math.random(-10, 5), math.random(-12, 12))
+                    createDualSegment(branchCurrent, branchNext, 0.7, 1.8, string.format("Fork_%d_%d", i, b))
+                    branchCurrent = branchNext
+                end
+            end)
+        end
 
         currentPos = nextPos
     end
 
-    -- Bright PointLight on bolt midpoint
+    -- Bright PointLight on bolt contact zone
     local lightPart = Instance.new("Part")
     lightPart.Name = "BoltLightPart"
     lightPart.Size = Vector3.new(1, 1, 1)
-    lightPart.Position = targetPos + Vector3.new(0, 45, 0)
+    lightPart.Position = targetPos + Vector3.new(0, 20, 0)
     lightPart.Transparency = 1
     lightPart.Anchored = true
     lightPart.CanCollide = false
@@ -673,73 +887,120 @@ local function spawnLightningStrike(targetPos: Vector3)
 
     local light = Instance.new("PointLight")
     light.Color = boltColor
-    light.Range = 140
-    light.Brightness = 14
+    light.Range = 90
+    light.Brightness = 8.5
     light.Parent = lightPart
+
+    -- Ground Impact Expanding Shockwave Disc
+    local shockwave = Instance.new("Part")
+    shockwave.Name = "ImpactShockwave"
+    shockwave.Shape = Enum.PartType.Cylinder
+    shockwave.Size = Vector3.new(0.4, 4, 4)
+    shockwave.CFrame = CFrame.new(targetPos + Vector3.new(0, 0.35, 0)) * CFrame.Angles(0, 0, math.rad(90))
+    shockwave.Material = Enum.Material.Neon
+    shockwave.Color = boltColor
+    shockwave.Transparency = 0.1
+    shockwave.Anchored = true
+    shockwave.CanCollide = false
+    shockwave.CanTouch = false
+    shockwave.CanQuery = false
+    shockwave.CastShadow = false
+    shockwave.Parent = boltModel
+
+    local shockwaveTween = TweenService:Create(shockwave, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = Vector3.new(0.2, 44, 44),
+        Transparency = 1,
+    })
+    shockwaveTween:Play()
 
     -- Impact Flash Ball
     local impact = Instance.new("Part")
     impact.Name = "ImpactFlash"
     impact.Shape = Enum.PartType.Ball
-    impact.Size = Vector3.new(18, 18, 18)
+    impact.Size = Vector3.new(14, 14, 14)
     impact.Position = targetPos
     impact.Material = Enum.Material.Neon
-    impact.Color = boltColor
+    impact.Color = Color3.fromRGB(255, 255, 255)
     impact.Anchored = true
     impact.CanCollide = false
     impact.CanTouch = false
     impact.CanQuery = false
     impact.CastShadow = false
     impact.Parent = boltModel
+    table.insert(allBolts, impact)
 
-    -- Impact Spark Particle Emitter
+    -- Upward Ground Spark Particle Emitter
     local att = Instance.new("Attachment")
     att.Position = targetPos
     att.Parent = lightPart
 
     local sparks = Instance.new("ParticleEmitter")
     sparks.Color = ColorSequence.new(boltColor, Color3.fromRGB(255, 255, 255))
-    sparks.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.8), NumberSequenceKeypoint.new(1, 0) })
-    sparks.Speed = NumberRange.new(40, 85)
-    sparks.SpreadAngle = Vector2.new(180, 180)
-    sparks.Lifetime = NumberRange.new(0.4, 0.8)
-    sparks.Rate = 250
+    sparks.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.4), NumberSequenceKeypoint.new(1, 0) })
+    sparks.Speed = NumberRange.new(45, 95)
+    sparks.SpreadAngle = Vector2.new(60, 60)
+    sparks.Lifetime = NumberRange.new(0.35, 0.70)
+    sparks.Rate = 0
+    sparks.Acceleration = Vector3.new(0, -65, 0)
     sparks.LightEmission = 1
     sparks.LightInfluence = 0
     sparks.Parent = att
-    sparks:Emit(40)
+    sparks:Emit(50)
 
-    -- Thunder Audio
+    -- Thunder Audio: Subdued, bassy, atmospheric (comfortable listening volume)
     local sound = Instance.new("Sound")
     sound.SoundId = "rbxasset://sounds/impact_explosion_03.mp3"
-    sound.Volume = 1.6
-    sound.PlaybackSpeed = 1.35
-    sound.RollOffMaxDistance = 1400
-    sound.RollOffMinDistance = 120
+    sound.Volume = 0.28 -- Comfortably quiet, atmospheric
+    sound.PlaybackSpeed = 0.90 -- Bassy, distant rumble pitch
+    sound.RollOffMinDistance = 50
+    sound.RollOffMaxDistance = 520
     sound.Parent = lightPart
     sound:Play()
 
     boltModel.Parent = Workspace
 
-    -- Full Sky Illumination Flash
+    -- Full Sky Illumination Flash (Subtle ambiance pulse)
     pcall(function()
-        Lighting.Brightness = 3.8
-        task.delay(0.06, function()
-            TweenService:Create(Lighting, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Lighting.Brightness = 3.2
+        task.delay(0.05, function()
+            TweenService:Create(Lighting, TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Brightness = 2.2,
             }):Play()
         end)
     end)
 
-    -- Flicker and fade
-    task.delay(0.08, function()
-        for _, p in ipairs(boltModel:GetChildren()) do
-            if p:IsA("BasePart") and p ~= lightPart then
-                p.Transparency = 0.4
+    -- Cinematic Stroboscopic Flicker Sequence
+    task.delay(0.04, function()
+        for _, p in ipairs(allBolts) do
+            if p:IsA("BasePart") then
+                p.Transparency = 0.65
             end
         end
+        light.Brightness = 3.5
     end)
-    task.delay(0.20, function()
+    task.delay(0.07, function()
+        -- Re-strike flash
+        for _, p in ipairs(allBolts) do
+            if p:IsA("BasePart") then
+                p.Transparency = 0.15
+            end
+        end
+        light.Brightness = 7.0
+    end)
+    task.delay(0.12, function()
+        -- Smooth fade out
+        for _, p in ipairs(allBolts) do
+            if p:IsA("BasePart") then
+                TweenService:Create(p, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Transparency = 1,
+                }):Play()
+            end
+        end
+        TweenService:Create(light, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Brightness = 0,
+        }):Play()
+    end)
+    task.delay(0.30, function()
         boltModel:Destroy()
     end)
 end
@@ -1171,6 +1432,9 @@ function HubService.ConstructGrandSanctuary()
         createLightningConductor(pil, pInfo.Pos + Vector3.new(0, 38, 0), 10)
     end
 
+    -- Proving Grounds Lighting (Floodlight pylons, runes, uplights, dummy staging, bridge lamps)
+    setupColosseumLighting(arenaFolder, arenaOrigin, hubOrigin)
+
     -- =========================================================================
     -- TITAN MAGMA LAUNCH PADS (Inter-Tier High Velocity Travel)
     -- =========================================================================
@@ -1285,6 +1549,15 @@ function HubService.Init()
                     bindLaunchPad(pad)
                 end
             end
+        end
+
+        -- Ensure Proving Grounds Arena Lighting exists
+        local arenaFolder = existing:FindFirstChild("ColosseumProvingGrounds") :: Folder?
+        if arenaFolder and not arenaFolder:FindFirstChild("ArenaLighting") then
+            local hubOrigin = Vector3.new(0, 520, -5000)
+            local arenaOrigin = hubOrigin + Vector3.new(0, -40, -420)
+            setupColosseumLighting(arenaFolder, arenaOrigin, hubOrigin)
+            print("[HubService] 💡 Retrofitted Proving Grounds Arena Lighting into existing KaijuHub.")
         end
     else
         HubService.ConstructGrandSanctuary()

@@ -514,6 +514,30 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
         swipe.Transparency = 0.2
         swipe.Parent = Workspace
 
+        -- Claw Slash Streak Embers
+        local attSwipe = Instance.new("Attachment")
+        attSwipe.Parent = swipe
+
+        local slashSparks = Instance.new("ParticleEmitter")
+        slashSparks.Name = "SlashSparks"
+        slashSparks.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 230, 110)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 140, 30)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 50, 10)),
+        })
+        slashSparks.Size = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1.2),
+            NumberSequenceKeypoint.new(1, 0),
+        })
+        slashSparks.Speed = NumberRange.new(25, 60)
+        slashSparks.SpreadAngle = Vector2.new(120, 60)
+        slashSparks.Lifetime = NumberRange.new(0.2, 0.45)
+        slashSparks.Rate = 0
+        slashSparks.LightEmission = 1
+        slashSparks.LightInfluence = 0
+        slashSparks.Parent = attSwipe
+        slashSparks:Emit(30)
+
         local flash = Instance.new("Part")
         flash.Name = "ImpactFlash"
         flash.Shape = Enum.PartType.Ball
@@ -586,6 +610,22 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
         sweep.CanTouch = false
         sweep.Transparency = 0.2
         sweep.Parent = Workspace
+
+        -- Tail Sweep Fire Arc Embers
+        local attTail = Instance.new("Attachment")
+        attTail.Parent = sweep
+
+        local tailSparks = Instance.new("ParticleEmitter")
+        tailSparks.Name = "TailSweepSparks"
+        tailSparks.Color = ColorSequence.new(Color3.fromRGB(255, 170, 40), Color3.fromRGB(255, 60, 10))
+        tailSparks.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.8), NumberSequenceKeypoint.new(1, 0) })
+        tailSparks.Speed = NumberRange.new(35, 75)
+        tailSparks.SpreadAngle = Vector2.new(180, 45)
+        tailSparks.Lifetime = NumberRange.new(0.25, 0.5)
+        tailSparks.Rate = 0
+        tailSparks.LightEmission = 1
+        tailSparks.Parent = attTail
+        tailSparks:Emit(45)
 
         local sweepTween = TweenService:Create(sweep, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = Vector3.new(32, 5, 12),
@@ -661,6 +701,43 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
         ring.CanTouch = false
         ring.Transparency = 0.1
         ring.Parent = Workspace
+
+        -- Ground Shockwave Dust Plume & Volcanic Embers
+        local attStomp = Instance.new("Attachment")
+        attStomp.Parent = ring
+
+        local dustPlume = Instance.new("ParticleEmitter")
+        dustPlume.Name = "StompDustPlume"
+        dustPlume.Color = ColorSequence.new(Color3.fromRGB(180, 160, 140), Color3.fromRGB(90, 80, 70))
+        dustPlume.Size = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 5.0),
+            NumberSequenceKeypoint.new(0.6, 16.0),
+            NumberSequenceKeypoint.new(1, 24.0),
+        })
+        dustPlume.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.3),
+            NumberSequenceKeypoint.new(0.7, 0.6),
+            NumberSequenceKeypoint.new(1, 1),
+        })
+        dustPlume.Speed = NumberRange.new(35, 80)
+        dustPlume.SpreadAngle = Vector2.new(180, 30)
+        dustPlume.Lifetime = NumberRange.new(0.7, 1.2)
+        dustPlume.Rate = 0
+        dustPlume.Parent = attStomp
+        dustPlume:Emit(55)
+
+        local embers = Instance.new("ParticleEmitter")
+        embers.Name = "StompEmbers"
+        embers.Color = ColorSequence.new(Color3.fromRGB(255, 180, 40), Color3.fromRGB(255, 60, 10))
+        embers.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.5), NumberSequenceKeypoint.new(1, 0) })
+        embers.Speed = NumberRange.new(40, 90)
+        embers.SpreadAngle = Vector2.new(180, 60)
+        embers.Lifetime = NumberRange.new(0.4, 0.8)
+        embers.Rate = 0
+        embers.LightEmission = 1
+        embers.Acceleration = Vector3.new(0, -50, 0)
+        embers.Parent = attStomp
+        embers:Emit(45)
 
         local outerWave = Instance.new("Part")
         outerWave.Name = "HeavyStompOuterWave"
@@ -738,6 +815,22 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
         crater.CanTouch = false
         crater.Transparency = 0.1
         crater.Parent = Workspace
+
+        -- Neck Strike Vertical Rock Dust Plume
+        local attNeck = Instance.new("Attachment")
+        attNeck.Parent = crater
+
+        local craterDust = Instance.new("ParticleEmitter")
+        craterDust.Name = "CraterDust"
+        craterDust.Color = ColorSequence.new(Color3.fromRGB(210, 190, 160), Color3.fromRGB(100, 90, 80))
+        craterDust.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 4.0), NumberSequenceKeypoint.new(1, 18.0) })
+        craterDust.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+        craterDust.Speed = NumberRange.new(30, 65)
+        craterDust.SpreadAngle = Vector2.new(60, 60)
+        craterDust.Lifetime = NumberRange.new(0.5, 0.9)
+        craterDust.Rate = 0
+        craterDust.Parent = attNeck
+        craterDust:Emit(35)
 
         local dustFlash = Instance.new("Part")
         dustFlash.Name = "NeckPlungeFlash"

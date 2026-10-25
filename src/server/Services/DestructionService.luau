@@ -25,6 +25,7 @@ local DestructionFeedbackRemote = RemotesFolder:WaitForChild("DestructionFeedbac
 local ProgressionService = require(script.Parent:WaitForChild("ProgressionService") :: ModuleScript)
 local CityService = require(script.Parent:WaitForChild("CityService") :: ModuleScript)
 local HubService = nil
+local DropService = nil
 
 local function getHubService()
     if not HubService then
@@ -33,6 +34,15 @@ local function getHubService()
         end)
     end
     return HubService
+end
+
+local function getDropService()
+    if not DropService then
+        pcall(function()
+            DropService = require(script.Parent:WaitForChild("DropService") :: ModuleScript)
+        end)
+    end
+    return DropService
 end
 
 export type ComboData = {
@@ -340,6 +350,18 @@ local function executeControlledCollapse(building: Model, player: Player?, rewar
         Rewards = rewards,
     })
 
+    -- Spawn physical floating & bobbing green cash stacks
+    local dropService = getDropService()
+    if dropService and rewards.Cash > 0 then
+        local bTier = tonumber(building:GetAttribute("DestructionTier")) or 1
+        local dropCount = 3
+        if bTier == 2 then dropCount = 4
+        elseif bTier == 3 then dropCount = 6
+        elseif bTier >= 4 then dropCount = 8
+        end
+        dropService.SpawnCashDrops(collapsePos, rewards.Cash, dropCount, player)
+    end
+
     print(string.format("[DestructionService] Building '%s' completely collapsed. Remains converted to rubble.", building.Name))
 end
 
@@ -467,11 +489,11 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
         }
 
         if player then
-            -- Award via server-authoritative ProgressionService
-            ProgressionService.AddRewards(player, finalCash, finalPoints, finalXP)
+            -- Award Points and XP immediately; Cash is collected via floating physical cash stacks
+            ProgressionService.AddRewards(player, 0, finalPoints, finalXP)
 
-            print(string.format("[DestructionService] %s destroyed '%s' (%s, Tier %d)! Awarded +$%d Cash, +%d Pts, +%d XP [Combo %dx]",
-                player.Name, building.Name, tostring(building:GetAttribute("BuildingName")), tier, finalCash, finalPoints, finalXP, comboMult))
+            print(string.format("[DestructionService] %s destroyed '%s' (%s, Tier %d)! Awarded +%d Pts, +%d XP [Combo %dx], spawned $%d in cash drops!",
+                player.Name, building.Name, tostring(building:GetAttribute("BuildingName")), tier, finalPoints, finalXP, comboMult, finalCash))
         end
 
         -- Record destruction in CityService for live city completion tracking

@@ -89,6 +89,12 @@ end
 ]=]
 function ProgressionService.SyncToClient(player: Player)
     local prog = ProgressionService.GetPlayerProgression(player)
+    player:SetAttribute("Level", prog.Level)
+    player:SetAttribute("CurrentXP", prog.CurrentXP)
+    player:SetAttribute("NextLevelXP", prog.NextLevelXP)
+    player:SetAttribute("Cash", prog.Cash)
+    player:SetAttribute("DestructionPoints", prog.DestructionPoints)
+
     ProgressionUpdateRemote:FireClient(player, {
         Type = "InitialSync",
         Level = prog.Level,
@@ -269,6 +275,13 @@ function ProgressionService.AddRewards(player: Player, cash: number, points: num
         end
     end
 
+    -- Replicate attributes to player instance
+    player:SetAttribute("Level", newLevel)
+    player:SetAttribute("CurrentXP", newXP)
+    player:SetAttribute("NextLevelXP", nextLevelXP)
+    player:SetAttribute("Cash", newCash)
+    player:SetAttribute("DestructionPoints", newPoints)
+
     -- Broadcast update to player
     ProgressionUpdateRemote:FireClient(player, {
         Type = if leveledUp then "LevelUp" else "StatsUpdate",
@@ -375,6 +388,10 @@ function ProgressionService.HandleUpgradeRequest(player: Player, upgradeId: stri
     end
 
     local updatedProfile = PlayerDataService.GetProfile(player) :: any
+    if updatedProfile then
+        player:SetAttribute("Cash", updatedProfile.Cash)
+        player:SetAttribute("DestructionPoints", updatedProfile.DestructionPoints)
+    end
 
     -- Send confirmation & state update to client
     ProgressionUpdateRemote:FireClient(player, {
