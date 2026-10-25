@@ -540,7 +540,7 @@ end
 
 function CityService.ReturnToHub(player: Player): (boolean, string)
     local hub = Workspace:FindFirstChild("KaijuHub")
-    local hubSpawn = hub and hub:FindFirstChild("HubSpawnLocation")
+    local hubSpawn = hub and hub:FindFirstChild("HubSpawnLocation", true)
     if not hubSpawn or not hubSpawn:IsA("BasePart") then
         return false, "Kaiju Hub spawn not found!"
     end
@@ -595,7 +595,7 @@ function CityService.GetBuildingsInRadius(origin: Vector3, radius: number): { { 
     -- Include KaijuHub training pillars if within radius
     local hub = Workspace:FindFirstChild("KaijuHub")
     if hub then
-        for _, child in ipairs(hub:GetChildren()) do
+        for _, child in ipairs(hub:GetDescendants()) do
             if child:GetAttribute("IsTrainingDummy") == true then
                 local part = if child:IsA("BasePart") then child else child.PrimaryPart or child:FindFirstChildWhichIsA("BasePart")
                 if part then

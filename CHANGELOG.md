@@ -665,3 +665,41 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
     - Verified Portal travel: deployed to SmallTown `(0, 10.32, 0)` via Portal; used `ReturnToHubPortal` to return to `KaijuHub` `(0, 511.46, -5000)`.
     - Returned Studio cleanly to Edit mode with 51 hub descendants intact.
 - **Status:** Complete, Verified & In Production.
+
+---
+
+### [2026-10-25 12:20 UTC] — Milestone 11.1: Grand Volcanic Kaiju Sanctuary Revamp
+- **Goal:** Transform the small prototype Kaiju Hub into an epic, multi-tiered 450+ stud **Volcanic Caldera Sanctuary**, resolve missing Titan showcase models with 1:1 scale illuminated statues and 3D holographic stat cards, add dynamic Bastion Titan DPS dummy with live rolling DPS readout, and install high-velocity Titan Magma Launch Pads.
+- **Actions Executed:**
+  - **1. Safety Snapshots & Verification Archive**:
+    - Created `ServerStorage.PreHubRevamp_Backups` archiving `KaijuHub_PreRevamp` (51 desc), `Brontara_PreRevamp` (52 desc), and `Ravager_PreRevamp` (28 desc).
+    - Generated offline manifest: `C:\Tools\TitanRampage-BlenderMCP\backups\Milestone11_Hub_GrandRevamp_Production.json`.
+  - **2. Titan Visibility & Hero Showcase (Issue #1 Resolution)**:
+    - Instantiated 1:1 scale static display statues (`Ravager_DisplayStatue` and `Brontara_DisplayStatue`) atop pedestals in `Workspace.KaijuHub.HallOfTitans`.
+    - Preserved all custom visual meshes on Brontara (`BrowCrest`, `TailClub`, seamless `CervicalSpine`).
+    - Configured dual stage lighting: warm volcanic underglow (`PointLight`, Range 32, Brightness 4) and overhead high-angle key light (`SpotLight`, Range 60, Brightness 3) casting rim highlights.
+    - Mounted overhead holographic 3D `BillboardGui` stat cards displaying title, archetype (`[Colossal Apex Brawler]` vs `[Armored Behemoth Colossus]`), vital ratings, and signature ability badges.
+  - **3. Colossal 4-Tier Volcanic Caldera Sanctuary (Issue #2 Resolution - 14x Expansion)**:
+    - Expanded hub footprint from 120 studs to over 450 studs with 251 descendants across 4 elevation tiers:
+      - **Tier 1: Grand Central Plaza ($Y = 520$, $220\text{ studs}$ dia)**: Basalt floor, concentric magma ley-line runes, central dais, `HubSpawnLocation`, and in-world `AltarOfAscension`.
+      - **Tier 2: The Hall of Titans ($Y = 535$, elevated North terrace)**: Elevated amphitheater flanked by massive obsidian columns and roaring braziers housing the Titan showcases.
+      - **Tier 3: The Stargate Promontory ($Y = 550$, South high ridge)**: Runic stargate arches for `Portal_SmallTown` and `Portal_Metrovale` overlooking the caldera.
+      - **Tier 4: The Colosseum Proving Grounds ($Y = 492$, $200 \times 200\text{ studs}$ sunken pit)**: Sunken battle arena connected via a 35-stud bridge and launch pads.
+    - Perimeter Vista: 12 towering jagged basalt monoliths ($120$–$220\text{ studs}$ tall) and 4 vertical skybeams ($Y = 520 \to 1800$).
+    - Atmospheric Profile: Volcanic twilight `Atmosphere` (Density 0.32, Haze 2.0, Color `[180, 80, 45]`), crisp magma `Bloom`, and cinematic `ColorCorrection`.
+  - **4. High-Retention Micro-Loops**:
+    - **Bastion Titan DPS Dummy**: 50,000 HP monolith in the Colosseum with live overhead `BillboardGui` calculating rolling 3-second DPS, hit combo streaks, and total damage dealt.
+    - **Titan Magma Launch Pads**: Directional jump pads applying `AssemblyLinearVelocity` impulses with burst VFX between Plaza $\leftrightarrow$ Colosseum and Plaza $\to$ Stargates.
+    - **Altar of Ascension**: Interactive progression shrine wired to player upgrade profile.
+  - **5. Server Services Integration (`HubService.luau`)**:
+    - Built `src/server/Services/HubService.luau` managing procedural construction, statue display stripping, launch pad impulses, and DPS dummy tracking.
+    - Integrated `HubService` into `ServerBootstrap.server.luau`.
+    - Wired `DestructionService.luau` to call `HubService.RecordDummyDamage` on dummy hit.
+    - Updated `CityService.luau` and `MonsterService.luau` to search `HubSpawnLocation` recursively.
+  - **6. Live Studio Playtest Verification**:
+    - Verified player spawn on Central Plaza dais `(0, 539.35, -5000)`.
+    - Verified Titan swapping to Brontara via Pedestal prompt; seamless CervicalSpine confirmed.
+    - Tested Bastion Dummy combat: hit with TailSweep & HeavyStomp (192 dmg dealt, live readout: 64 DPS, 1 Hits, 2.0x Combo); SmallTown destruction stats remained 0.00%.
+    - Tested Magma Launch Pad: velocity impulse `(0, 95, -165)` applied with burst VFX.
+    - Tested Stargate travel: deployed to SmallTown `(0, 16.65, 0)` and returned to Grand Hub `(0, 532.58, -5000)` via return portal.
+- **Status:** Complete, Verified & In Production.

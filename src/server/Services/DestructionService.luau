@@ -24,6 +24,16 @@ local DestructionFeedbackRemote = RemotesFolder:WaitForChild("DestructionFeedbac
 -- Services
 local ProgressionService = require(script.Parent:WaitForChild("ProgressionService") :: ModuleScript)
 local CityService = require(script.Parent:WaitForChild("CityService") :: ModuleScript)
+local HubService = nil
+
+local function getHubService()
+    if not HubService then
+        pcall(function()
+            HubService = require(script.Parent:WaitForChild("HubService") :: ModuleScript)
+        end)
+    end
+    return HubService
+end
 
 export type ComboData = {
     Multiplier: number,
@@ -398,6 +408,12 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
         if player then
             playerCombo = registerComboActivity(player)
         end
+
+        local hub = getHubService()
+        if hub and type(hub.RecordDummyDamage) == "function" then
+            hub.RecordDummyDamage(building, actualDamage, newHp, maxHp, playerCombo)
+        end
+
         DestructionFeedbackRemote:FireAllClients("BuildingDamaged", {
             Building = building,
             Damage = actualDamage,

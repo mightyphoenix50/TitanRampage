@@ -85,6 +85,11 @@ function MonsterService.Init()
             if CityService then
                 CityService.ReturnToHub(player)
             end
+        elseif objText == "Altar of Ascension" then
+            local ProgressionUpdateRemote = RemotesFolder:FindFirstChild("ProgressionUpdate") :: RemoteEvent?
+            if ProgressionUpdateRemote then
+                ProgressionUpdateRemote:FireClient(player, "OpenAscensionAltar", PlayerDataService.GetProfile(player))
+            end
         end
     end)
 
@@ -233,7 +238,7 @@ function MonsterService.SpawnPlayerTitan(player: Player, titanId: string)
         spawnCFrame = oldChar.PrimaryPart.CFrame + Vector3.new(0, 2, 0)
     else
         local hub = Workspace:FindFirstChild("KaijuHub")
-        local hubSpawn = hub and hub:FindFirstChild("HubSpawnLocation")
+        local hubSpawn = hub and hub:FindFirstChild("HubSpawnLocation", true)
         if hubSpawn and hubSpawn:IsA("BasePart") then
             spawnCFrame = hubSpawn.CFrame + Vector3.new(0, 8, 0)
         else

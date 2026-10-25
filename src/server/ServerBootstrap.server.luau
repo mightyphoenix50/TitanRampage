@@ -12,6 +12,7 @@ local PlayerDataService = require(ServicesFolder:WaitForChild("PlayerDataService
 local CityService = require(ServicesFolder:WaitForChild("CityService") :: ModuleScript)
 local DestructionService = require(ServicesFolder:WaitForChild("DestructionService") :: ModuleScript)
 local ProgressionService = require(ServicesFolder:WaitForChild("ProgressionService") :: ModuleScript)
+local HubService = require(ServicesFolder:WaitForChild("HubService") :: ModuleScript)
 local MonsterService = require(ServicesFolder:WaitForChild("MonsterService") :: ModuleScript)
 
 local services = {
@@ -19,6 +20,7 @@ local services = {
     CityService,
     DestructionService,
     ProgressionService,
+    HubService,
     MonsterService,
 }
 
