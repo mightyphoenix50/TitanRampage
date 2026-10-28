@@ -11,3 +11,4 @@ transcript_full.jsonl
 *.log
 scratch/
 *.rbxlx
+.claude/settings.local.json
