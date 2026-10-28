@@ -59,6 +59,8 @@ export type AudioProfile = {
     StompAnticipation: string?,
     StompImpact: string?,
     Roar: string?,
+    Footstep: string?,
+    FootstepStride: number?,
     [string]: any,
 }
 
@@ -228,6 +230,8 @@ local Registry: { [string]: TitanDef } = {
             StompAnticipation = "StompAnticipation",
             StompImpact = "StompImpact",
             Roar = "Roar",
+            Footstep = "Footstep_Ravager",
+            FootstepStride = 13, -- Studs travelled per footstep
         },
         AnimationProfile = "Ravager",
     },
@@ -388,7 +392,9 @@ local Registry: { [string]: TitanDef } = {
             },
             StompAnticipation = "StompAnticipation",
             StompImpact = "HeavyStompImpact",
-            Roar = "Roar",
+            Roar = "BrontaraRoar",
+            Footstep = "Footstep_Brontara",
+            FootstepStride = 15,
         },
         AnimationProfile = "Brontara",
     },
