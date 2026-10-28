@@ -85,7 +85,13 @@
 
 ## 4. Immediate Next Steps / Roadmap
 
-### In progress: Milestone 13 — Sound Design + Armor Check
+### Open follow-ups from Milestone 13
+- **Brontara meshes don't load:** `Brontara_TailClub_Mesh`, `Brontara_BrowCrest_Mesh` and `Brontara_CervicalSpine_Mesh` (in `Assets.Models.Brontara` and the hall statue) use `file:///C:/Tools/TitanRampage-BlenderMCP/...` MeshIds. Import the `.fbx` files from that folder into Studio (3D Importer) and point the parts at the uploaded mesh assets.
+- **Sounds still on engine stand-ins:** progression (`RewardEarned`, `LevelUp`, `Combo_*`), UI clicks, `CityComplete`, `ShopPurchase`, `ShopPowerSurge`, and the hub thunder in `HubService`. Either upload owned sounds or find licensed library ones.
+- **Tune by ear:** every library sound was picked from its catalogue description; volumes and pitches need a listening pass in a play-test.
+- **Ravager ChestPlate** brushes the right leg for ~0.3 s during the stomp; nudge its weld offset if it's visible.
+
+### Done: Milestone 13 — Sound Design + Armor Check
 Every sound in `AudioConfig.luau` is still a stand-in built on 4 engine sounds (`rbxasset://sounds/...`), and the Milestone 10.4 armor is already welded onto the production titan models, so this milestone is mostly real audio plus checking the armor holds up in combat.
 
 0. **Cleanup:** changelog entries for 12.2 and PR #1 (done); remove stray `Workspace.Ravager_Prototype` and old `ServerStorage` backup folders (only with the owner's approval).
