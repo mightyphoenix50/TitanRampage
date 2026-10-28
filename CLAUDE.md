@@ -38,7 +38,7 @@ New service: add the module under `Services/` and register it in the `services` 
 
 1. `rojo build -o "$TEMP/check.rbxlx"` — catches project/tree errors.
 2. With `rojo serve` connected in Studio, use the Studio MCP: `start_stop_play` to playtest, `get_console_output` to read errors, `screen_capture` to look.
-3. `selene src` must report 0 errors (style-only lints are relaxed in `selene.toml`). `stylua --check src` checks formatting.
+3. `selene src` must report 0 errors (style-only lints are relaxed in `selene.toml`). `stylua --check src` must pass; run `stylua src` before committing. CI (`.github/workflows/ci.yml`) runs `rojo build`, `selene --allow-warnings src` and `stylua --check src` on every push to main and on every PR.
 
 Tools (rojo, selene, StyLua, luau-lsp) are pinned in `rokit.toml` and resolved by Rokit shims in `~/.rokit/bin`. Run them from the repo root: a shim run outside a directory with `rokit.toml` fails with "Failed to find tool".
 
