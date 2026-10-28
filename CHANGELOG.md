@@ -788,3 +788,26 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
     - Verified lightning storm engine running cleanly in background; lightning bolts strike spires, sky flashes, and thunder plays with 0 errors.
     - Verified all 539 descendants, Merchant Pavilion, Altar of Ascension, and Bastion DPS dummy active in Edit mode.
 - **Status:** Complete, Verified & In Production.
+
+---
+
+### [2026-10-25 19:00 UTC] — Milestone 12.2: Proving Grounds Lighting, Cinematic Lightning, Physical Cash Drops & Combat VFX
+- **Goal:** Light the Colosseum Proving Grounds, rework the hub lightning storm's look and sound, replace instant cash payouts with physical cash drops, and add particle effects to attacks and building hits.
+- **Actions Executed:**
+  - `src/server/Services/HubService.luau`: 8 floodlight towers, 40 floor runes, monolith uplights and Bastion dummy spotlights (118 lighting instances). Lightning bolts gained a glowing sheath, white core, forked branches and a ground shockwave ring; thunder volume lowered from 1.6 to 0.28 with 50–500 stud roll-off.
+  - `src/server/Services/DropService.luau` **[NEW]**: server-authoritative cash stacks that burst from destroyed buildings and bob above the rubble. Pickup radius 38 studs; `AutoCollect` pass owners get a 180-stud vacuum pull. Cash is credited to the player profile on pickup.
+  - `src/client/Controllers/TitanController.client.luau`: claw slash streaks, tail-sweep fire arcs, stomp shockwave plumes and neck-strike crater dust.
+  - `src/client/UI/DestructionHUD.client.luau`: concrete dust and sparks on building hits, dust rings on collapse, client-side cash stack bobbing and suction.
+- **Status:** Complete (commit `8d30184`). Logged retroactively on 2026-10-29.
+
+---
+
+### [2026-10-28 12:00 UTC] — Maintenance: Free-Gamepass Exploit Fix, Titan Bug Fixes, Toolchain & CI
+- **Goal:** Close a live exploit, fix two titan bugs, and add a lint/format/CI toolchain. Merged to `main` as PR #1.
+- **Actions Executed:**
+  - `src/server/Services/MonetizationService.luau`: `HandleSandboxBuy` now refuses outside Studio. Before this, any client could send `ShopAction("SandboxBuy")`, or hit the `AssetId = 0` fallback, and unlock every gamepass and product for free on live servers.
+  - `src/client/Controllers/TitanController.client.luau`: `clientCooldowns` is declared before `updateActiveTitan`, which was calling `table.clear` on a nil global and aborting the titan switch.
+  - `src/shared/Shared/TitanAnimationController.luau`: `animState` hoisted out of the Brontara block so `self.AnimState` is the table the walk loop reads.
+  - Toolchain: `rokit.toml` (Rojo 7.7.1, selene, StyLua, luau-lsp), `selene.toml`, `stylua.toml`, `.luaurc`, `.gitattributes` (LF), `CLAUDE.md`. All of `src/` formatted with StyLua (`.git-blame-ignore-revs` skips that commit in blame).
+  - CI: `.github/workflows/ci.yml` runs `rojo build`, `selene` and `stylua --check` on pushes to `main` and on PRs.
+- **Status:** Complete (merge commit `6b4621d`).

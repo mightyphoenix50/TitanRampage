@@ -3,8 +3,8 @@
 > **Source Session ID:** `e61117e8-8291-4737-8abb-736aedd82200`  
 > **Workspace:** `C:\RobloxProjects\TitanRampage`  
 > **Place ID:** `131002954769216`  
-> **Git Baseline:** Milestone 12.1 Complete  
-> **Date Updated:** October 25, 2026  
+> **Git Baseline:** Milestone 12.2 + maintenance PR #1 complete; Milestone 13 in progress on `feat/milestone-13-audio`  
+> **Date Updated:** October 29, 2026  
 
 ---
 
@@ -53,6 +53,8 @@
     - Full-sky illumination brightness flashes (`Lighting.Brightness` spikes to 3.8 and decays back to 2.2).
     - Impact flash spheres, 40-spark electric particle bursts, and spatial thunder clap audio.
   - **Live In-Studio Playtest Verified**: Spawning at `(0, 540.40, -5000)` on Central Dais, thunderstorm strikes running continuously with 0 audio or script errors, and all 539 descendants intact in Edit mode.
+- **Milestone 12.2 (Proving Grounds Lighting, Cinematic Lightning, Cash Drops & Combat VFX):** Colosseum floodlights and runes, reworked lightning bolts and quieter thunder, physical cash drops (`DropService`) with `AutoCollect` vacuum pull, and attack/building particle effects.
+- **Maintenance (PR #1, 2026-10-28):** Closed the free-gamepass exploit (`HandleSandboxBuy` is Studio-only), fixed the titan-switch cooldown crash and Brontara `animState` scope bug, and added Rokit, selene, StyLua and GitHub Actions CI.
 
 ---
 
@@ -83,13 +85,16 @@
 
 ## 4. Immediate Next Steps / Roadmap
 
-### Priority: Milestone 13 — Sound Design & Audio FX Polish + Tier 2 Armor Simulation
-- **Audio Overhaul**:
-  - Add customized sound effects for sprinting (heavy earth-shaking footsteps with pitch shift based on speed).
-  - Add shop purchase audio cues (cash register chime, power surge hum).
-  - Add environmental ambient loops for SmallTown (gentle ocean breeze/city hum) and Metrovale (distant sirens/metropolitan drone).
-- **Disposable Kinematic Simulation & Rig Stress Test**:
-  - Mount Milestone 10.4 armor pieces on disposable rigs in the Colosseum Proving Grounds:
-    - **Ravager Claw Combo**: Arm swing with Pauldrons mounted.
-    - **Ravager Stomp & Roar**: Chest crouch and roar recoil with ChestPlate mounted.
-    - **Brontara Heavy Stomp**: Front leg rear-up with Carapace & MagmaSpine mounted against the `Bastion_Titan_Dummy`.
+### In progress: Milestone 13 — Sound Design + Armor Check
+Every sound in `AudioConfig.luau` is still a stand-in built on 4 engine sounds (`rbxasset://sounds/...`), and the Milestone 10.4 armor is already welded onto the production titan models, so this milestone is mostly real audio plus checking the armor holds up in combat.
+
+0. **Cleanup:** changelog entries for 12.2 and PR #1 (done); remove stray `Workspace.Ravager_Prototype` and old `ServerStorage` backup folders (only with the owner's approval).
+1. **Real sound effects:** replace the stand-ins with free, Roblox-licensed **ProSoundEffects** library sounds. The real ID goes in `SoundId`; the engine sound stays as a fallback. Avoid unlicensed uploads ripped from other games.
+2. **Sprint footsteps:** stride-synced steps per titan (Ravager sharper, Brontara heavier), pitch and volume scaling with speed, light camera shake for the local player. Each client plays them for nearby titans from the `IsSprinting` attribute; no new remotes.
+3. **Shop sounds:** cash-register chime and power-surge hum on `ShopFeedback` `PurchaseSuccess`; clicks on shop open and tab change.
+4. **City ambience:** an `Ambience` sound group and per-city `AmbientLoop` (SmallTown ocean breeze and town hum, Metrovale sirens and city drone, Hub volcanic rumble), crossfaded on `CityLightingChanged`.
+5. **Armor check:** run Ravager's claw combo and stomp+roar, and Brontara's heavy stomp against `Bastion_Titan_Dummy`, with armor on; check clipping, weld breakage and physics; fix offsets if needed.
+6. **Wrap-up:** `rojo build`, `selene`, `stylua`, full play-test, CHANGELOG entry, PR.
+
+### Before publishing
+- Fill in every `AssetId` in `MonetizationConfig` (all `0` until the passes and products exist on the Creator Dashboard).
