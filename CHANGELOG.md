@@ -788,3 +788,19 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
     - Verified lightning storm engine running cleanly in background; lightning bolts strike spires, sky flashes, and thunder plays with 0 errors.
     - Verified all 539 descendants, Merchant Pavilion, Altar of Ascension, and Bastion DPS dummy active in Edit mode.
 - **Status:** Complete, Verified & In Production.
+
+---
+
+### [2026-10-29 19:30 UTC] — City Visuals Pass: SmallTown & Metrovale
+- **Goal:** Make both cities look like places rather than slabs on the default baseplate, without breaking building destruction or rebuild.
+- **Actions Executed (Studio, `Workspace` terrain and `Workspace.Cities`):**
+  - **Ground:** the checker `Baseplate` is now an invisible safety floor at y=-70. Terrain replaces it: grass to ±3000 studs, rolling hills with rocky crowns behind SmallTown, a sand beach from z=332 sloping into the sea (surface y=-4) along the whole south coast. Note for future fills: terrain surfaces land 2 studs above a `FillBlock`'s top face, so street-level ground (y=0) is filled to y=-2; water is not offset.
+  - **Metrovale harbour:** paved apron around the city slab and a paved quay with a concrete sea wall at z=460 where the city met the new coast. `GroundBase` is now `Pavement`.
+  - **Roads:** 11 road parts in both cities changed to `Asphalt` (52, 54, 58) and 24 sidewalks to `Concrete` (176, 172, 164), replacing flat navy plastic.
+  - **Metrovale buildings:** 1241 window panes on all four faces (they had windows on the front only), matched to each class's pane size and the existing 0.35 transparency, ~15% with a warm interior tint. 108 roof parapets in each building's `Props`.
+  - **SmallTown buildings:** 120 ribbon windows on the blank side walls, cloned from each building's front ribbons.
+  - **Metrovale street dressing:** 29 parked cars and 107 trees (cloned from SmallTown's props) in `Metrovale.Props.StreetDressing`, each placed only where it clears buildings, lamps and shelters.
+  - All building additions are direct children of `Windows/` or `Props/`, the only parts `DestructionService` hides on collapse and `CityService.ResetCity` restores.
+- **Code (`src/server/Services/CityService.luau`):** `ResetCity` restored every window to 0.4 transparency and every prop to opaque/collidable, so SmallTown's opaque glass came back see-through after any rebuild. Each part's authored `Transparency`/`CanCollide` is now captured the first time a city registers and restored exactly.
+- **Verified:** collapsed and rebuilt `Building_Large_01` (SmallTown) and `Metrovale_Medium_01` in a play session: all 39 and 63 window/prop parts hid on collapse and matched their authored look after rebuild; no console errors. `rojo build`, `selene` (0 errors), `stylua --check`.
+- **Status:** Complete; the Studio changes need saving to Roblox from Studio.
