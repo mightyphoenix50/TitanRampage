@@ -1,0 +1,6 @@
+std = "roblox"
+
+[lints]
+# House style: one-line guards (`if not x then return end`) and UDim2.new(scale, 0, scale, 0)
+multiple_statements = "allow"
+roblox_manual_fromscale_or_fromoffset = "allow"

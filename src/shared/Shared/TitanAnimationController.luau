@@ -103,6 +103,15 @@ function TitanAnimationController.new(character: Model): AnimationController
 
     local walkConn: RBXScriptConnection? = nil
 
+    -- Shared with the procedural walk loop below and exposed as self.AnimState so ability methods can pause it
+    local animState = {
+        IsAttacking = false,
+        IsStomping = false,
+        IsRoaring = false,
+        IsTailSweeping = false,
+        IsNeckStriking = false,
+    }
+
     if titanId == "Brontara" then
         local RunService = game:GetService("RunService")
         local stridePhase = 0
@@ -133,15 +142,7 @@ function TitanAnimationController.new(character: Model): AnimationController
         local origTM = origC0["TailMidJoint"]
         local origTT = origC0["TailTipJoint"]
 
-        local animState = {
-            IsAttacking = false,
-            IsStomping = false,
-            IsRoaring = false,
-            IsTailSweeping = false,
-            IsNeckStriking = false,
-        }
-
-        walkConn = RunService.RenderStepped:Connect(function(dt)
+        walkConn =RunService.RenderStepped:Connect(function(dt)
             if not character.Parent or humanoid.Health <= 0 then
                 if walkConn then walkConn:Disconnect() end
                 return

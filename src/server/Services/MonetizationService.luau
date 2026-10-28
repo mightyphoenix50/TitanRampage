@@ -413,6 +413,12 @@ end
     Safe sandbox testing method for Studio / local test runs without real Robux.
 ]=]
 function MonetizationService.HandleSandboxBuy(player: Player, itemType: string?, itemId: string?): any
+    -- SECURITY: free grants are Studio-only. Live servers must go through MarketplaceService.
+    if not RunService:IsStudio() then
+        warn(string.format("[MonetizationService] 🚫 Rejected sandbox purchase from %s outside Studio (%s / %s)", player.Name, tostring(itemType), tostring(itemId)))
+        return { Success = false, Reason = "This item is not available yet" }
+    end
+
     if not itemType or not itemId then
         return { Success = false, Reason = "Missing item information" }
     end

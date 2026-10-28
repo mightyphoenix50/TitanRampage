@@ -75,6 +75,16 @@ SprintToggleBindable.Event:Connect(function(forcedState: boolean?)
     end
 end)
 
+-- Client-side predicted cooldown timers (prevents client network flooding)
+local clientCooldowns: { [string]: number } = {
+    BasicAttack = 0,
+    Stomp = 0,
+    Roar = 0,
+    TailSweep = 0,
+    HeavyStomp = 0,
+    NeckStrike = 0,
+}
+
 local function updateActiveTitan(titanId: string)
     local def = TitanRegistry.Get(titanId)
     if not def then return end
@@ -112,15 +122,6 @@ local function getAnimController(character: Model)
     return activeAnimControllers[character]
 end
 
--- Client-side predicted cooldown timers (prevents client network flooding)
-local clientCooldowns: { [string]: number } = {
-    BasicAttack = 0,
-    Stomp = 0,
-    Roar = 0,
-    TailSweep = 0,
-    HeavyStomp = 0,
-    NeckStrike = 0,
-}
 
 --[=[
     Initializes camera zoom parameters and offsets for the Titan scale from TitanRegistry.
