@@ -46,9 +46,7 @@ end
 local DropFeedbackRemote: RemoteEvent? = nil
 
 local function getDropFeedbackRemote(): RemoteEvent?
-    if not DropFeedbackRemote then
-        DropFeedbackRemote = RemotesFolder:FindFirstChild("DropFeedback") :: RemoteEvent?
-    end
+    if not DropFeedbackRemote then DropFeedbackRemote = RemotesFolder:FindFirstChild("DropFeedback") :: RemoteEvent? end
     return DropFeedbackRemote
 end
 
@@ -108,14 +106,22 @@ local function createCashStackModel(spawnPos: Vector3, cashAmount: number, baseY
     local baseCF = CFrame.new(spawnPos)
 
     -- 1. Main Dollar Green Stack Base
-    local stackBase = createDropPart(model, "StackBase", Vector3.new(3.0, 1.2, 4.2), baseCF, Enum.Material.SmoothPlastic, Color3.fromRGB(38, 150, 62))
+    local stackBase =
+        createDropPart(model, "StackBase", Vector3.new(3.0, 1.2, 4.2), baseCF, Enum.Material.SmoothPlastic, Color3.fromRGB(38, 150, 62))
     model.PrimaryPart = stackBase
 
     -- 2. Cream/Gold Paper Currency Band
     createDropPart(model, "MoneyBand", Vector3.new(3.06, 1.24, 1.2), baseCF, Enum.Material.SmoothPlastic, Color3.fromRGB(242, 236, 210))
 
     -- 3. Top Bill Edge Accent Lines
-    createDropPart(model, "TopAccent", Vector3.new(2.6, 0.08, 3.8), baseCF * CFrame.new(0, 0.61, 0), Enum.Material.Neon, Color3.fromRGB(65, 205, 95))
+    createDropPart(
+        model,
+        "TopAccent",
+        Vector3.new(2.6, 0.08, 3.8),
+        baseCF * CFrame.new(0, 0.61, 0),
+        Enum.Material.Neon,
+        Color3.fromRGB(65, 205, 95)
+    )
 
     -- 4. Glowing Green PointLight
     local pLight = Instance.new("PointLight")
@@ -230,9 +236,7 @@ local function collectDrop(model: Model, player: Player)
     local stackBase = model.PrimaryPart or model:FindFirstChild("StackBase") :: BasePart?
     if stackBase then
         local pLight = stackBase:FindFirstChild("DropGlow") :: PointLight?
-        if pLight then
-            pLight.Brightness = 6.0
-        end
+        if pLight then pLight.Brightness = 6.0 end
 
         local tag = stackBase:FindFirstChild("ValueTag")
         if tag then tag:Destroy() end
@@ -274,9 +278,7 @@ function DropService.SpawnCashDrops(origin: Vector3, totalCash: number, dropCoun
         local initialPos = Vector3.new(targetX, baseY + math.random(3, 7), targetZ)
         local model, stackBase = createCashStackModel(initialPos, cashPerDrop, baseY)
 
-        if attackingPlayer then
-            model:SetAttribute("TargetPlayerId", attackingPlayer.UserId)
-        end
+        if attackingPlayer then model:SetAttribute("TargetPlayerId", attackingPlayer.UserId) end
 
         -- Pop animation settling down to floating BaseY
         task.spawn(function()
@@ -370,9 +372,7 @@ function DropService.Start()
                         end
                     else
                         -- Reset suction speed if player walks out of range
-                        if suctionSpeed > 35 then
-                            item:SetAttribute("SuctionSpeed", 35)
-                        end
+                        if suctionSpeed > 35 then item:SetAttribute("SuctionSpeed", 35) end
 
                         -- Gentle floating and bobbing
                         local newY = baseY + (math.sin(now * 3.5 + bobSeed) * 0.65)
@@ -382,9 +382,7 @@ function DropService.Start()
                 end
             end)
 
-            if not success then
-                warn("[DropService] Error in drop simulation loop:", err)
-            end
+            if not success then warn("[DropService] Error in drop simulation loop:", err) end
         end
     end)
 end

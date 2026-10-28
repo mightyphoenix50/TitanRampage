@@ -11,17 +11,17 @@ export type DestructionConfigType = {
     BasicAttackDamage: TierDamageMap,
     BasicAttackRange: number,
     BasicAttackRadius: number,
-    
+
     StompDamage: TierDamageMap,
     StompRadius: number,
     StompMinDamageFactor: number,
-    
+
     Combo: {
         Timeout: number,
         MaxMultiplier: number,
         MultiplierPerHit: number,
     },
-    
+
     Tiers: {
         [number]: {
             Name: string,
@@ -35,8 +35,8 @@ local DestructionConfig: DestructionConfigType = {
     BasicAttackDamage = {
         [1] = 150, -- Tier 1 (Small buildings: ~450-650 HP, ~3-4 hits)
         [2] = 100, -- Tier 2 (Medium buildings: ~1400-1800 HP)
-        [3] = 75,  -- Tier 3 (Large skyscrapers: ~3500-3800 HP)
-        [4] = 60,  -- Tier 4 (Landmarks: ~6000-7500 HP)
+        [3] = 75, -- Tier 3 (Large skyscrapers: ~3500-3800 HP)
+        [4] = 60, -- Tier 4 (Landmarks: ~6000-7500 HP)
     },
     BasicAttackRange = 22,
     BasicAttackRadius = 18,
@@ -53,8 +53,8 @@ local DestructionConfig: DestructionConfigType = {
 
     -- Combo mechanics
     Combo = {
-        Timeout = 5.0,        -- Seconds before combo resets
-        MaxMultiplier = 5,    -- Prototype combo cap (1x -> 2x -> 3x -> 4x -> 5x)
+        Timeout = 5.0, -- Seconds before combo resets
+        MaxMultiplier = 5, -- Prototype combo cap (1x -> 2x -> 3x -> 4x -> 5x)
         MultiplierPerHit = 1, -- Increment per destruction/damage event
     },
 

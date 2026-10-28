@@ -81,9 +81,7 @@ local dataStoreInstance: GlobalDataStore? = nil
     Safely retrieves the DataStore reference or marks Studio fallback.
 ]=]
 local function getDataStore(): GlobalDataStore?
-    if dataStoreInstance then
-        return dataStoreInstance
-    end
+    if dataStoreInstance then return dataStoreInstance end
 
     local success, ds = pcall(function()
         return DataStoreService:GetDataStore(DATASTORE_NAME)
@@ -102,9 +100,7 @@ end
     Tests whether Studio has Web API service access enabled.
 ]=]
 local function checkStudioApiAccess(): boolean
-    if studioApiAvailable ~= nil then
-        return studioApiAvailable :: boolean
-    end
+    if studioApiAvailable ~= nil then return studioApiAvailable :: boolean end
 
     if not RunService:IsStudio() then
         studioApiAvailable = true
@@ -126,7 +122,9 @@ local function checkStudioApiAccess(): boolean
         print("[PlayerDataService] Studio DataStore API access is ENABLED.")
     else
         studioApiAvailable = false
-        print("[PlayerDataService] Notice: Studio DataStore API access is disabled. Using safe in-memory session persistence for Studio development.")
+        print(
+            "[PlayerDataService] Notice: Studio DataStore API access is disabled. Using safe in-memory session persistence for Studio development."
+        )
     end
 
     return studioApiAvailable :: boolean
@@ -203,9 +201,7 @@ end
     Applies schema migrations sequentially if loaded data has older SchemaVersion.
 ]=]
 function PlayerDataService.MigrateProfile(data: any): any
-    if type(data) ~= "table" then
-        return PlayerDataService.CreateDefaultProfile()
-    end
+    if type(data) ~= "table" then return PlayerDataService.CreateDefaultProfile() end
 
     local version = tonumber(data.SchemaVersion) or 0
 
@@ -216,12 +212,8 @@ function PlayerDataService.MigrateProfile(data: any): any
         if type(data.Cities) == "table" then
             for _, cityData in pairs(data.Cities) do
                 if type(cityData) == "table" then
-                    if cityData.BestScore == nil then
-                        cityData.BestScore = 0
-                    end
-                    if cityData.BestBuildingsPerMinute == nil then
-                        cityData.BestBuildingsPerMinute = 0
-                    end
+                    if cityData.BestScore == nil then cityData.BestScore = 0 end
+                    if cityData.BestBuildingsPerMinute == nil then cityData.BestBuildingsPerMinute = 0 end
                 end
             end
         end
@@ -248,9 +240,7 @@ function PlayerDataService.MigrateProfile(data: any): any
                         defaultStats.TotalCitiesCompleted += clears
                         defaultStats.TotalRunsCompleted += clears
                         local bc = tonumber(cityData.BestCombo) or 0
-                        if bc > defaultStats.HighestCombo then
-                            defaultStats.HighestCombo = bc
-                        end
+                        if bc > defaultStats.HighestCombo then defaultStats.HighestCombo = bc end
                     end
                 end
             end
@@ -274,9 +264,7 @@ function PlayerDataService.MigrateProfile(data: any): any
             else
                 data.Titans.Ravager.Unlocked = true
             end
-            if data.Titans.Brontara == nil then
-                data.Titans.Brontara = { Unlocked = false }
-            end
+            if data.Titans.Brontara == nil then data.Titans.Brontara = { Unlocked = false } end
         end
 
         if type(data.SelectedTitan) ~= "string" or (data.SelectedTitan ~= "Ravager" and data.SelectedTitan ~= "Brontara") then
@@ -288,12 +276,8 @@ function PlayerDataService.MigrateProfile(data: any): any
 
     if version < 4 then
         print(string.format("[PlayerDataService] 🔄 Migrating player profile from Schema %d to Schema 4...", version))
-        if type(data.Gamepasses) ~= "table" then
-            data.Gamepasses = {}
-        end
-        if type(data.ProcessedReceipts) ~= "table" then
-            data.ProcessedReceipts = {}
-        end
+        if type(data.Gamepasses) ~= "table" then data.Gamepasses = {} end
+        if type(data.ProcessedReceipts) ~= "table" then data.ProcessedReceipts = {} end
         data.SchemaVersion = 4
     end
 
@@ -329,7 +313,10 @@ function PlayerDataService.ValidateProfile(raw: any): PlayerProfile
     -- Validate Lifetime Statistics
     local rawStats = if type(data.Statistics) == "table" then data.Statistics else {}
     profile.Statistics = {
-        TotalBuildingsDestroyed = math.max(0, math.floor(tonumber(rawStats.TotalBuildingsDestroyed) or defaults.Statistics.TotalBuildingsDestroyed)),
+        TotalBuildingsDestroyed = math.max(
+            0,
+            math.floor(tonumber(rawStats.TotalBuildingsDestroyed) or defaults.Statistics.TotalBuildingsDestroyed)
+        ),
         TotalDamageDealt = math.max(0, math.floor(tonumber(rawStats.TotalDamageDealt) or defaults.Statistics.TotalDamageDealt)),
         TotalCitiesCompleted = math.max(0, math.floor(tonumber(rawStats.TotalCitiesCompleted) or defaults.Statistics.TotalCitiesCompleted)),
         TotalRunsCompleted = math.max(0, math.floor(tonumber(rawStats.TotalRunsCompleted) or defaults.Statistics.TotalRunsCompleted)),
@@ -408,16 +395,12 @@ function PlayerDataService.ValidateProfile(raw: any): PlayerProfile
     -- Validate Gamepasses & ProcessedReceipts
     local rawGamepasses = if type(data.Gamepasses) == "table" then data.Gamepasses else {}
     for passId, owns in pairs(rawGamepasses) do
-        if type(passId) == "string" and owns == true then
-            profile.Gamepasses[passId] = true
-        end
+        if type(passId) == "string" and owns == true then profile.Gamepasses[passId] = true end
     end
 
     local rawReceipts = if type(data.ProcessedReceipts) == "table" then data.ProcessedReceipts else {}
     for recId, processed in pairs(rawReceipts) do
-        if type(recId) == "string" and processed == true then
-            profile.ProcessedReceipts[recId] = true
-        end
+        if type(recId) == "string" and processed == true then profile.ProcessedReceipts[recId] = true end
     end
 
     return profile
@@ -435,13 +418,9 @@ function PlayerDataService.SetSelectedTitan(player: Player, titanId: string): bo
     local prof = PlayerDataService.GetProfile(player)
     if not prof then return false end
     if not TitanRegistry.Get(titanId) then return false end
-    if not PlayerDataService.IsTitanUnlocked(player, titanId) then
-        return false
-    end
+    if not PlayerDataService.IsTitanUnlocked(player, titanId) then return false end
     prof.SelectedTitan = titanId
-    if mockStorage[player.UserId] then
-        mockStorage[player.UserId].SelectedTitan = titanId
-    end
+    if mockStorage[player.UserId] then mockStorage[player.UserId].SelectedTitan = titanId end
     return true
 end
 
@@ -456,9 +435,7 @@ end
 
 function PlayerDataService.MarkReceiptProcessed(player: Player, purchaseId: string): boolean
     return PlayerDataService.UpdateProfile(player, function(profile)
-        if not profile.ProcessedReceipts then
-            profile.ProcessedReceipts = {}
-        end
+        if not profile.ProcessedReceipts then profile.ProcessedReceipts = {} end
         profile.ProcessedReceipts[purchaseId] = true
     end)
 end
@@ -471,9 +448,7 @@ end
 
 function PlayerDataService.SetGamepass(player: Player, passId: string, owns: boolean): boolean
     return PlayerDataService.UpdateProfile(player, function(profile)
-        if not profile.Gamepasses then
-            profile.Gamepasses = {}
-        end
+        if not profile.Gamepasses then profile.Gamepasses = {} end
         profile.Gamepasses[passId] = owns
     end)
 end
@@ -513,8 +488,15 @@ function PlayerDataService.CheckTitanUnlocks(player: Player): { [string]: boolea
                 if canUnlock then
                     PlayerDataService.UnlockTitan(player, id)
                     newlyUnlocked[id] = true
-                    print(string.format("[PlayerDataService] 🔓 Titan '%s' unlocked for %s (Level %d, %d Clears)",
-                        id, player.Name, prof.Level or 1, totalClears))
+                    print(
+                        string.format(
+                            "[PlayerDataService] 🔓 Titan '%s' unlocked for %s (Level %d, %d Clears)",
+                            id,
+                            player.Name,
+                            prof.Level or 1,
+                            totalClears
+                        )
+                    )
                 end
             end
         end
@@ -526,13 +508,9 @@ function PlayerDataService.IsTitanUnlocked(player: Player, titanId: string): boo
     local prof = PlayerDataService.GetProfile(player)
     if not prof then return titanId == "Ravager" end
     if titanId == "Ravager" then return true end
-    if prof.Titans and prof.Titans[titanId] and prof.Titans[titanId].Unlocked == true then
-        return true
-    end
+    if prof.Titans and prof.Titans[titanId] and prof.Titans[titanId].Unlocked == true then return true end
     PlayerDataService.CheckTitanUnlocks(player)
-    if prof.Titans and prof.Titans[titanId] and prof.Titans[titanId].Unlocked == true then
-        return true
-    end
+    if prof.Titans and prof.Titans[titanId] and prof.Titans[titanId].Unlocked == true then return true end
     return false
 end
 
@@ -540,9 +518,7 @@ function PlayerDataService.UnlockTitan(player: Player, titanId: string): boolean
     local prof = PlayerDataService.GetProfile(player)
     if not prof then return false end
     if not TitanRegistry.Get(titanId) then return false end
-    if not prof.Titans then
-        prof.Titans = { Ravager = { Unlocked = true }, Brontara = { Unlocked = false } }
-    end
+    if not prof.Titans then prof.Titans = { Ravager = { Unlocked = true }, Brontara = { Unlocked = false } } end
     if not prof.Titans[titanId] then
         prof.Titans[titanId] = { Unlocked = true }
     else
@@ -559,9 +535,7 @@ end
 
 function PlayerDataService.GetTitansData(player: Player): { [string]: { Unlocked: boolean } }
     local prof = PlayerDataService.GetProfile(player)
-    if not prof or not prof.Titans then
-        return { Ravager = { Unlocked = true }, Brontara = { Unlocked = false } }
-    end
+    if not prof or not prof.Titans then return { Ravager = { Unlocked = true }, Brontara = { Unlocked = false } } end
     PlayerDataService.CheckTitanUnlocks(player)
     local copy: { [string]: { Unlocked: boolean } } = {}
     for k, v in pairs(prof.Titans) do
@@ -588,7 +562,14 @@ function PlayerDataService.LoadProfile(player: Player): (boolean, PlayerProfile)
             sessionProfiles[userId] = validated
             isProfileLoaded[userId] = true
             isLoadFailed[userId] = false
-            print(string.format("[PlayerDataService] ✅ [Studio Fallback] Loaded mock profile for %s (Level %d, $%d Cash)", player.Name, validated.Level, validated.Cash))
+            print(
+                string.format(
+                    "[PlayerDataService] ✅ [Studio Fallback] Loaded mock profile for %s (Level %d, $%d Cash)",
+                    player.Name,
+                    validated.Level,
+                    validated.Cash
+                )
+            )
             return true, validated
         else
             local defaultProfile = PlayerDataService.CreateDefaultProfile()
@@ -628,15 +609,19 @@ function PlayerDataService.LoadProfile(player: Player): (boolean, PlayerProfile)
         else
             lastError = tostring(result)
             warn(string.format("[PlayerDataService] Load attempt %d failed for %s: %s", attempt, player.Name, lastError))
-            if attempt < MAX_RETRIES then
-                task.wait(RETRY_BASE_DELAY * attempt)
-            end
+            if attempt < MAX_RETRIES then task.wait(RETRY_BASE_DELAY * attempt) end
         end
     end
 
     if not loadSuccess then
         -- CRITICAL SAFETY RULE: Never wipe player progress on DataStore failure
-        warn(string.format("[PlayerDataService] 🚨 CRITICAL: Load failed for %s after %d attempts. Save locked for this session to prevent overwriting stored progress.", player.Name, MAX_RETRIES))
+        warn(
+            string.format(
+                "[PlayerDataService] 🚨 CRITICAL: Load failed for %s after %d attempts. Save locked for this session to prevent overwriting stored progress.",
+                player.Name,
+                MAX_RETRIES
+            )
+        )
         local fallback = PlayerDataService.CreateDefaultProfile()
         sessionProfiles[userId] = fallback
         isProfileLoaded[userId] = true
@@ -651,7 +636,15 @@ function PlayerDataService.LoadProfile(player: Player): (boolean, PlayerProfile)
         finalProfile = PlayerDataService.CreateDefaultProfile()
     else
         finalProfile = PlayerDataService.ValidateProfile(loadedData)
-        print(string.format("[PlayerDataService] ✅ Successfully loaded profile for %s (Level %d, $%d Cash, %d Pts)", player.Name, finalProfile.Level, finalProfile.Cash, finalProfile.DestructionPoints))
+        print(
+            string.format(
+                "[PlayerDataService] ✅ Successfully loaded profile for %s (Level %d, $%d Cash, %d Pts)",
+                player.Name,
+                finalProfile.Level,
+                finalProfile.Cash,
+                finalProfile.DestructionPoints
+            )
+        )
     end
 
     sessionProfiles[userId] = finalProfile
@@ -674,7 +667,9 @@ function PlayerDataService.SaveProfile(player: Player): boolean
     end
 
     if isLoadFailed[userId] == true then
-        warn(string.format("[PlayerDataService] Refused to save %s: Load failed on join; saving locked to protect stored data.", player.Name))
+        warn(
+            string.format("[PlayerDataService] Refused to save %s: Load failed on join; saving locked to protect stored data.", player.Name)
+        )
         return false
     end
 
@@ -696,7 +691,14 @@ function PlayerDataService.SaveProfile(player: Player): boolean
         -- Studio fallback mode: update mockStorage
         mockStorage[userId] = profile
         isSaving[userId] = false
-        print(string.format("[PlayerDataService] ✅ [Studio Fallback] Saved mock profile for %s (Level %d, $%d Cash)", player.Name, profile.Level, profile.Cash))
+        print(
+            string.format(
+                "[PlayerDataService] ✅ [Studio Fallback] Saved mock profile for %s (Level %d, $%d Cash)",
+                player.Name,
+                profile.Level,
+                profile.Cash
+            )
+        )
         return true
     end
 
@@ -720,21 +722,33 @@ function PlayerDataService.SaveProfile(player: Player): boolean
 
         if success then
             saveSuccess = true
-            print(string.format("[PlayerDataService] ✅ Save successful for %s (Level %d, $%d Cash, %d Pts)", player.Name, profile.Level, profile.Cash, profile.DestructionPoints))
+            print(
+                string.format(
+                    "[PlayerDataService] ✅ Save successful for %s (Level %d, $%d Cash, %d Pts)",
+                    player.Name,
+                    profile.Level,
+                    profile.Cash,
+                    profile.DestructionPoints
+                )
+            )
             break
         else
             lastError = tostring(err)
             warn(string.format("[PlayerDataService] Save attempt %d failed for %s: %s", attempt, player.Name, lastError))
-            if attempt < MAX_RETRIES then
-                task.wait(RETRY_BASE_DELAY * attempt)
-            end
+            if attempt < MAX_RETRIES then task.wait(RETRY_BASE_DELAY * attempt) end
         end
     end
 
     isSaving[userId] = false
 
     if not saveSuccess then
-        warn(string.format("[PlayerDataService] 🚨 CRITICAL: Save failed for %s after %d attempts. Current data kept in memory.", player.Name, MAX_RETRIES))
+        warn(
+            string.format(
+                "[PlayerDataService] 🚨 CRITICAL: Save failed for %s after %d attempts. Current data kept in memory.",
+                player.Name,
+                MAX_RETRIES
+            )
+        )
         return false
     end
 
@@ -811,9 +825,7 @@ function PlayerDataService.Init()
     -- PlayerRemoving lifecycle
     Players.PlayerRemoving:Connect(function(player)
         local userId = player.UserId
-        if isProfileLoaded[userId] and not isLoadFailed[userId] then
-            PlayerDataService.SaveProfile(player)
-        end
+        if isProfileLoaded[userId] and not isLoadFailed[userId] then PlayerDataService.SaveProfile(player) end
         sessionProfiles[userId] = nil
         isProfileLoaded[userId] = nil
         isLoadFailed[userId] = nil
@@ -826,9 +838,7 @@ function PlayerDataService.Init()
         local playersToSave = {}
         for _, player in ipairs(Players:GetPlayers()) do
             local userId = player.UserId
-            if isProfileLoaded[userId] and not isLoadFailed[userId] then
-                table.insert(playersToSave, player)
-            end
+            if isProfileLoaded[userId] and not isLoadFailed[userId] then table.insert(playersToSave, player) end
         end
 
         if #playersToSave == 0 then
@@ -863,9 +873,7 @@ function PlayerDataService.Start()
 
     -- Load any players already present
     for _, player in ipairs(Players:GetPlayers()) do
-        if not sessionProfiles[player.UserId] then
-            PlayerDataService.LoadProfile(player)
-        end
+        if not sessionProfiles[player.UserId] then PlayerDataService.LoadProfile(player) end
     end
 
     -- Periodic Autosave loop (Every 5 minutes)
@@ -886,4 +894,3 @@ function PlayerDataService.Start()
 end
 
 return PlayerDataService
-

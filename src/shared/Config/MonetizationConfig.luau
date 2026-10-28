@@ -181,9 +181,7 @@ end
 function MonetizationConfig.GetGamepassByAssetId(assetId: number): GamepassDef?
     if assetId == 0 then return nil end
     for _, def in pairs(MonetizationConfig.Gamepasses) do
-        if def.AssetId == assetId then
-            return def
-        end
+        if def.AssetId == assetId then return def end
     end
     return nil
 end
@@ -195,9 +193,7 @@ end
 function MonetizationConfig.GetProductByAssetId(assetId: number): ProductDef?
     if assetId == 0 then return nil end
     for _, def in pairs(MonetizationConfig.Products) do
-        if def.AssetId == assetId then
-            return def
-        end
+        if def.AssetId == assetId then return def end
     end
     return nil
 end
@@ -206,9 +202,7 @@ function MonetizationConfig.GetGamepassesList(): { GamepassDef }
     local list = {}
     for _, id in ipairs(MonetizationConfig.GamepassOrder) do
         local def = MonetizationConfig.Gamepasses[id]
-        if def then
-            table.insert(list, def)
-        end
+        if def then table.insert(list, def) end
     end
     return list
 end
@@ -217,9 +211,7 @@ function MonetizationConfig.GetProductsList(): { ProductDef }
     local list = {}
     for _, id in ipairs(MonetizationConfig.ProductOrder) do
         local def = MonetizationConfig.Products[id]
-        if def then
-            table.insert(list, def)
-        end
+        if def then table.insert(list, def) end
     end
     return list
 end
