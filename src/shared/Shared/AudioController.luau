@@ -68,9 +68,7 @@ function AudioController.IsThrottled(soundKey: string, customCooldown: number?):
     if cd <= 0 then return false end
 
     local last = lastPlayTimes[soundKey] or 0
-    if (now - last) < cd then
-        return true
-    end
+    if (now - last) < cd then return true end
 
     lastPlayTimes[soundKey] = now
     return false
@@ -235,9 +233,7 @@ function AudioController.PlayBuildingImpact(tier: number, position: Vector3): So
     end
 
     -- Allow up to 3 concurrent impacts within an 80ms window, prioritizing larger tiers
-    if recentImpactCount >= 3 and tier < 3 then
-        return nil
-    end
+    if recentImpactCount >= 3 and tier < 3 then return nil end
     recentImpactCount += 1
 
     local soundKey = AudioConfig.GetBuildingImpactKey(tier)

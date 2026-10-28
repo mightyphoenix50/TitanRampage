@@ -82,9 +82,7 @@ end
 function DestructionService.Start()
     print("[DestructionService] DestructionService started.")
     for _, player in ipairs(Players:GetPlayers()) do
-        if not playerCombos[player.UserId] then
-            playerCombos[player.UserId] = { Multiplier = 1, Hits = 0, LastHitTime = 0 }
-        end
+        if not playerCombos[player.UserId] then playerCombos[player.UserId] = { Multiplier = 1, Hits = 0, LastHitTime = 0 } end
     end
 end
 
@@ -112,9 +110,7 @@ function DestructionService.GetPlayerCombo(player: Player): number
 
     local now = os.clock()
     if (now - combo.LastHitTime) > DestructionConfig.Combo.Timeout then
-        if player:GetAttribute("ComboShieldActive") == true then
-            return combo.Multiplier
-        end
+        if player:GetAttribute("ComboShieldActive") == true then return combo.Multiplier end
         combo.Multiplier = 1
         combo.Hits = 0
     end
@@ -215,9 +211,7 @@ local function updateBuildingVisualDamage(building: Model, currentHealth: number
                 end
             end
         end
-        if mainBody then
-            mainBody.Color = Color3.fromRGB(110, 105, 100)
-        end
+        if mainBody then mainBody.Color = Color3.fromRGB(110, 105, 100) end
     elseif ratio <= 0.25 and ratio > 0 then
         -- Critical Damage: Hide all windows/props, scorch structure & roof
         if windowsFolder then
@@ -236,19 +230,19 @@ local function updateBuildingVisualDamage(building: Model, currentHealth: number
                 end
             end
         end
-        if mainBody then
-            mainBody.Color = Color3.fromRGB(45, 42, 42)
-        end
-        if roof then
-            roof.Color = Color3.fromRGB(35, 33, 33)
-        end
+        if mainBody then mainBody.Color = Color3.fromRGB(45, 42, 42) end
+        if roof then roof.Color = Color3.fromRGB(35, 33, 33) end
     end
 end
 
 --[=[
     Executes a controlled structural collapse on building destruction non-destructively.
 ]=]
-local function executeControlledCollapse(building: Model, player: Player?, rewards: { Cash: number, Points: number, XP: number, Combo: number })
+local function executeControlledCollapse(
+    building: Model,
+    player: Player?,
+    rewards: { Cash: number, Points: number, XP: number, Combo: number }
+)
     if collapsingBuildings[building] then return end
     collapsingBuildings[building] = true
 
@@ -355,9 +349,12 @@ local function executeControlledCollapse(building: Model, player: Player?, rewar
     if dropService and rewards.Cash > 0 then
         local bTier = tonumber(building:GetAttribute("DestructionTier")) or 1
         local dropCount = 3
-        if bTier == 2 then dropCount = 4
-        elseif bTier == 3 then dropCount = 6
-        elseif bTier >= 4 then dropCount = 8
+        if bTier == 2 then
+            dropCount = 4
+        elseif bTier == 3 then
+            dropCount = 6
+        elseif bTier >= 4 then
+            dropCount = 8
         end
         dropService.SpawnCashDrops(collapsePos, rewards.Cash, dropCount, player)
     end
@@ -380,21 +377,15 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
     end
 
     -- If building was reset and IsDestroyed is false, clear any stale collapsing flag
-    if building:GetAttribute("IsDestroyed") == false and collapsingBuildings[building] then
-        collapsingBuildings[building] = nil
-    end
+    if building:GetAttribute("IsDestroyed") == false and collapsingBuildings[building] then collapsingBuildings[building] = nil end
 
     -- Verify building is not already destroyed
-    if building:GetAttribute("IsDestroyed") == true or collapsingBuildings[building] then
-        return false, 0
-    end
+    if building:GetAttribute("IsDestroyed") == true or collapsingBuildings[building] then return false, 0 end
 
     local maxHp = tonumber(building:GetAttribute("MaxHealth")) or 500
     local curHp = tonumber(building:GetAttribute("CurrentHealth")) or maxHp
 
-    if curHp <= 0 then
-        return false, 0
-    end
+    if curHp <= 0 then return false, 0 end
 
     -- Distance & reach validation if player is specified
     if player and player.Character and player.Character.PrimaryPart then
@@ -418,26 +409,30 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
         end
 
         if dist > maxAllowedReach then
-            warn(string.format("[DestructionService] Security: Rejected %s from %s on %s - distance (%.1f) exceeds max reach (%.1f)",
-                source, player.Name, building.Name, dist, maxAllowedReach))
+            warn(
+                string.format(
+                    "[DestructionService] Security: Rejected %s from %s on %s - distance (%.1f) exceeds max reach (%.1f)",
+                    source,
+                    player.Name,
+                    building.Name,
+                    dist,
+                    maxAllowedReach
+                )
+            )
             return false, 0
         end
     end
 
     -- Apply damage single-sourced through CityService
     local success, actualDamage = CityService.ApplyDamage(building, damage, player)
-    if not success then
-        return false, 0
-    end
+    if not success then return false, 0 end
 
     -- Special handling for KaijuHub Training Pillars
     if building:GetAttribute("IsTrainingDummy") == true then
         local maxHp = tonumber(building:GetAttribute("MaxHealth")) or 10000
         local newHp = tonumber(building:GetAttribute("CurrentHealth")) or maxHp
         local playerCombo = 1
-        if player then
-            playerCombo = registerComboActivity(player)
-        end
+        if player then playerCombo = registerComboActivity(player) end
 
         local hub = getHubService()
         if hub and type(hub.RecordDummyDamage) == "function" then
@@ -468,14 +463,16 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
     if newHp <= 0 then
         -- Building Destroyed!
         local comboMult = 1
-        if player then
-            comboMult = registerComboActivity(player)
-        end
+        if player then comboMult = registerComboActivity(player) end
 
-        local baseReward = tonumber(building:GetAttribute("DestructionReward")) or tonumber(building:GetAttribute("DestructonReward")) or 100
+        local baseReward = tonumber(building:GetAttribute("DestructionReward"))
+            or tonumber(building:GetAttribute("DestructonReward"))
+            or 100
         local basePoints = tonumber(building:GetAttribute("DestructionPoints")) or 50
         local tier = tonumber(building:GetAttribute("DestructionTier")) or 1
-        local baseXP = tonumber(building:GetAttribute("DestructionXP")) or (DestructionConfig.Tiers[tier] and DestructionConfig.Tiers[tier].BaseXP) or 50
+        local baseXP = tonumber(building:GetAttribute("DestructionXP"))
+            or (DestructionConfig.Tiers[tier] and DestructionConfig.Tiers[tier].BaseXP)
+            or 50
 
         local finalCash = math.floor(baseReward * comboMult)
         local finalPoints = math.floor(basePoints * comboMult)
@@ -492,8 +489,19 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
             -- Award Points and XP immediately; Cash is collected via floating physical cash stacks
             ProgressionService.AddRewards(player, 0, finalPoints, finalXP)
 
-            print(string.format("[DestructionService] %s destroyed '%s' (%s, Tier %d)! Awarded +%d Pts, +%d XP [Combo %dx], spawned $%d in cash drops!",
-                player.Name, building.Name, tostring(building:GetAttribute("BuildingName")), tier, finalPoints, finalXP, comboMult, finalCash))
+            print(
+                string.format(
+                    "[DestructionService] %s destroyed '%s' (%s, Tier %d)! Awarded +%d Pts, +%d XP [Combo %dx], spawned $%d in cash drops!",
+                    player.Name,
+                    building.Name,
+                    tostring(building:GetAttribute("BuildingName")),
+                    tier,
+                    finalPoints,
+                    finalXP,
+                    comboMult,
+                    finalCash
+                )
+            )
         end
 
         -- Record destruction in CityService for live city completion tracking
@@ -504,9 +512,7 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
         -- Building Damaged (Survives)
         updateBuildingVisualDamage(building, newHp, maxHp)
 
-        if player then
-            registerComboActivity(player)
-        end
+        if player then registerComboActivity(player) end
 
         -- Broadcast damage feedback for floating damage numbers and impact effects
         local playerCombo = if player then DestructionService.GetPlayerCombo(player) else 1

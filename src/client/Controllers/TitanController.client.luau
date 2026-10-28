@@ -122,7 +122,6 @@ local function getAnimController(character: Model)
     return activeAnimControllers[character]
 end
 
-
 --[=[
     Initializes camera zoom parameters and offsets for the Titan scale from TitanRegistry.
 ]=]
@@ -131,9 +130,7 @@ local function setupCamera(character: Model)
     if not humanoid then return end
 
     local attrTitan = character:GetAttribute("TitanId")
-    if attrTitan and type(attrTitan) == "string" and TitanRegistry.Get(attrTitan) then
-        updateActiveTitan(attrTitan)
-    end
+    if attrTitan and type(attrTitan) == "string" and TitanRegistry.Get(attrTitan) then updateActiveTitan(attrTitan) end
 
     if currentTitanDef and currentTitanDef.CameraZoom then
         LocalPlayer.CameraMinZoomDistance = currentTitanDef.CameraZoom.Min
@@ -149,17 +146,13 @@ TitanFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
     if eventType == "TitanSelected" or eventType == "TitanSpawned" then
         if data and data.TitanId and type(data.TitanId) == "string" then
             updateActiveTitan(data.TitanId)
-            if LocalPlayer.Character then
-                setupCamera(LocalPlayer.Character)
-            end
+            if LocalPlayer.Character then setupCamera(LocalPlayer.Character) end
         end
     end
 end)
 
 -- Setup on character spawn
-if LocalPlayer.Character then
-    setupCamera(LocalPlayer.Character)
-end
+if LocalPlayer.Character then setupCamera(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(setupCamera)
 
 -- Client-side immediate ability anticipation table for responsive input feel
@@ -201,9 +194,7 @@ local function tryRequestAbility(actionName: string)
     local lastTime = clientCooldowns[actionName] or 0
     local cd = abilityDef.Cooldown or 1.0
 
-    if (now - lastTime) < cd then
-        return
-    end
+    if (now - lastTime) < cd then return end
 
     clientCooldowns[actionName] = now
 
@@ -212,9 +203,7 @@ local function tryRequestAbility(actionName: string)
         local animCtrl = getAnimController(LocalPlayer.Character)
         if animCtrl then
             local anticipator = ClientAbilityAnticipation[actionName]
-            if anticipator then
-                anticipator(LocalPlayer.Character, animCtrl, currentTitanId)
-            end
+            if anticipator then anticipator(LocalPlayer.Character, animCtrl, currentTitanId) end
         end
     end
 
@@ -247,7 +236,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     elseif input.KeyCode == Enum.KeyCode.R or input.KeyCode == Enum.KeyCode.Three then
         local ability = getAbilityNameBySlot("Utility")
         if ability then tryRequestAbility(ability) end
-    elseif input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift or input.KeyCode == Enum.KeyCode.ButtonL3 then
+    elseif
+        input.KeyCode == Enum.KeyCode.LeftShift
+        or input.KeyCode == Enum.KeyCode.RightShift
+        or input.KeyCode == Enum.KeyCode.ButtonL3
+    then
         setSprint(true)
     end
 end)
@@ -274,9 +267,7 @@ RunService.RenderStepped:Connect(function(dt: number)
     else
         currentStamina = math.min(maxStamina, currentStamina + (staminaRegenRate * dt))
         targetFOV = normalFOV
-        if isExhausted and currentStamina >= 25 then
-            isExhausted = false
-        end
+        if isExhausted and currentStamina >= 25 then isExhausted = false end
     end
 
     -- Smooth dynamic FOV punch
@@ -303,9 +294,7 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
 
         if sourceChar then
             local animCtrl = getAnimController(sourceChar)
-            if animCtrl then
-                animCtrl:PlayStomp()
-            end
+            if animCtrl then animCtrl:PlayStomp() end
             if sourceChar ~= LocalPlayer.Character then
                 local hrp = sourceChar:FindFirstChild("HumanoidRootPart") :: BasePart?
                 AudioController.PlayStompAnticipation(hrp)
@@ -382,8 +371,12 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
         })
         t1:Play()
         t2:Play()
-        t1.Completed:Connect(function() ring:Destroy() end)
-        t2.Completed:Connect(function() outerRing:Destroy() end)
+        t1.Completed:Connect(function()
+            ring:Destroy()
+        end)
+        t2.Completed:Connect(function()
+            outerRing:Destroy()
+        end)
 
         for i = 1, 6 do
             local angle = (i / 6) * math.pi * 2
@@ -398,14 +391,17 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
             debris.CanTouch = false
             debris.Parent = Workspace
 
-            local targetDebrisPos = debris.Position + Vector3.new(math.cos(angle) * (targetRadius * 0.6), 4 + math.random() * 3, math.sin(angle) * (targetRadius * 0.6))
+            local targetDebrisPos = debris.Position
+                + Vector3.new(math.cos(angle) * (targetRadius * 0.6), 4 + math.random() * 3, math.sin(angle) * (targetRadius * 0.6))
             local dt = TweenService:Create(debris, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Position = targetDebrisPos,
                 Transparency = 1,
                 Size = Vector3.new(0.3, 0.3, 0.3),
             })
             dt:Play()
-            dt.Completed:Connect(function() debris:Destroy() end)
+            dt.Completed:Connect(function()
+                debris:Destroy()
+            end)
         end
 
         if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
@@ -417,11 +413,12 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
                 task.spawn(function()
                     for step = 1, 6 do
                         local decay = (7 - step) / 6
-                        Camera.CFrame = Camera.CFrame * CFrame.Angles(
-                            math.rad(math.random(-12, 12) * 0.08 * intensity * decay),
-                            math.rad(math.random(-12, 12) * 0.08 * intensity * decay),
-                            math.rad(math.random(-8, 8) * 0.05 * intensity * decay)
-                        )
+                        Camera.CFrame = Camera.CFrame
+                            * CFrame.Angles(
+                                math.rad(math.random(-12, 12) * 0.08 * intensity * decay),
+                                math.rad(math.random(-12, 12) * 0.08 * intensity * decay),
+                                math.rad(math.random(-8, 8) * 0.05 * intensity * decay)
+                            )
                         task.wait(0.025)
                     end
                 end)
@@ -436,9 +433,7 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
 
         if sourceChar then
             local animCtrl = getAnimController(sourceChar)
-            if animCtrl then
-                animCtrl:PlayRoar()
-            end
+            if animCtrl then animCtrl:PlayRoar() end
             local headOrHrp = sourceChar:FindFirstChild("Head") or sourceChar:FindFirstChild("HumanoidRootPart")
             AudioController.PlayTitanRoar(titanId, headOrHrp :: BasePart?)
         else
@@ -477,9 +472,7 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
 
         if sourceChar and sourceChar ~= LocalPlayer.Character then
             local animCtrl = getAnimController(sourceChar)
-            if animCtrl then
-                animCtrl:PlayBasicAttack(variant)
-            end
+            if animCtrl then animCtrl:PlayBasicAttack(variant) end
             local hrp = sourceChar:FindFirstChild("HumanoidRootPart") :: BasePart?
             AudioController.PlayBasicAttackWhoosh(variant, hrp)
         end
@@ -563,8 +556,12 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
         })
         swipeTween:Play()
         flashTween:Play()
-        swipeTween.Completed:Connect(function() swipe:Destroy() end)
-        flashTween.Completed:Connect(function() flash:Destroy() end)
+        swipeTween.Completed:Connect(function()
+            swipe:Destroy()
+        end)
+        flashTween.Completed:Connect(function()
+            flash:Destroy()
+        end)
 
         if sourceChar == LocalPlayer.Character then
             task.spawn(function()
@@ -591,9 +588,7 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
 
         if sourceChar and sourceChar ~= LocalPlayer.Character then
             local animCtrl = getAnimController(sourceChar)
-            if animCtrl then
-                animCtrl:PlayTailSweep()
-            end
+            if animCtrl then animCtrl:PlayTailSweep() end
             local hrp = sourceChar:FindFirstChild("HumanoidRootPart") :: BasePart?
             AudioController.PlayBasicAttackWhoosh("LeftSwipe", hrp)
         end
@@ -633,7 +628,9 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
             Transparency = 1,
         })
         sweepTween:Play()
-        sweepTween.Completed:Connect(function() sweep:Destroy() end)
+        sweepTween.Completed:Connect(function()
+            sweep:Destroy()
+        end)
 
         if sourceChar == LocalPlayer.Character then
             task.spawn(function()
@@ -651,9 +648,7 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
 
         if sourceChar then
             local animCtrl = getAnimController(sourceChar)
-            if animCtrl then
-                animCtrl:PlayHeavyStomp()
-            end
+            if animCtrl then animCtrl:PlayHeavyStomp() end
             if sourceChar ~= LocalPlayer.Character then
                 local hrp = sourceChar:FindFirstChild("HumanoidRootPart") :: BasePart?
                 AudioController.PlayStompAnticipation(hrp)
@@ -680,7 +675,9 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
             Color = Color3.fromRGB(255, 220, 60),
         })
         tween:Play()
-        tween.Completed:Connect(function() windupRing:Destroy() end)
+        tween.Completed:Connect(function()
+            windupRing:Destroy()
+        end)
     end,
 
     HeavyStomp = function(_sourceChar, data)
@@ -764,8 +761,12 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
         })
         t1:Play()
         t2:Play()
-        t1.Completed:Connect(function() ring:Destroy() end)
-        t2.Completed:Connect(function() outerWave:Destroy() end)
+        t1.Completed:Connect(function()
+            ring:Destroy()
+        end)
+        t2.Completed:Connect(function()
+            outerWave:Destroy()
+        end)
 
         if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
             local dist = (LocalPlayer.Character.PrimaryPart.Position - pos).Magnitude
@@ -776,11 +777,12 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
                 task.spawn(function()
                     for step = 1, 8 do
                         local decay = (9 - step) / 8
-                        Camera.CFrame = Camera.CFrame * CFrame.Angles(
-                            math.rad(math.random(-16, 16) * 0.1 * intensity * decay),
-                            math.rad(math.random(-16, 16) * 0.1 * intensity * decay),
-                            math.rad(math.random(-10, 10) * 0.08 * intensity * decay)
-                        )
+                        Camera.CFrame = Camera.CFrame
+                            * CFrame.Angles(
+                                math.rad(math.random(-16, 16) * 0.1 * intensity * decay),
+                                math.rad(math.random(-16, 16) * 0.1 * intensity * decay),
+                                math.rad(math.random(-10, 10) * 0.08 * intensity * decay)
+                            )
                         task.wait(0.025)
                     end
                 end)
@@ -794,9 +796,7 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
 
         if sourceChar and sourceChar ~= LocalPlayer.Character then
             local animCtrl = getAnimController(sourceChar)
-            if animCtrl then
-                animCtrl:PlayNeckStrike()
-            end
+            if animCtrl then animCtrl:PlayNeckStrike() end
             local hrp = sourceChar:FindFirstChild("HumanoidRootPart") :: BasePart?
             AudioController.PlayBasicAttackWhoosh("DownwardSmash", hrp)
         end
@@ -857,8 +857,12 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
         })
         ct:Play()
         ft:Play()
-        ct.Completed:Connect(function() crater:Destroy() end)
-        ft.Completed:Connect(function() dustFlash:Destroy() end)
+        ct.Completed:Connect(function()
+            crater:Destroy()
+        end)
+        ft.Completed:Connect(function()
+            dustFlash:Destroy()
+        end)
 
         if sourceChar == LocalPlayer.Character then
             task.spawn(function()
@@ -872,9 +876,7 @@ local EffectHandlers: { [string]: (sourceChar: Model?, data: any) -> () } = {
 
 TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar: Model, data: any)
     local handler = EffectHandlers[effectType]
-    if handler then
-        handler(sourceChar, data or {})
-    end
+    if handler then handler(sourceChar, data or {}) end
 end)
 
 print("[TitanController] Client controller initialized for " .. currentTitanId .. ".")

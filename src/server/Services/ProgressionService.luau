@@ -124,9 +124,7 @@ function ProgressionService.Init()
 
     -- Bind client state sync requests
     ProgressionUpdateRemote.OnServerEvent:Connect(function(player: Player, action: any)
-        if action == "RequestSync" then
-            ProgressionService.SyncToClient(player)
-        end
+        if action == "RequestSync" then ProgressionService.SyncToClient(player) end
     end)
 
     -- Player lifecycle: wait for PlayerDataService profile to load, then sync
@@ -136,9 +134,7 @@ function ProgressionService.Init()
             while not PlayerDataService.IsLoaded(player) and player.Parent and (os.clock() - startTime) < 5 do
                 task.wait(0.05)
             end
-            if player.Parent then
-                ProgressionService.SyncToClient(player)
-            end
+            if player.Parent then ProgressionService.SyncToClient(player) end
         end)
     end)
 end
@@ -154,9 +150,7 @@ function ProgressionService.Start()
             while not PlayerDataService.IsLoaded(player) and player.Parent and (os.clock() - startTime) < 5 do
                 task.wait(0.05)
             end
-            if player.Parent then
-                ProgressionService.SyncToClient(player)
-            end
+            if player.Parent then ProgressionService.SyncToClient(player) end
         end)
     end
 end
@@ -262,7 +256,14 @@ function ProgressionService.AddRewards(player: Player, cash: number, points: num
     end
 
     if leveledUp then
-        print(string.format("[ProgressionService] 🎉 %s leveled up to Level %d! (Next threshold: %d XP)", player.Name, newLevel, nextLevelXP))
+        print(
+            string.format(
+                "[ProgressionService] 🎉 %s leveled up to Level %d! (Next threshold: %d XP)",
+                player.Name,
+                newLevel,
+                nextLevelXP
+            )
+        )
         local newlyUnlocked = PlayerDataService.CheckTitanUnlocks(player)
         if next(newlyUnlocked) ~= nil then
             local titanFeedback = RemotesFolder:FindFirstChild("TitanFeedback") :: RemoteEvent?
@@ -329,7 +330,9 @@ function ProgressionService.HandleUpgradeRequest(player: Player, upgradeId: stri
 
     local currentLevel = profile.Upgrades[upgradeId] or 1
     if currentLevel >= cat.MaxLevel then
-        print(string.format("[ProgressionService] %s upgrade '%s' rejected: Already at Max Level (%d)", player.Name, upgradeId, cat.MaxLevel))
+        print(
+            string.format("[ProgressionService] %s upgrade '%s' rejected: Already at Max Level (%d)", player.Name, upgradeId, cat.MaxLevel)
+        )
         ProgressionUpdateRemote:FireClient(player, {
             Type = "UpgradeFailed",
             UpgradeId = upgradeId,
@@ -345,14 +348,22 @@ function ProgressionService.HandleUpgradeRequest(player: Player, upgradeId: stri
     end
 
     local nextTier = UpgradeConfig.GetNextTier(upgradeId, currentLevel)
-    if not nextTier then
-        return false
-    end
+    if not nextTier then return false end
 
     -- Check affordability
     if profile.Cash < nextTier.CashCost or profile.DestructionPoints < nextTier.PointCost then
-        print(string.format("[ProgressionService] %s cannot afford '%s' Lvl %d (Requires $%d & %d Pts; Has $%d & %d Pts)",
-            player.Name, upgradeId, nextTier.Level, nextTier.CashCost, nextTier.PointCost, profile.Cash, profile.DestructionPoints))
+        print(
+            string.format(
+                "[ProgressionService] %s cannot afford '%s' Lvl %d (Requires $%d & %d Pts; Has $%d & %d Pts)",
+                player.Name,
+                upgradeId,
+                nextTier.Level,
+                nextTier.CashCost,
+                nextTier.PointCost,
+                profile.Cash,
+                profile.DestructionPoints
+            )
+        )
         ProgressionUpdateRemote:FireClient(player, {
             Type = "UpgradeFailed",
             UpgradeId = upgradeId,
@@ -374,12 +385,19 @@ function ProgressionService.HandleUpgradeRequest(player: Player, upgradeId: stri
         prof.Upgrades[upgradeId] = nextTier.Level
     end)
 
-    if not success then
-        return false
-    end
+    if not success then return false end
 
-    print(string.format("[ProgressionService] ✅ %s upgraded '%s' to Level %d (%s) for $%d Cash & %d Points!",
-        player.Name, cat.DisplayName, nextTier.Level, tostring(nextTier.Value), nextTier.CashCost, nextTier.PointCost))
+    print(
+        string.format(
+            "[ProgressionService] ✅ %s upgraded '%s' to Level %d (%s) for $%d Cash & %d Points!",
+            player.Name,
+            cat.DisplayName,
+            nextTier.Level,
+            tostring(nextTier.Value),
+            nextTier.CashCost,
+            nextTier.PointCost
+        )
+    )
 
     -- Dynamically notify MonsterService of stat upgrade
     local monster = getMonsterService()
@@ -411,4 +429,3 @@ function ProgressionService.HandleUpgradeRequest(player: Player, upgradeId: stri
 end
 
 return ProgressionService
-

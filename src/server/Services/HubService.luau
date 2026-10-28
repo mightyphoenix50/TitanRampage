@@ -48,7 +48,15 @@ local launchDebounce: { [number]: number } = {}
 local lightningStrikeTargets: { Vector3 } = {}
 
 -- Helper to create styled, anchored static parts
-local function createPart(parent: Instance, name: string, size: Vector3, cframe: CFrame, material: Enum.Material, color: Color3, canCollide: boolean?): Part
+local function createPart(
+    parent: Instance,
+    name: string,
+    size: Vector3,
+    cframe: CFrame,
+    material: Enum.Material,
+    color: Color3,
+    canCollide: boolean?
+): Part
     local p = Instance.new("Part")
     p.Name = name
     p.Size = size
@@ -181,7 +189,15 @@ end
 --[=[
     Creates a rich holographic 3D billboard for Titan display pedestals.
 ]=]
-local function createTitanHoloCard(parent: Instance, titanName: string, title: string, subtitle: string, stats: { Health: string, Speed: string, Power: string, Reach: string }, abilities: { string }, accentColor: Color3)
+local function createTitanHoloCard(
+    parent: Instance,
+    titanName: string,
+    title: string,
+    subtitle: string,
+    stats: { Health: string, Speed: string, Power: string, Reach: string },
+    abilities: { string },
+    accentColor: Color3
+)
     local bg = Instance.new("BillboardGui")
     bg.Name = "TitanHoloCard"
     bg.Size = UDim2.new(0, 440, 0, 270)
@@ -337,9 +353,7 @@ local function createDisplayStatue(parent: Instance, titanId: string, modelTempl
     end
 
     local hum = statue:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-    end
+    if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
 
     statue:PivotTo(statueCFrame)
     statue.Parent = parent
@@ -393,7 +407,9 @@ local function bindLaunchPad(padModel: Model)
     inner:SetAttribute("LaunchBound", true)
 
     local rawVel = padModel:GetAttribute("LaunchVelocity")
-    local launchVelocity: Vector3 = if typeof(rawVel) == "Vector3" then rawVel else (DEFAULT_PAD_VELOCITIES[padModel.Name] or Vector3.new(0, 150, 0))
+    local launchVelocity: Vector3 = if typeof(rawVel) == "Vector3"
+        then rawVel
+        else (DEFAULT_PAD_VELOCITIES[padModel.Name] or Vector3.new(0, 150, 0))
 
     inner.Touched:Connect(function(hit: BasePart)
         local character = hit.Parent
@@ -441,11 +457,20 @@ local function createLaunchPad(parent: Instance, name: string, cframe: CFrame, l
     padModel:SetAttribute("LaunchVelocity", launchVelocity)
 
     -- Outer ring
-    local base = createPart(padModel, "PadBase", Vector3.new(22, 1.4, 22), cframe, Enum.Material.SmoothPlastic, Color3.fromRGB(20, 20, 25), true)
+    local base =
+        createPart(padModel, "PadBase", Vector3.new(22, 1.4, 22), cframe, Enum.Material.SmoothPlastic, Color3.fromRGB(20, 20, 25), true)
     base.CastShadow = false
 
     -- Glowing inner pad
-    local inner = createPart(padModel, "TriggerPad", Vector3.new(18, 1.6, 18), cframe * CFrame.new(0, 0.25, 0), Enum.Material.Neon, Color3.fromRGB(255, 95, 15), false)
+    local inner = createPart(
+        padModel,
+        "TriggerPad",
+        Vector3.new(18, 1.6, 18),
+        cframe * CFrame.new(0, 0.25, 0),
+        Enum.Material.Neon,
+        Color3.fromRGB(255, 95, 15),
+        false
+    )
     inner.CastShadow = false
 
     local light = Instance.new("PointLight")
@@ -485,10 +510,24 @@ local function createBastionDPSDummy(parent: Instance, cframe: CFrame): Model
     dummyModel.Name = "Bastion_Titan_Dummy"
 
     -- Base plinth
-    local plinth = createPart(dummyModel, "Plinth", Vector3.new(24, 3, 24), cframe * CFrame.new(0, 1.5, 0), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
+    local plinth = createPart(
+        dummyModel,
+        "Plinth",
+        Vector3.new(24, 3, 24),
+        cframe * CFrame.new(0, 1.5, 0),
+        Enum.Material.Basalt,
+        Color3.fromRGB(25, 23, 28)
+    )
 
     -- Heavy Core Monolith
-    local core = createPart(dummyModel, "Core", Vector3.new(16, 42, 16), cframe * CFrame.new(0, 24, 0), Enum.Material.Basalt, Color3.fromRGB(30, 28, 34))
+    local core = createPart(
+        dummyModel,
+        "Core",
+        Vector3.new(16, 42, 16),
+        cframe * CFrame.new(0, 24, 0),
+        Enum.Material.Basalt,
+        Color3.fromRGB(30, 28, 34)
+    )
     core:SetAttribute("BuildingId", "Bastion_Titan_Dummy")
     core:SetAttribute("BuildingName", "Bastion Titan Combat Dummy")
     core:SetAttribute("BuildingType", "TrainingDummy")
@@ -504,7 +543,15 @@ local function createBastionDPSDummy(parent: Instance, cframe: CFrame): Model
 
     -- Magma Rune Rings on Core
     for _, yOff in ipairs({ 8, 16, 24, 32 }) do
-        local rune = createPart(dummyModel, "RuneRing_" .. yOff, Vector3.new(17.2, 1.8, 17.2), cframe * CFrame.new(0, yOff, 0), Enum.Material.Neon, Color3.fromRGB(255, 80, 15), false)
+        local rune = createPart(
+            dummyModel,
+            "RuneRing_" .. yOff,
+            Vector3.new(17.2, 1.8, 17.2),
+            cframe * CFrame.new(0, yOff, 0),
+            Enum.Material.Neon,
+            Color3.fromRGB(255, 80, 15),
+            false
+        )
         rune.CastShadow = false
     end
 
@@ -623,19 +670,34 @@ local function setupColosseumLighting(arenaFolder: Folder, arenaOrigin: Vector3,
     -- 1. 8 Wall Perimeter Floodlight Towers (atop 45-stud walls)
     local pylonHeight = 45
     local pylonPositions = {
-        { Pos = arenaOrigin + Vector3.new(0, pylonHeight, -180), Angle = Vector3.new(0, 0, 0) },      -- North Wall
-        { Pos = arenaOrigin + Vector3.new(0, pylonHeight, 180), Angle = Vector3.new(0, 180, 0) },     -- South Wall
-        { Pos = arenaOrigin + Vector3.new(-180, pylonHeight, 0), Angle = Vector3.new(0, 90, 0) },     -- West Wall
-        { Pos = arenaOrigin + Vector3.new(180, pylonHeight, 0), Angle = Vector3.new(0, -90, 0) },     -- East Wall
-        { Pos = arenaOrigin + Vector3.new(-170, pylonHeight, -170), Angle = Vector3.new(0, 45, 0) },  -- NW Corner
-        { Pos = arenaOrigin + Vector3.new(170, pylonHeight, -170), Angle = Vector3.new(0, -45, 0) },  -- NE Corner
-        { Pos = arenaOrigin + Vector3.new(-170, pylonHeight, 170), Angle = Vector3.new(0, 135, 0) },  -- SW Corner
-        { Pos = arenaOrigin + Vector3.new(170, pylonHeight, 170), Angle = Vector3.new(0, -135, 0) },  -- SE Corner
+        { Pos = arenaOrigin + Vector3.new(0, pylonHeight, -180), Angle = Vector3.new(0, 0, 0) }, -- North Wall
+        { Pos = arenaOrigin + Vector3.new(0, pylonHeight, 180), Angle = Vector3.new(0, 180, 0) }, -- South Wall
+        { Pos = arenaOrigin + Vector3.new(-180, pylonHeight, 0), Angle = Vector3.new(0, 90, 0) }, -- West Wall
+        { Pos = arenaOrigin + Vector3.new(180, pylonHeight, 0), Angle = Vector3.new(0, -90, 0) }, -- East Wall
+        { Pos = arenaOrigin + Vector3.new(-170, pylonHeight, -170), Angle = Vector3.new(0, 45, 0) }, -- NW Corner
+        { Pos = arenaOrigin + Vector3.new(170, pylonHeight, -170), Angle = Vector3.new(0, -45, 0) }, -- NE Corner
+        { Pos = arenaOrigin + Vector3.new(-170, pylonHeight, 170), Angle = Vector3.new(0, 135, 0) }, -- SW Corner
+        { Pos = arenaOrigin + Vector3.new(170, pylonHeight, 170), Angle = Vector3.new(0, -135, 0) }, -- SE Corner
     }
 
     for idx, pDef in ipairs(pylonPositions) do
-        local pylonPost = createPart(lightingFolder, "FloodPylon_" .. idx, Vector3.new(4, 14, 4), CFrame.new(pDef.Pos + Vector3.new(0, 7, 0)), Enum.Material.Metal, Color3.fromRGB(40, 42, 48))
-        local lampHead = createPart(pylonPost, "LampHead", Vector3.new(8, 3, 4), CFrame.new(pDef.Pos + Vector3.new(0, 14, 0)) * CFrame.Angles(math.rad(-25), math.rad(pDef.Angle.Y), 0), Enum.Material.Neon, Color3.fromRGB(255, 235, 190), false)
+        local pylonPost = createPart(
+            lightingFolder,
+            "FloodPylon_" .. idx,
+            Vector3.new(4, 14, 4),
+            CFrame.new(pDef.Pos + Vector3.new(0, 7, 0)),
+            Enum.Material.Metal,
+            Color3.fromRGB(40, 42, 48)
+        )
+        local lampHead = createPart(
+            pylonPost,
+            "LampHead",
+            Vector3.new(8, 3, 4),
+            CFrame.new(pDef.Pos + Vector3.new(0, 14, 0)) * CFrame.Angles(math.rad(-25), math.rad(pDef.Angle.Y), 0),
+            Enum.Material.Neon,
+            Color3.fromRGB(255, 235, 190),
+            false
+        )
         lampHead.CastShadow = false
 
         -- High-intensity angled arena floodlight
@@ -670,7 +732,15 @@ local function setupColosseumLighting(arenaFolder: Folder, arenaOrigin: Vector3,
         local rx = arenaOrigin.X + math.cos(ang) * innerRadius
         local rz = arenaOrigin.Z + math.sin(ang) * innerRadius
         local chord = (math.pi * 2 * innerRadius) / innerSegs
-        local segPart = createPart(floorRunesFolder, "InnerRune_" .. i, Vector3.new(chord, 0.4, 2.5), CFrame.new(rx, arenaOrigin.Y + 0.15, rz) * CFrame.Angles(0, -ang + (math.pi / 2), 0), Enum.Material.Neon, Color3.fromRGB(255, 110, 15), false)
+        local segPart = createPart(
+            floorRunesFolder,
+            "InnerRune_" .. i,
+            Vector3.new(chord, 0.4, 2.5),
+            CFrame.new(rx, arenaOrigin.Y + 0.15, rz) * CFrame.Angles(0, -ang + (math.pi / 2), 0),
+            Enum.Material.Neon,
+            Color3.fromRGB(255, 110, 15),
+            false
+        )
         segPart.CastShadow = false
     end
 
@@ -682,7 +752,15 @@ local function setupColosseumLighting(arenaFolder: Folder, arenaOrigin: Vector3,
         local rx = arenaOrigin.X + math.cos(ang) * outerRadius
         local rz = arenaOrigin.Z + math.sin(ang) * outerRadius
         local chord = (math.pi * 2 * outerRadius) / outerSegs
-        local segPart = createPart(floorRunesFolder, "OuterRune_" .. i, Vector3.new(chord, 0.4, 3.2), CFrame.new(rx, arenaOrigin.Y + 0.15, rz) * CFrame.Angles(0, -ang + (math.pi / 2), 0), Enum.Material.Neon, Color3.fromRGB(40, 215, 255), false)
+        local segPart = createPart(
+            floorRunesFolder,
+            "OuterRune_" .. i,
+            Vector3.new(chord, 0.4, 3.2),
+            CFrame.new(rx, arenaOrigin.Y + 0.15, rz) * CFrame.Angles(0, -ang + (math.pi / 2), 0),
+            Enum.Material.Neon,
+            Color3.fromRGB(40, 215, 255),
+            false
+        )
         segPart.CastShadow = false
     end
 
@@ -694,7 +772,15 @@ local function setupColosseumLighting(arenaFolder: Folder, arenaOrigin: Vector3,
         Vector3.new(75, 4, 0),
     }
     for idx, fOff in ipairs(floorLightOffsets) do
-        local lightPart = createPart(floorRunesFolder, "ArenaFieldLight_" .. idx, Vector3.new(1, 1, 1), CFrame.new(arenaOrigin + fOff), Enum.Material.Air, Color3.fromRGB(0, 0, 0), false)
+        local lightPart = createPart(
+            floorRunesFolder,
+            "ArenaFieldLight_" .. idx,
+            Vector3.new(1, 1, 1),
+            CFrame.new(arenaOrigin + fOff),
+            Enum.Material.Air,
+            Color3.fromRGB(0, 0, 0),
+            false
+        )
         lightPart.Transparency = 1
         lightPart.CanQuery = false
         lightPart.CanTouch = false
@@ -708,7 +794,15 @@ local function setupColosseumLighting(arenaFolder: Folder, arenaOrigin: Vector3,
     end
 
     -- 3. Bastion Titan DPS Dummy Center Stage Spotlights
-    local dummyStagePart = createPart(lightingFolder, "BastionStageRig", Vector3.new(4, 2, 4), CFrame.new(arenaOrigin + Vector3.new(0, 42, 0)), Enum.Material.Slate, Color3.fromRGB(25, 25, 30), false)
+    local dummyStagePart = createPart(
+        lightingFolder,
+        "BastionStageRig",
+        Vector3.new(4, 2, 4),
+        CFrame.new(arenaOrigin + Vector3.new(0, 42, 0)),
+        Enum.Material.Slate,
+        Color3.fromRGB(25, 25, 30),
+        false
+    )
     dummyStagePart.Transparency = 1
     dummyStagePart.CanQuery = false
     dummyStagePart.CanTouch = false
@@ -724,7 +818,15 @@ local function setupColosseumLighting(arenaFolder: Folder, arenaOrigin: Vector3,
     dummySpot.Parent = dummyStagePart
 
     -- Ground ring at dummy base
-    local dummyRing = createPart(lightingFolder, "BastionBaseGlow", Vector3.new(22, 0.4, 22), CFrame.new(arenaOrigin + Vector3.new(0, 0.2, 0)), Enum.Material.Neon, Color3.fromRGB(255, 80, 20), false)
+    local dummyRing = createPart(
+        lightingFolder,
+        "BastionBaseGlow",
+        Vector3.new(22, 0.4, 22),
+        CFrame.new(arenaOrigin + Vector3.new(0, 0.2, 0)),
+        Enum.Material.Neon,
+        Color3.fromRGB(255, 80, 20),
+        false
+    )
     dummyRing.CastShadow = false
 
     -- 4. Practice Monoliths Combat Uplighting
@@ -736,7 +838,15 @@ local function setupColosseumLighting(arenaFolder: Folder, arenaOrigin: Vector3,
         arenaOrigin + Vector3.new(0, 0, 110),
     }
     for idx, mPos in ipairs(monolithPositions) do
-        local mRing = createPart(lightingFolder, "MonolithGlowRing_" .. idx, Vector3.new(14, 0.4, 14), CFrame.new(mPos + Vector3.new(0, 0.2, 0)), Enum.Material.Neon, Color3.fromRGB(255, 120, 20), false)
+        local mRing = createPart(
+            lightingFolder,
+            "MonolithGlowRing_" .. idx,
+            Vector3.new(14, 0.4, 14),
+            CFrame.new(mPos + Vector3.new(0, 0.2, 0)),
+            Enum.Material.Neon,
+            Color3.fromRGB(255, 120, 20),
+            false
+        )
         mRing.CastShadow = false
 
         local upSpot = Instance.new("SpotLight")
@@ -761,7 +871,15 @@ local function setupColosseumLighting(arenaFolder: Folder, arenaOrigin: Vector3,
         local postCenter = bridgeStart + localPos
 
         for _, sideX in ipairs({ -22, 22 }) do
-            local lantern = createPart(lightingFolder, string.format("BridgeLantern_%d_%d", b, sideX), Vector3.new(1.8, 4.5, 1.8), CFrame.new(postCenter + Vector3.new(sideX, 3.5, 0)), Enum.Material.Neon, Color3.fromRGB(255, 190, 80), false)
+            local lantern = createPart(
+                lightingFolder,
+                string.format("BridgeLantern_%d_%d", b, sideX),
+                Vector3.new(1.8, 4.5, 1.8),
+                CFrame.new(postCenter + Vector3.new(sideX, 3.5, 0)),
+                Enum.Material.Neon,
+                Color3.fromRGB(255, 190, 80),
+                false
+            )
             lantern.CastShadow = false
 
             local lLight = Instance.new("PointLight")
@@ -864,7 +982,9 @@ local function spawnLightningStrike(targetPos: Vector3)
                 local branchDir = Vector3.new(math.random(-38, 38), math.random(-40, -10), math.random(-38, 38))
                 for b = 1, branchSteps do
                     local bProgress = b / branchSteps
-                    local branchNext = branchCurrent + (branchDir * (1 / branchSteps)) + Vector3.new(math.random(-12, 12), math.random(-10, 5), math.random(-12, 12))
+                    local branchNext = branchCurrent
+                        + (branchDir * (1 / branchSteps))
+                        + Vector3.new(math.random(-12, 12), math.random(-10, 5), math.random(-12, 12))
                     createDualSegment(branchCurrent, branchNext, 0.7, 1.8, string.format("Fork_%d_%d", i, b))
                     branchCurrent = branchNext
                 end
@@ -972,18 +1092,14 @@ local function spawnLightningStrike(targetPos: Vector3)
     -- Cinematic Stroboscopic Flicker Sequence
     task.delay(0.04, function()
         for _, p in ipairs(allBolts) do
-            if p:IsA("BasePart") then
-                p.Transparency = 0.65
-            end
+            if p:IsA("BasePart") then p.Transparency = 0.65 end
         end
         light.Brightness = 3.5
     end)
     task.delay(0.07, function()
         -- Re-strike flash
         for _, p in ipairs(allBolts) do
-            if p:IsA("BasePart") then
-                p.Transparency = 0.15
-            end
+            if p:IsA("BasePart") then p.Transparency = 0.15 end
         end
         light.Brightness = 7.0
     end)
@@ -1015,14 +1131,10 @@ function HubService.ConstructGrandSanctuary()
 
     -- Guarantee default spawn in root is cleaned up
     local defaultSpawn = Workspace:FindFirstChild("SpawnLocation")
-    if defaultSpawn then
-        defaultSpawn:Destroy()
-    end
+    if defaultSpawn then defaultSpawn:Destroy() end
 
     local existing = Workspace:FindFirstChild("KaijuHub")
-    if existing then
-        existing:Destroy()
-    end
+    if existing then existing:Destroy() end
 
     local hub = Instance.new("Folder")
     hub.Name = "KaijuHub"
@@ -1037,18 +1149,40 @@ function HubService.ConstructGrandSanctuary()
     plazaFolder.Parent = hub
 
     -- Main Arena Disc (380 studs diameter)
-    local mainFloor = createPart(plazaFolder, "PlazaFloor", Vector3.new(380, 8, 380), CFrame.new(hubOrigin.X, hubOrigin.Y - 4, hubOrigin.Z), Enum.Material.Basalt, Color3.fromRGB(32, 30, 35))
+    local mainFloor = createPart(
+        plazaFolder,
+        "PlazaFloor",
+        Vector3.new(380, 8, 380),
+        CFrame.new(hubOrigin.X, hubOrigin.Y - 4, hubOrigin.Z),
+        Enum.Material.Basalt,
+        Color3.fromRGB(32, 30, 35)
+    )
     mainFloor.CastShadow = true
 
     -- 4 Concentric Magma Ley-Line Rings
     local ringRadii = { 360, 280, 200, 120 }
     for idx, r in ipairs(ringRadii) do
-        local rune = createPart(plazaFolder, "MagmaRune_Ring" .. idx, Vector3.new(r, 0.5, r), CFrame.new(hubOrigin.X, hubOrigin.Y + 0.2 + (idx * 0.05), hubOrigin.Z), Enum.Material.Neon, if idx % 2 == 1 then Color3.fromRGB(255, 80, 15) else Color3.fromRGB(255, 120, 30), false)
+        local rune = createPart(
+            plazaFolder,
+            "MagmaRune_Ring" .. idx,
+            Vector3.new(r, 0.5, r),
+            CFrame.new(hubOrigin.X, hubOrigin.Y + 0.2 + (idx * 0.05), hubOrigin.Z),
+            Enum.Material.Neon,
+            if idx % 2 == 1 then Color3.fromRGB(255, 80, 15) else Color3.fromRGB(255, 120, 30),
+            false
+        )
         rune.CastShadow = false
     end
 
     -- Central Raised Spawn Dais (70 x 70 studs)
-    local centerDais = createPart(plazaFolder, "CenterDais", Vector3.new(70, 3.5, 70), CFrame.new(hubOrigin.X, hubOrigin.Y + 1.75, hubOrigin.Z), Enum.Material.Slate, Color3.fromRGB(42, 40, 46))
+    local centerDais = createPart(
+        plazaFolder,
+        "CenterDais",
+        Vector3.new(70, 3.5, 70),
+        CFrame.new(hubOrigin.X, hubOrigin.Y + 1.75, hubOrigin.Z),
+        Enum.Material.Slate,
+        Color3.fromRGB(42, 40, 46)
+    )
     centerDais.CastShadow = true
 
     -- Master HubSpawnLocation (Exclusive player spawn)
@@ -1072,7 +1206,15 @@ function HubService.ConstructGrandSanctuary()
     spawnLight.Parent = spawnLoc
 
     -- Central Blazing Magma Flame Core
-    local flameCore = createPart(plazaFolder, "MagmaFlameCore", Vector3.new(6, 18, 6), CFrame.new(hubOrigin.X, hubOrigin.Y + 12, hubOrigin.Z), Enum.Material.Neon, Color3.fromRGB(255, 110, 20), false)
+    local flameCore = createPart(
+        plazaFolder,
+        "MagmaFlameCore",
+        Vector3.new(6, 18, 6),
+        CFrame.new(hubOrigin.X, hubOrigin.Y + 12, hubOrigin.Z),
+        Enum.Material.Neon,
+        Color3.fromRGB(255, 110, 20),
+        false
+    )
     flameCore.CastShadow = false
 
     local flameEmitter = Instance.new("ParticleEmitter")
@@ -1101,9 +1243,24 @@ function HubService.ConstructGrandSanctuary()
         for dist = 60, 160, 40 do
             local bx = hubOrigin.X + math.cos(rad) * dist
             local bz = hubOrigin.Z + math.sin(rad) * dist
-            local brazier = createPart(plazaFolder, "Brazier_" .. angleDeg .. "_" .. dist, Vector3.new(5, 7, 5), CFrame.new(bx, hubOrigin.Y + 3.5, bz), Enum.Material.Basalt, Color3.fromRGB(28, 26, 32))
+            local brazier = createPart(
+                plazaFolder,
+                "Brazier_" .. angleDeg .. "_" .. dist,
+                Vector3.new(5, 7, 5),
+                CFrame.new(bx, hubOrigin.Y + 3.5, bz),
+                Enum.Material.Basalt,
+                Color3.fromRGB(28, 26, 32)
+            )
 
-            local brazierFlame = createPart(brazier, "Flame", Vector3.new(3, 2, 3), CFrame.new(bx, hubOrigin.Y + 7.5, bz), Enum.Material.Neon, Color3.fromRGB(255, 130, 25), false)
+            local brazierFlame = createPart(
+                brazier,
+                "Flame",
+                Vector3.new(3, 2, 3),
+                CFrame.new(bx, hubOrigin.Y + 7.5, bz),
+                Enum.Material.Neon,
+                Color3.fromRGB(255, 130, 25),
+                false
+            )
             brazierFlame.CastShadow = false
 
             local bLight = Instance.new("PointLight")
@@ -1122,27 +1279,95 @@ function HubService.ConstructGrandSanctuary()
     local pavilionModel = Instance.new("Model")
     pavilionModel.Name = "MerchantPavilion"
 
-    local pBase = createPart(pavilionModel, "BasePedestal", Vector3.new(2, 28, 28), CFrame.new(merchantX, merchantY + 1, merchantZ) * CFrame.Angles(0, 0, math.rad(90)), Enum.Material.Slate, Color3.fromRGB(38, 42, 50))
+    local pBase = createPart(
+        pavilionModel,
+        "BasePedestal",
+        Vector3.new(2, 28, 28),
+        CFrame.new(merchantX, merchantY + 1, merchantZ) * CFrame.Angles(0, 0, math.rad(90)),
+        Enum.Material.Slate,
+        Color3.fromRGB(38, 42, 50)
+    )
     pBase.Shape = Enum.PartType.Cylinder
 
-    local pRing = createPart(pavilionModel, "MagmaRing", Vector3.new(0.5, 30, 30), CFrame.new(merchantX, merchantY + 1.2, merchantZ) * CFrame.Angles(0, 0, math.rad(90)), Enum.Material.Neon, Color3.fromRGB(255, 130, 20), false)
+    local pRing = createPart(
+        pavilionModel,
+        "MagmaRing",
+        Vector3.new(0.5, 30, 30),
+        CFrame.new(merchantX, merchantY + 1.2, merchantZ) * CFrame.Angles(0, 0, math.rad(90)),
+        Enum.Material.Neon,
+        Color3.fromRGB(255, 130, 20),
+        false
+    )
     pRing.Shape = Enum.PartType.Cylinder
 
     local pPillarOffsets = { Vector3.new(9, 0, 9), Vector3.new(-9, 0, 9), Vector3.new(9, 0, -9), Vector3.new(-9, 0, -9) }
     for i, off in ipairs(pPillarOffsets) do
-        createPart(pavilionModel, "Pillar_" .. i, Vector3.new(3, 16, 3), CFrame.new(merchantX + off.X, merchantY + 9, merchantZ + off.Z), Enum.Material.Cobblestone, Color3.fromRGB(28, 30, 36))
-        createPart(pavilionModel, "PillarCap_" .. i, Vector3.new(4, 1, 4), CFrame.new(merchantX + off.X, merchantY + 17, merchantZ + off.Z), Enum.Material.Neon, Color3.fromRGB(255, 150, 30), false)
+        createPart(
+            pavilionModel,
+            "Pillar_" .. i,
+            Vector3.new(3, 16, 3),
+            CFrame.new(merchantX + off.X, merchantY + 9, merchantZ + off.Z),
+            Enum.Material.Cobblestone,
+            Color3.fromRGB(28, 30, 36)
+        )
+        createPart(
+            pavilionModel,
+            "PillarCap_" .. i,
+            Vector3.new(4, 1, 4),
+            CFrame.new(merchantX + off.X, merchantY + 17, merchantZ + off.Z),
+            Enum.Material.Neon,
+            Color3.fromRGB(255, 150, 30),
+            false
+        )
     end
 
-    local pRoof = createPart(pavilionModel, "CanopyRoof", Vector3.new(26, 2.5, 26), CFrame.new(merchantX, merchantY + 18, merchantZ), Enum.Material.Granite, Color3.fromRGB(35, 38, 46))
-    local pRoofTrim = createPart(pavilionModel, "RoofTrim", Vector3.new(28, 0.8, 28), CFrame.new(merchantX, merchantY + 19.4, merchantZ), Enum.Material.Neon, Color3.fromRGB(255, 120, 20), false)
+    local pRoof = createPart(
+        pavilionModel,
+        "CanopyRoof",
+        Vector3.new(26, 2.5, 26),
+        CFrame.new(merchantX, merchantY + 18, merchantZ),
+        Enum.Material.Granite,
+        Color3.fromRGB(35, 38, 46)
+    )
+    local pRoofTrim = createPart(
+        pavilionModel,
+        "RoofTrim",
+        Vector3.new(28, 0.8, 28),
+        CFrame.new(merchantX, merchantY + 19.4, merchantZ),
+        Enum.Material.Neon,
+        Color3.fromRGB(255, 120, 20),
+        false
+    )
 
     createLightningConductor(pavilionModel, Vector3.new(merchantX, merchantY + 20, merchantZ), 12)
 
-    local pCounter = createPart(pavilionModel, "TraderCounter", Vector3.new(12, 4.5, 4.5), CFrame.new(merchantX, merchantY + 3.2, merchantZ), Enum.Material.WoodPlanks, Color3.fromRGB(58, 42, 30))
+    local pCounter = createPart(
+        pavilionModel,
+        "TraderCounter",
+        Vector3.new(12, 4.5, 4.5),
+        CFrame.new(merchantX, merchantY + 3.2, merchantZ),
+        Enum.Material.WoodPlanks,
+        Color3.fromRGB(58, 42, 30)
+    )
 
-    local pGold = createPart(pavilionModel, "GoldBarDisplay", Vector3.new(3.5, 1.4, 2), CFrame.new(merchantX - 2.5, merchantY + 6.1, merchantZ), Enum.Material.Metal, Color3.fromRGB(255, 215, 0), false)
-    local pCrystal = createPart(pavilionModel, "CrystalDisplay", Vector3.new(2.2, 2.8, 2.2), CFrame.new(merchantX + 2.8, merchantY + 6.8, merchantZ), Enum.Material.Neon, Color3.fromRGB(0, 220, 255), false)
+    local pGold = createPart(
+        pavilionModel,
+        "GoldBarDisplay",
+        Vector3.new(3.5, 1.4, 2),
+        CFrame.new(merchantX - 2.5, merchantY + 6.1, merchantZ),
+        Enum.Material.Metal,
+        Color3.fromRGB(255, 215, 0),
+        false
+    )
+    local pCrystal = createPart(
+        pavilionModel,
+        "CrystalDisplay",
+        Vector3.new(2.2, 2.8, 2.2),
+        CFrame.new(merchantX + 2.8, merchantY + 6.8, merchantZ),
+        Enum.Material.Neon,
+        Color3.fromRGB(0, 220, 255),
+        false
+    )
 
     local pPrompt = Instance.new("ProximityPrompt")
     pPrompt.Name = "MarketPavilionPrompt"
@@ -1195,9 +1420,31 @@ function HubService.ConstructGrandSanctuary()
     -- Altar of Ascension (Progression Altar)
     local altarModel = Instance.new("Model")
     altarModel.Name = "AltarOfAscension"
-    local altarBase = createPart(altarModel, "AltarBase", Vector3.new(26, 4, 26), CFrame.new(hubOrigin.X, hubOrigin.Y + 2, hubOrigin.Z + 140), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
-    local altarMonolith = createPart(altarModel, "Monolith", Vector3.new(14, 32, 8), CFrame.new(hubOrigin.X, hubOrigin.Y + 18, hubOrigin.Z + 140), Enum.Material.Slate, Color3.fromRGB(38, 35, 42))
-    local runeCore = createPart(altarModel, "RuneCore", Vector3.new(8, 22, 3), CFrame.new(hubOrigin.X, hubOrigin.Y + 19, hubOrigin.Z + 136.5), Enum.Material.Neon, Color3.fromRGB(255, 120, 20), false)
+    local altarBase = createPart(
+        altarModel,
+        "AltarBase",
+        Vector3.new(26, 4, 26),
+        CFrame.new(hubOrigin.X, hubOrigin.Y + 2, hubOrigin.Z + 140),
+        Enum.Material.Basalt,
+        Color3.fromRGB(25, 23, 28)
+    )
+    local altarMonolith = createPart(
+        altarModel,
+        "Monolith",
+        Vector3.new(14, 32, 8),
+        CFrame.new(hubOrigin.X, hubOrigin.Y + 18, hubOrigin.Z + 140),
+        Enum.Material.Slate,
+        Color3.fromRGB(38, 35, 42)
+    )
+    local runeCore = createPart(
+        altarModel,
+        "RuneCore",
+        Vector3.new(8, 22, 3),
+        CFrame.new(hubOrigin.X, hubOrigin.Y + 19, hubOrigin.Z + 136.5),
+        Enum.Material.Neon,
+        Color3.fromRGB(255, 120, 20),
+        false
+    )
     runeCore.CastShadow = false
 
     createLightningConductor(altarModel, Vector3.new(hubOrigin.X, hubOrigin.Y + 34, hubOrigin.Z + 140), 10)
@@ -1224,28 +1471,71 @@ function HubService.ConstructGrandSanctuary()
     local terraceOrigin = hubOrigin + Vector3.new(0, 20, -140)
 
     -- Elevated Terrace Foundation (280 x 140 studs)
-    local terraceFloor = createPart(hallFolder, "TerraceFloor", Vector3.new(280, 8, 140), CFrame.new(terraceOrigin.X, terraceOrigin.Y - 4, terraceOrigin.Z), Enum.Material.Basalt, Color3.fromRGB(28, 26, 30))
+    local terraceFloor = createPart(
+        hallFolder,
+        "TerraceFloor",
+        Vector3.new(280, 8, 140),
+        CFrame.new(terraceOrigin.X, terraceOrigin.Y - 4, terraceOrigin.Z),
+        Enum.Material.Basalt,
+        Color3.fromRGB(28, 26, 30)
+    )
     terraceFloor.CastShadow = true
 
     -- Grand Sweeping Steps (100 studs wide)
     for i = 1, 10 do
         local stepY = hubOrigin.Y + (i * 2)
         local stepZ = hubOrigin.Z - 65 - (i * 6)
-        createPart(hallFolder, "Step_" .. i, Vector3.new(100, 2, 7), CFrame.new(hubOrigin.X, stepY - 1, stepZ), Enum.Material.Slate, Color3.fromRGB(36, 34, 40))
+        createPart(
+            hallFolder,
+            "Step_" .. i,
+            Vector3.new(100, 2, 7),
+            CFrame.new(hubOrigin.X, stepY - 1, stepZ),
+            Enum.Material.Slate,
+            Color3.fromRGB(36, 34, 40)
+        )
     end
 
     -- 8 Monumental Flanking Columns with Tesla Lightning Conductors
     local colOffsets = { -120, -85, -50, -20, 20, 50, 85, 120 }
     for _, xOff in ipairs(colOffsets) do
-        local col = createPart(hallFolder, "Pillar_" .. xOff, Vector3.new(10, 60, 10), CFrame.new(terraceOrigin.X + xOff, terraceOrigin.Y + 30, terraceOrigin.Z - 50), Enum.Material.Basalt, Color3.fromRGB(20, 18, 22))
-        local cap = createPart(hallFolder, "PillarCap_" .. xOff, Vector3.new(14, 4, 14), CFrame.new(terraceOrigin.X + xOff, terraceOrigin.Y + 62, terraceOrigin.Z - 50), Enum.Material.Slate, Color3.fromRGB(36, 33, 40))
+        local col = createPart(
+            hallFolder,
+            "Pillar_" .. xOff,
+            Vector3.new(10, 60, 10),
+            CFrame.new(terraceOrigin.X + xOff, terraceOrigin.Y + 30, terraceOrigin.Z - 50),
+            Enum.Material.Basalt,
+            Color3.fromRGB(20, 18, 22)
+        )
+        local cap = createPart(
+            hallFolder,
+            "PillarCap_" .. xOff,
+            Vector3.new(14, 4, 14),
+            CFrame.new(terraceOrigin.X + xOff, terraceOrigin.Y + 62, terraceOrigin.Z - 50),
+            Enum.Material.Slate,
+            Color3.fromRGB(36, 33, 40)
+        )
         createLightningConductor(hallFolder, Vector3.new(terraceOrigin.X + xOff, terraceOrigin.Y + 64, terraceOrigin.Z - 50), 14)
     end
 
     -- Ravager Pedestal (Left, 34 x 34 studs)
     local pedRavPos = terraceOrigin + Vector3.new(-75, 2, 0)
-    local pedRav = createPart(hallFolder, "Pedestal_Ravager", Vector3.new(34, 4, 34), CFrame.new(pedRavPos), Enum.Material.Basalt, Color3.fromRGB(22, 20, 25))
-    local pedRavGlow = createPart(hallFolder, "PedRav_GlowRing", Vector3.new(36, 0.5, 36), CFrame.new(pedRavPos + Vector3.new(0, -1.7, 0)), Enum.Material.Neon, Color3.fromRGB(255, 95, 15), false)
+    local pedRav = createPart(
+        hallFolder,
+        "Pedestal_Ravager",
+        Vector3.new(34, 4, 34),
+        CFrame.new(pedRavPos),
+        Enum.Material.Basalt,
+        Color3.fromRGB(22, 20, 25)
+    )
+    local pedRavGlow = createPart(
+        hallFolder,
+        "PedRav_GlowRing",
+        Vector3.new(36, 0.5, 36),
+        CFrame.new(pedRavPos + Vector3.new(0, -1.7, 0)),
+        Enum.Material.Neon,
+        Color3.fromRGB(255, 95, 15),
+        false
+    )
     pedRavGlow.CastShadow = false
 
     local promptRav = Instance.new("ProximityPrompt")
@@ -1264,12 +1554,33 @@ function HubService.ConstructGrandSanctuary()
         Reach = "Close Quarters",
     }, { "Claw Swipe Combo", "Ground Stomp", "Primal Roar" }, Color3.fromRGB(255, 110, 20))
 
-    createDisplayStatue(hallFolder, "Ravager", "Ravager", CFrame.new(pedRavPos + Vector3.new(0, 2, 0)) * CFrame.Angles(0, math.rad(180), 0), Color3.fromRGB(255, 100, 20))
+    createDisplayStatue(
+        hallFolder,
+        "Ravager",
+        "Ravager",
+        CFrame.new(pedRavPos + Vector3.new(0, 2, 0)) * CFrame.Angles(0, math.rad(180), 0),
+        Color3.fromRGB(255, 100, 20)
+    )
 
     -- Brontara Pedestal (Right, 38 x 38 studs)
     local pedBronPos = terraceOrigin + Vector3.new(75, 2, 0)
-    local pedBron = createPart(hallFolder, "Pedestal_Brontara", Vector3.new(38, 4, 38), CFrame.new(pedBronPos), Enum.Material.Basalt, Color3.fromRGB(22, 20, 25))
-    local pedBronGlow = createPart(hallFolder, "PedBron_GlowRing", Vector3.new(40, 0.5, 40), CFrame.new(pedBronPos + Vector3.new(0, -1.7, 0)), Enum.Material.Neon, Color3.fromRGB(255, 50, 15), false)
+    local pedBron = createPart(
+        hallFolder,
+        "Pedestal_Brontara",
+        Vector3.new(38, 4, 38),
+        CFrame.new(pedBronPos),
+        Enum.Material.Basalt,
+        Color3.fromRGB(22, 20, 25)
+    )
+    local pedBronGlow = createPart(
+        hallFolder,
+        "PedBron_GlowRing",
+        Vector3.new(40, 0.5, 40),
+        CFrame.new(pedBronPos + Vector3.new(0, -1.7, 0)),
+        Enum.Material.Neon,
+        Color3.fromRGB(255, 50, 15),
+        false
+    )
     pedBronGlow.CastShadow = false
 
     local promptBron = Instance.new("ProximityPrompt")
@@ -1288,7 +1599,13 @@ function HubService.ConstructGrandSanctuary()
         Reach = "Colossal Sweeping Arc",
     }, { "Heavy Tail Sweep", "Seismic Heavy Stomp", "Volcanic Neck Strike", "Magma Roar" }, Color3.fromRGB(255, 55, 20))
 
-    createDisplayStatue(hallFolder, "Brontara", "Brontara", CFrame.new(pedBronPos + Vector3.new(0, 2, 0)) * CFrame.Angles(0, math.rad(180), 0), Color3.fromRGB(255, 55, 20))
+    createDisplayStatue(
+        hallFolder,
+        "Brontara",
+        "Brontara",
+        CFrame.new(pedBronPos + Vector3.new(0, 2, 0)) * CFrame.Angles(0, math.rad(180), 0),
+        Color3.fromRGB(255, 55, 20)
+    )
 
     -- =========================================================================
     -- TIER 3: THE STARGATE PROMONTORY (Y = 560, 260 x 120 studs High Ridge)
@@ -1298,14 +1615,28 @@ function HubService.ConstructGrandSanctuary()
     stargateFolder.Parent = hub
 
     local promontoryOrigin = hubOrigin + Vector3.new(0, 40, 180)
-    local promFloor = createPart(stargateFolder, "PromontoryFloor", Vector3.new(260, 8, 120), CFrame.new(promontoryOrigin.X, promontoryOrigin.Y - 4, promontoryOrigin.Z), Enum.Material.Basalt, Color3.fromRGB(28, 26, 32))
+    local promFloor = createPart(
+        stargateFolder,
+        "PromontoryFloor",
+        Vector3.new(260, 8, 120),
+        CFrame.new(promontoryOrigin.X, promontoryOrigin.Y - 4, promontoryOrigin.Z),
+        Enum.Material.Basalt,
+        Color3.fromRGB(28, 26, 32)
+    )
     promFloor.CastShadow = true
 
     -- Grand Ascending Stairs (70 studs wide)
     for i = 1, 14 do
         local stepY = hubOrigin.Y + (i * 2.85)
         local stepZ = hubOrigin.Z + 75 + (i * 7)
-        createPart(stargateFolder, "PromStep_" .. i, Vector3.new(70, 3, 7.5), CFrame.new(hubOrigin.X, stepY - 1.5, stepZ), Enum.Material.Slate, Color3.fromRGB(36, 34, 40))
+        createPart(
+            stargateFolder,
+            "PromStep_" .. i,
+            Vector3.new(70, 3, 7.5),
+            CFrame.new(hubOrigin.X, stepY - 1.5, stepZ),
+            Enum.Material.Slate,
+            Color3.fromRGB(36, 34, 40)
+        )
     end
 
     -- Portal: SmallTown (42-stud Runic Stargate, Left Arch)
@@ -1313,13 +1644,42 @@ function HubService.ConstructGrandSanctuary()
     local portalSTModel = Instance.new("Model")
     portalSTModel.Name = "Portal_SmallTown"
 
-    local archST_L = createPart(portalSTModel, "ArchPillar_L", Vector3.new(6, 42, 6), CFrame.new(portalSTPos + Vector3.new(-16, 21, 0)), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
-    local archST_R = createPart(portalSTModel, "ArchPillar_R", Vector3.new(6, 42, 6), CFrame.new(portalSTPos + Vector3.new(16, 21, 0)), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
-    local archST_Top = createPart(portalSTModel, "ArchBeam", Vector3.new(38, 8, 8), CFrame.new(portalSTPos + Vector3.new(0, 42, 0)), Enum.Material.Slate, Color3.fromRGB(35, 32, 38))
+    local archST_L = createPart(
+        portalSTModel,
+        "ArchPillar_L",
+        Vector3.new(6, 42, 6),
+        CFrame.new(portalSTPos + Vector3.new(-16, 21, 0)),
+        Enum.Material.Basalt,
+        Color3.fromRGB(25, 23, 28)
+    )
+    local archST_R = createPart(
+        portalSTModel,
+        "ArchPillar_R",
+        Vector3.new(6, 42, 6),
+        CFrame.new(portalSTPos + Vector3.new(16, 21, 0)),
+        Enum.Material.Basalt,
+        Color3.fromRGB(25, 23, 28)
+    )
+    local archST_Top = createPart(
+        portalSTModel,
+        "ArchBeam",
+        Vector3.new(38, 8, 8),
+        CFrame.new(portalSTPos + Vector3.new(0, 42, 0)),
+        Enum.Material.Slate,
+        Color3.fromRGB(35, 32, 38)
+    )
 
     createLightningConductor(portalSTModel, Vector3.new(portalSTPos.X, promontoryOrigin.Y + 46, portalSTPos.Z), 14)
 
-    local fieldST = createPart(portalSTModel, "PortalField", Vector3.new(26, 34, 2.5), CFrame.new(portalSTPos + Vector3.new(0, 18, 0)), Enum.Material.Neon, Color3.fromRGB(0, 215, 255), false)
+    local fieldST = createPart(
+        portalSTModel,
+        "PortalField",
+        Vector3.new(26, 34, 2.5),
+        CFrame.new(portalSTPos + Vector3.new(0, 18, 0)),
+        Enum.Material.Neon,
+        Color3.fromRGB(0, 215, 255),
+        false
+    )
     fieldST.Transparency = 0.3
     fieldST.CastShadow = false
 
@@ -1346,13 +1706,42 @@ function HubService.ConstructGrandSanctuary()
     local portalMVModel = Instance.new("Model")
     portalMVModel.Name = "Portal_Metrovale"
 
-    local archMV_L = createPart(portalMVModel, "ArchPillar_L", Vector3.new(6, 42, 6), CFrame.new(portalMVPos + Vector3.new(-16, 21, 0)), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
-    local archMV_R = createPart(portalMVModel, "ArchPillar_R", Vector3.new(6, 42, 6), CFrame.new(portalMVPos + Vector3.new(16, 21, 0)), Enum.Material.Basalt, Color3.fromRGB(25, 23, 28))
-    local archMV_Top = createPart(portalMVModel, "ArchBeam", Vector3.new(38, 8, 8), CFrame.new(portalMVPos + Vector3.new(0, 42, 0)), Enum.Material.Slate, Color3.fromRGB(35, 32, 38))
+    local archMV_L = createPart(
+        portalMVModel,
+        "ArchPillar_L",
+        Vector3.new(6, 42, 6),
+        CFrame.new(portalMVPos + Vector3.new(-16, 21, 0)),
+        Enum.Material.Basalt,
+        Color3.fromRGB(25, 23, 28)
+    )
+    local archMV_R = createPart(
+        portalMVModel,
+        "ArchPillar_R",
+        Vector3.new(6, 42, 6),
+        CFrame.new(portalMVPos + Vector3.new(16, 21, 0)),
+        Enum.Material.Basalt,
+        Color3.fromRGB(25, 23, 28)
+    )
+    local archMV_Top = createPart(
+        portalMVModel,
+        "ArchBeam",
+        Vector3.new(38, 8, 8),
+        CFrame.new(portalMVPos + Vector3.new(0, 42, 0)),
+        Enum.Material.Slate,
+        Color3.fromRGB(35, 32, 38)
+    )
 
     createLightningConductor(portalMVModel, Vector3.new(portalMVPos.X, promontoryOrigin.Y + 46, portalMVPos.Z), 14)
 
-    local fieldMV = createPart(portalMVModel, "PortalField", Vector3.new(26, 34, 2.5), CFrame.new(portalMVPos + Vector3.new(0, 18, 0)), Enum.Material.Neon, Color3.fromRGB(190, 60, 255), false)
+    local fieldMV = createPart(
+        portalMVModel,
+        "PortalField",
+        Vector3.new(26, 34, 2.5),
+        CFrame.new(portalMVPos + Vector3.new(0, 18, 0)),
+        Enum.Material.Neon,
+        Color3.fromRGB(190, 60, 255),
+        false
+    )
     fieldMV.Transparency = 0.3
     fieldMV.CastShadow = false
 
@@ -1384,22 +1773,64 @@ function HubService.ConstructGrandSanctuary()
     local arenaOrigin = hubOrigin + Vector3.new(0, -40, -420)
 
     -- Sunken Arena Floor (360 x 360 studs)
-    local arenaFloor = createPart(arenaFolder, "ColosseumFloor", Vector3.new(360, 10, 360), CFrame.new(arenaOrigin.X, arenaOrigin.Y - 5, arenaOrigin.Z), Enum.Material.Basalt, Color3.fromRGB(30, 28, 34))
+    local arenaFloor = createPart(
+        arenaFolder,
+        "ColosseumFloor",
+        Vector3.new(360, 10, 360),
+        CFrame.new(arenaOrigin.X, arenaOrigin.Y - 5, arenaOrigin.Z),
+        Enum.Material.Basalt,
+        Color3.fromRGB(30, 28, 34)
+    )
     arenaFloor.CastShadow = true
 
     -- Perimeter Colosseum Amphitheater Walls (45 studs tall)
     local wallThickness = 12
     local wallHeight = 45
-    createPart(arenaFolder, "Wall_North", Vector3.new(360, wallHeight, wallThickness), CFrame.new(arenaOrigin.X, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z - 180), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
-    createPart(arenaFolder, "Wall_South", Vector3.new(360, wallHeight, wallThickness), CFrame.new(arenaOrigin.X, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z + 180), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
-    createPart(arenaFolder, "Wall_West", Vector3.new(wallThickness, wallHeight, 360), CFrame.new(arenaOrigin.X - 180, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
-    createPart(arenaFolder, "Wall_East", Vector3.new(wallThickness, wallHeight, 360), CFrame.new(arenaOrigin.X + 180, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z), Enum.Material.Slate, Color3.fromRGB(40, 38, 44))
+    createPart(
+        arenaFolder,
+        "Wall_North",
+        Vector3.new(360, wallHeight, wallThickness),
+        CFrame.new(arenaOrigin.X, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z - 180),
+        Enum.Material.Slate,
+        Color3.fromRGB(40, 38, 44)
+    )
+    createPart(
+        arenaFolder,
+        "Wall_South",
+        Vector3.new(360, wallHeight, wallThickness),
+        CFrame.new(arenaOrigin.X, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z + 180),
+        Enum.Material.Slate,
+        Color3.fromRGB(40, 38, 44)
+    )
+    createPart(
+        arenaFolder,
+        "Wall_West",
+        Vector3.new(wallThickness, wallHeight, 360),
+        CFrame.new(arenaOrigin.X - 180, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z),
+        Enum.Material.Slate,
+        Color3.fromRGB(40, 38, 44)
+    )
+    createPart(
+        arenaFolder,
+        "Wall_East",
+        Vector3.new(wallThickness, wallHeight, 360),
+        CFrame.new(arenaOrigin.X + 180, arenaOrigin.Y + (wallHeight / 2), arenaOrigin.Z),
+        Enum.Material.Slate,
+        Color3.fromRGB(40, 38, 44)
+    )
 
     -- Grand Descending Bridge from Plaza to Colosseum (46 studs wide, 170 studs long)
     local bridgeLength = 170
     local bridgeAngle = math.rad(-14)
     local bridgeCFrame = CFrame.new(hubOrigin.X, hubOrigin.Y - 20, hubOrigin.Z - 215) * CFrame.Angles(bridgeAngle, 0, 0)
-    local bridge = createPart(arenaFolder, "ColosseumBridge", Vector3.new(46, 5, bridgeLength), bridgeCFrame, Enum.Material.Slate, Color3.fromRGB(38, 36, 42))
+    local bridge = createPart(
+        arenaFolder,
+        "ColosseumBridge",
+        Vector3.new(46, 5, bridgeLength),
+        bridgeCFrame,
+        Enum.Material.Slate,
+        Color3.fromRGB(38, 36, 42)
+    )
 
     -- Bastion Titan DPS Dummy (Centered in Colosseum)
     createBastionDPSDummy(arenaFolder, CFrame.new(arenaOrigin.X, arenaOrigin.Y, arenaOrigin.Z))
@@ -1414,7 +1845,14 @@ function HubService.ConstructGrandSanctuary()
     }
 
     for _, pInfo in ipairs(pillarPositions) do
-        local pil = createPart(arenaFolder, pInfo.Name, Vector3.new(10, 38, 10), CFrame.new(pInfo.Pos + Vector3.new(0, 19, 0)), Enum.Material.Basalt, Color3.fromRGB(35, 32, 38))
+        local pil = createPart(
+            arenaFolder,
+            pInfo.Name,
+            Vector3.new(10, 38, 10),
+            CFrame.new(pInfo.Pos + Vector3.new(0, 19, 0)),
+            Enum.Material.Basalt,
+            Color3.fromRGB(35, 32, 38)
+        )
         pil:SetAttribute("BuildingId", pInfo.Name)
         pil:SetAttribute("BuildingName", "Practice Monolith")
         pil:SetAttribute("BuildingType", "TrainingPillar")
@@ -1426,7 +1864,15 @@ function HubService.ConstructGrandSanctuary()
         pil:SetAttribute("IsTrainingDummy", true)
         pil:SetAttribute("IsDestroyed", false)
 
-        local core = createPart(pil, pInfo.Name .. "_Core", Vector3.new(5, 32, 5), CFrame.new(pInfo.Pos + Vector3.new(0, 19, 0)), Enum.Material.Neon, Color3.fromRGB(255, 95, 15), false)
+        local core = createPart(
+            pil,
+            pInfo.Name .. "_Core",
+            Vector3.new(5, 32, 5),
+            CFrame.new(pInfo.Pos + Vector3.new(0, 19, 0)),
+            Enum.Material.Neon,
+            Color3.fromRGB(255, 95, 15),
+            false
+        )
         core.CastShadow = false
 
         createLightningConductor(pil, pInfo.Pos + Vector3.new(0, 38, 0), 10)
@@ -1443,16 +1889,40 @@ function HubService.ConstructGrandSanctuary()
     launchFolder.Parent = hub
 
     -- 1. Plaza -> Colosseum Jump Pad (Launches South down into Arena)
-    createLaunchPad(launchFolder, "Pad_PlazaToColosseum", CFrame.new(hubOrigin.X, hubOrigin.Y + 0.8, hubOrigin.Z - 170), Vector3.new(0, 140, -280), "TO PROVING GROUNDS")
+    createLaunchPad(
+        launchFolder,
+        "Pad_PlazaToColosseum",
+        CFrame.new(hubOrigin.X, hubOrigin.Y + 0.8, hubOrigin.Z - 170),
+        Vector3.new(0, 140, -280),
+        "TO PROVING GROUNDS"
+    )
 
     -- 2. Colosseum -> Plaza Jump Pad (Launches North back up to Plaza)
-    createLaunchPad(launchFolder, "Pad_ColosseumToPlaza", CFrame.new(arenaOrigin.X, arenaOrigin.Y + 0.8, arenaOrigin.Z + 155), Vector3.new(0, 180, 280), "RETURN TO PLAZA")
+    createLaunchPad(
+        launchFolder,
+        "Pad_ColosseumToPlaza",
+        CFrame.new(arenaOrigin.X, arenaOrigin.Y + 0.8, arenaOrigin.Z + 155),
+        Vector3.new(0, 180, 280),
+        "RETURN TO PLAZA"
+    )
 
     -- 3. Plaza -> Stargate Spire Jump Pad (Launches South up to Promontory)
-    createLaunchPad(launchFolder, "Pad_PlazaToStargates", CFrame.new(hubOrigin.X, hubOrigin.Y + 0.8, hubOrigin.Z + 95), Vector3.new(0, 145, 200), "TO STARGATES")
+    createLaunchPad(
+        launchFolder,
+        "Pad_PlazaToStargates",
+        CFrame.new(hubOrigin.X, hubOrigin.Y + 0.8, hubOrigin.Z + 95),
+        Vector3.new(0, 145, 200),
+        "TO STARGATES"
+    )
 
     -- 4. Plaza -> Hall of Titans Jump Pad (Launches North up to Showcase)
-    createLaunchPad(launchFolder, "Pad_PlazaToTitans", CFrame.new(hubOrigin.X, hubOrigin.Y + 0.8, hubOrigin.Z - 60), Vector3.new(0, 120, -160), "TO HALL OF TITANS")
+    createLaunchPad(
+        launchFolder,
+        "Pad_PlazaToTitans",
+        CFrame.new(hubOrigin.X, hubOrigin.Y + 0.8, hubOrigin.Z - 60),
+        Vector3.new(0, 120, -160),
+        "TO HALL OF TITANS"
+    )
 
     -- =========================================================================
     -- VOLCANIC CALDERA MONOLITHS & SKYBEAMS (460 studs radius)
@@ -1469,7 +1939,16 @@ function HubService.ConstructGrandSanctuary()
         local spireZ = hubOrigin.Z + math.sin(angle) * radius
         local spireHeight = 180 + ((i % 5) * 35)
 
-        local spire = createPart(vistaFolder, "Spire_" .. i, Vector3.new(24, spireHeight, 24), CFrame.new(spireX, hubOrigin.Y + (spireHeight / 2) - 60, spireZ) * CFrame.Angles(math.rad((i % 3) * 3), 0, math.rad((i % 2) * -4)), Enum.Material.Basalt, Color3.fromRGB(20, 18, 22), false)
+        local spire = createPart(
+            vistaFolder,
+            "Spire_" .. i,
+            Vector3.new(24, spireHeight, 24),
+            CFrame.new(spireX, hubOrigin.Y + (spireHeight / 2) - 60, spireZ)
+                * CFrame.Angles(math.rad((i % 3) * 3), 0, math.rad((i % 2) * -4)),
+            Enum.Material.Basalt,
+            Color3.fromRGB(20, 18, 22),
+            false
+        )
         spire.CastShadow = false
 
         -- Conductor tip on spire summit
@@ -1487,7 +1966,15 @@ function HubService.ConstructGrandSanctuary()
 
     for idx, bOff in ipairs(beamOffsets) do
         local beamPos = hubOrigin + bOff
-        local beam = createPart(vistaFolder, "SkyBeam_" .. idx, Vector3.new(5, 1600, 5), CFrame.new(beamPos.X, hubOrigin.Y + 800, beamPos.Z), Enum.Material.Neon, if idx % 2 == 0 then Color3.fromRGB(255, 110, 20) else Color3.fromRGB(0, 220, 255), false)
+        local beam = createPart(
+            vistaFolder,
+            "SkyBeam_" .. idx,
+            Vector3.new(5, 1600, 5),
+            CFrame.new(beamPos.X, hubOrigin.Y + 800, beamPos.Z),
+            Enum.Material.Neon,
+            if idx % 2 == 0 then Color3.fromRGB(255, 110, 20) else Color3.fromRGB(0, 220, 255),
+            false
+        )
         beam.Transparency = 0.45
         beam.CastShadow = false
 
@@ -1507,7 +1994,12 @@ function HubService.ConstructGrandSanctuary()
     end
 
     hub.Parent = Workspace
-    print(string.format("[HubService] ✅ Grand Kaiju Megastructure successfully built with %d descendants across 850+ studs!", #hub:GetDescendants()))
+    print(
+        string.format(
+            "[HubService] ✅ Grand Kaiju Megastructure successfully built with %d descendants across 850+ studs!",
+            #hub:GetDescendants()
+        )
+    )
 
     return hub
 end
@@ -1522,22 +2014,23 @@ function HubService.Init()
 
     -- Clean up rogue default spawn at origin if any
     local defaultSpawn = Workspace:FindFirstChild("SpawnLocation")
-    if defaultSpawn and defaultSpawn.Parent == Workspace then
-        defaultSpawn:Destroy()
-    end
+    if defaultSpawn and defaultSpawn.Parent == Workspace then defaultSpawn:Destroy() end
 
     local existing = Workspace:FindFirstChild("KaijuHub")
     local forceRegen = Workspace:GetAttribute("ForceRegenerateHub") == true
 
     if existing and not forceRegen then
-        print(string.format("[HubService] 🏰 Preserving existing KaijuHub in Workspace (%d descendants). Manual Studio edits are preserved!", #existing:GetDescendants()))
+        print(
+            string.format(
+                "[HubService] 🏰 Preserving existing KaijuHub in Workspace (%d descendants). Manual Studio edits are preserved!",
+                #existing:GetDescendants()
+            )
+        )
 
         -- Register lightning strike targets from existing structure
         table.clear(lightningStrikeTargets)
         for _, desc in ipairs(existing:GetDescendants()) do
-            if desc:IsA("BasePart") and desc.Name == "ConductorTip" then
-                table.insert(lightningStrikeTargets, desc.Position)
-            end
+            if desc:IsA("BasePart") and desc.Name == "ConductorTip" then table.insert(lightningStrikeTargets, desc.Position) end
         end
         print(string.format("[HubService] ⚡ Registered %d lightning conductor strike targets.", #lightningStrikeTargets))
 
@@ -1545,9 +2038,7 @@ function HubService.Init()
         local launchPadsFolder = existing:FindFirstChild("LaunchPads")
         if launchPadsFolder then
             for _, pad in ipairs(launchPadsFolder:GetChildren()) do
-                if pad:IsA("Model") then
-                    bindLaunchPad(pad)
-                end
+                if pad:IsA("Model") then bindLaunchPad(pad) end
             end
         end
 
@@ -1572,9 +2063,7 @@ function HubService.RecordDummyDamage(building: Model, actualDamage: number, new
         local now = os.clock()
         dummyCombatState.TotalDamage += actualDamage
         dummyCombatState.ComboStreak += 1
-        if actualDamage > dummyCombatState.HighestHit then
-            dummyCombatState.HighestHit = actualDamage
-        end
+        if actualDamage > dummyCombatState.HighestHit then dummyCombatState.HighestHit = actualDamage end
         dummyCombatState.LastHitTime = now
 
         table.insert(dummyCombatState.DamageWindow, { Time = now, Damage = actualDamage })
@@ -1598,14 +2087,10 @@ function HubService.RecordDummyDamage(building: Model, actualDamage: number, new
 
         if frame then
             local dpsLbl = frame:FindFirstChild("DPSLabel") :: TextLabel?
-            if dpsLbl then
-                dpsLbl.Text = string.format("%s DPS", tostring(rollingDPS))
-            end
+            if dpsLbl then dpsLbl.Text = string.format("%s DPS", tostring(rollingDPS)) end
 
             local streakLbl = frame:FindFirstChild("StreakLabel") :: TextLabel?
-            if streakLbl then
-                streakLbl.Text = string.format("%d HITS  •  %.1fx COMBO", dummyCombatState.ComboStreak, combo)
-            end
+            if streakLbl then streakLbl.Text = string.format("%d HITS  •  %.1fx COMBO", dummyCombatState.ComboStreak, combo) end
 
             local dmgLbl = frame:FindFirstChild("TotalDamageLabel") :: TextLabel?
             if dmgLbl then
@@ -1636,9 +2121,7 @@ function HubService.StartLightningStorm()
             if hub and #lightningStrikeTargets > 0 then
                 local targetIdx = math.random(1, #lightningStrikeTargets)
                 local targetPos = lightningStrikeTargets[targetIdx]
-                if targetPos then
-                    spawnLightningStrike(targetPos)
-                end
+                if targetPos then spawnLightningStrike(targetPos) end
             end
         end
     end)

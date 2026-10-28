@@ -440,9 +440,7 @@ function TitanRegistry.GetAbilityForSlot(titanId: string, slot: AbilitySlot): Ab
     local def = Registry[titanId]
     if not def then return nil end
     for _, ability in pairs(def.Abilities) do
-        if ability.Slot == slot then
-            return ability
-        end
+        if ability.Slot == slot then return ability end
     end
     return nil
 end
@@ -466,9 +464,7 @@ function TitanRegistry.CalculateAbilityCooldown(titanId: string, abilityName: st
     local ab = def.Abilities[abilityName]
     if not ab then return 1.0 end
 
-    if not upgradeValue then
-        return ab.Cooldown
-    end
+    if not upgradeValue then return ab.Cooldown end
 
     if titanId == "Ravager" then
         -- For Ravager, upgradeValue directly represents the target cooldown
@@ -477,9 +473,7 @@ function TitanRegistry.CalculateAbilityCooldown(titanId: string, abilityName: st
 
     -- Generic formula for future Titans: scale base cooldown by ratio
     local mapping = def.UpgradeMappings and ab.CooldownUpgradeCategory and def.UpgradeMappings[ab.CooldownUpgradeCategory]
-    if mapping and mapping.BaseValue > 0 then
-        return ab.Cooldown * (upgradeValue / mapping.BaseValue)
-    end
+    if mapping and mapping.BaseValue > 0 then return ab.Cooldown * (upgradeValue / mapping.BaseValue) end
 
     return ab.Cooldown
 end
@@ -494,9 +488,7 @@ function TitanRegistry.CalculateAbilityDamage(titanId: string, abilityName: stri
     local ab = def.Abilities[abilityName]
     if not ab then return 100 end
 
-    if not upgradeValue then
-        return ab.Damage or 100
-    end
+    if not upgradeValue then return ab.Damage or 100 end
 
     if titanId == "Ravager" then
         -- For Ravager, upgradeValue directly represents the base damage before tier multipliers
@@ -506,9 +498,7 @@ function TitanRegistry.CalculateAbilityDamage(titanId: string, abilityName: stri
     -- Generic formula for future Titans: scale base damage by upgrade ratio
     local baseDmg = ab.Damage or 100
     local mapping = def.UpgradeMappings and ab.DamageUpgradeCategory and def.UpgradeMappings[ab.DamageUpgradeCategory]
-    if mapping and mapping.BaseValue > 0 then
-        return math.floor(baseDmg * (upgradeValue / mapping.BaseValue))
-    end
+    if mapping and mapping.BaseValue > 0 then return math.floor(baseDmg * (upgradeValue / mapping.BaseValue)) end
 
     return baseDmg
 end
@@ -523,19 +513,13 @@ function TitanRegistry.CalculateAbilityRadius(titanId: string, abilityName: stri
     local ab = def.Abilities[abilityName]
     if not ab then return 30 end
 
-    if not upgradeValue then
-        return ab.Radius or 30
-    end
+    if not upgradeValue then return ab.Radius or 30 end
 
-    if titanId == "Ravager" then
-        return upgradeValue
-    end
+    if titanId == "Ravager" then return upgradeValue end
 
     local baseRad = ab.Radius or 30
     local mapping = def.UpgradeMappings and ab.RadiusUpgradeCategory and def.UpgradeMappings[ab.RadiusUpgradeCategory]
-    if mapping and mapping.BaseValue > 0 then
-        return math.floor(baseRad * (upgradeValue / mapping.BaseValue))
-    end
+    if mapping and mapping.BaseValue > 0 then return math.floor(baseRad * (upgradeValue / mapping.BaseValue)) end
 
     return baseRad
 end
@@ -548,9 +532,7 @@ function TitanRegistry.CalculateWalkSpeed(titanId: string, upgradeSpeed: number?
     local def = Registry[titanId]
     local baseSpeed = if def then def.WalkSpeed else 24
 
-    if not upgradeSpeed then
-        return baseSpeed
-    end
+    if not upgradeSpeed then return baseSpeed end
 
     if titanId == "Ravager" then
         local bonus = math.max(0, upgradeSpeed - 24)
@@ -567,22 +549,14 @@ end
 ]=]
 function TitanRegistry.IsUnlocked(titanId: string, level: number, clears: number): (boolean, string?)
     local def = Registry[titanId]
-    if not def then
-        return false, "Titan does not exist"
-    end
+    if not def then return false, "Titan does not exist" end
 
     local req = def.UnlockRequirement
-    if not req then
-        return true, nil
-    end
+    if not req then return true, nil end
 
-    if level < req.Level then
-        return false, string.format("Requires Level %d (Current: %d)", req.Level, level)
-    end
+    if level < req.Level then return false, string.format("Requires Level %d (Current: %d)", req.Level, level) end
 
-    if clears < req.Clears then
-        return false, string.format("Requires %d City Clears (Current: %d)", req.Clears, clears)
-    end
+    if clears < req.Clears then return false, string.format("Requires %d City Clears (Current: %d)", req.Clears, clears) end
 
     return true, nil
 end

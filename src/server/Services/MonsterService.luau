@@ -84,13 +84,9 @@ function MonsterService.Init()
         if objText == "Ravager" or objText == "Brontara" then
             MonsterService.SelectTitan(player, objText)
         elseif objText == "SmallTown" or objText == "Metrovale" then
-            if CityService then
-                CityService.LoadCity(objText, player)
-            end
+            if CityService then CityService.LoadCity(objText, player) end
         elseif objText == "KaijuHub" then
-            if CityService then
-                CityService.ReturnToHub(player)
-            end
+            if CityService then CityService.ReturnToHub(player) end
         elseif objText == "Altar of Ascension" then
             local ProgressionUpdateRemote = RemotesFolder:FindFirstChild("ProgressionUpdate") :: RemoteEvent?
             if ProgressionUpdateRemote then
@@ -170,9 +166,7 @@ end
     Enforces registered Titan, model availability, and authoritative unlock status.
 ]=]
 function MonsterService.SelectTitan(player: Player, titanId: string)
-    if type(titanId) ~= "string" then
-        return
-    end
+    if type(titanId) ~= "string" then return end
 
     local titanDef = TitanRegistry.Get(titanId)
     if not titanDef then
@@ -276,16 +270,12 @@ function MonsterService.SpawnPlayerTitan(player: Player, titanId: string)
     newChar.Name = player.Name
     newChar:SetAttribute("TitanId", titanId)
 
-    if spawnCFrame then
-        newChar:PivotTo(spawnCFrame)
-    end
+    if spawnCFrame then newChar:PivotTo(spawnCFrame) end
 
     newChar.Parent = Workspace
     player.Character = newChar
 
-    if oldChar and oldChar ~= newChar then
-        oldChar:Destroy()
-    end
+    if oldChar and oldChar ~= newChar then oldChar:Destroy() end
 
     activeTitans[player.UserId] = titanId
     playerAttackVariantIndex[player.UserId] = 0
@@ -311,7 +301,14 @@ function MonsterService.OnUpgradePurchased(player: Player, upgradeId: string, ne
                 local titanId = activeTitans[player.UserId] or "Ravager"
                 local finalSpeed = TitanRegistry.CalculateWalkSpeed(titanId, newValue)
                 humanoid.WalkSpeed = finalSpeed
-                print(string.format("[MonsterService] Dynamically updated %s WalkSpeed to %d (Upgrade Level %d)", player.Name, humanoid.WalkSpeed, newLevel))
+                print(
+                    string.format(
+                        "[MonsterService] Dynamically updated %s WalkSpeed to %d (Upgrade Level %d)",
+                        player.Name,
+                        humanoid.WalkSpeed,
+                        newLevel
+                    )
+                )
             end
         end
     end
@@ -322,7 +319,10 @@ end
     Resolves base values and upgrade formulas authoritatively via TitanRegistry.
 ]=]
 function MonsterService.SetupTitanCharacter(player: Player, character: Model)
-    local titanId = character:GetAttribute("TitanId") or activeTitans[player.UserId] or PlayerDataService.GetSelectedTitan(player) or "Ravager"
+    local titanId = character:GetAttribute("TitanId")
+        or activeTitans[player.UserId]
+        or PlayerDataService.GetSelectedTitan(player)
+        or "Ravager"
     activeTitans[player.UserId] = titanId
     character:SetAttribute("TitanId", titanId)
 
@@ -352,8 +352,16 @@ function MonsterService.SetupTitanCharacter(player: Player, character: Model)
     player.CameraMaxZoomDistance = titanDef.CameraZoom.Max
     humanoid.CameraOffset = titanDef.CameraZoom.CameraOffset
 
-    print(string.format("[MonsterService] Configured %s as Titan: %s (HP: %d, WalkSpeed: %d, HipHeight: %.2f)",
-        player.Name, titanDef.DisplayName, titanDef.BaseHealth, finalSpeed, titanDef.HipHeight))
+    print(
+        string.format(
+            "[MonsterService] Configured %s as Titan: %s (HP: %d, WalkSpeed: %d, HipHeight: %.2f)",
+            player.Name,
+            titanDef.DisplayName,
+            titanDef.BaseHealth,
+            finalSpeed,
+            titanDef.HipHeight
+        )
+    )
 end
 
 --[=[
@@ -406,11 +414,27 @@ function MonsterService.ExecuteBasicAttack(player: Player, character: Model, hrp
 
             local success, damageApplied = DestructionService.DamageBuilding(targetBuilding, calculatedDamage, player, "BasicAttack")
             if success then
-                print(string.format("[MonsterService] [Basic Attack - %s] %s (%s) struck '%s' for %d damage! (Remaining HP: %s)",
-                    currentVariant, player.Name, titanDef.DisplayName, targetBuilding.Name, damageApplied, tostring(targetBuilding:GetAttribute("CurrentHealth"))))
+                print(
+                    string.format(
+                        "[MonsterService] [Basic Attack - %s] %s (%s) struck '%s' for %d damage! (Remaining HP: %s)",
+                        currentVariant,
+                        player.Name,
+                        titanDef.DisplayName,
+                        targetBuilding.Name,
+                        damageApplied,
+                        tostring(targetBuilding:GetAttribute("CurrentHealth"))
+                    )
+                )
             end
         else
-            print(string.format("[MonsterService] [Basic Attack - %s] %s (%s) attacked air. No buildings in melee arc.", currentVariant, player.Name, titanDef.DisplayName))
+            print(
+                string.format(
+                    "[MonsterService] [Basic Attack - %s] %s (%s) attacked air. No buildings in melee arc.",
+                    currentVariant,
+                    player.Name,
+                    titanDef.DisplayName
+                )
+            )
         end
     end
 end
@@ -424,8 +448,15 @@ function MonsterService.ExecuteStomp(player: Player, character: Model, hrp: Base
     local radius = TitanRegistry.CalculateAbilityRadius(titanDef.Id, "Stomp", upgradeRadius)
     local groundPos = hrp.Position - Vector3.new(0, hrp.Size.Y * 0.5, 0)
 
-    print(string.format("[MonsterService] [Stomp Wind-up] %s (%s) preparing Stomp (%.2fs windup, %d radius)...",
-        player.Name, titanDef.DisplayName, windUp, radius))
+    print(
+        string.format(
+            "[MonsterService] [Stomp Wind-up] %s (%s) preparing Stomp (%.2fs windup, %d radius)...",
+            player.Name,
+            titanDef.DisplayName,
+            windUp,
+            radius
+        )
+    )
 
     -- Broadcast windup visual anticipation event
     TitanEffectRemote:FireAllClients("StompWindup", character, {
@@ -473,14 +504,29 @@ function MonsterService.ExecuteStomp(player: Player, character: Model, hrp: Base
                     local success, applied = DestructionService.DamageBuilding(bld, calculatedDamage, player, "Stomp")
                     if success then
                         buildingsDamaged += 1
-                        print(string.format("[MonsterService] [Stomp AoE] Hit '%s' (Tier %d) for %d damage (dist: %.1f studs, falloff: %.2f)",
-                            bld.Name, tier, applied, dist, multiplier))
+                        print(
+                            string.format(
+                                "[MonsterService] [Stomp AoE] Hit '%s' (Tier %d) for %d damage (dist: %.1f studs, falloff: %.2f)",
+                                bld.Name,
+                                tier,
+                                applied,
+                                dist,
+                                multiplier
+                            )
+                        )
                     end
                 end
             end
 
-            print(string.format("[MonsterService] [Stomp IMPACT] %s (%s) ground slam finished. Buildings affected: %d (Radius: %d studs)",
-                player.Name, titanDef.DisplayName, buildingsDamaged, radius))
+            print(
+                string.format(
+                    "[MonsterService] [Stomp IMPACT] %s (%s) ground slam finished. Buildings affected: %d (Radius: %d studs)",
+                    player.Name,
+                    titanDef.DisplayName,
+                    buildingsDamaged,
+                    radius
+                )
+            )
         end
     end)
 end
@@ -529,8 +575,15 @@ function MonsterService.ExecuteTailSweep(player: Player, character: Model, hrp: 
             end
         end
 
-        print(string.format("[MonsterService] [TailSweep] %s (%s) swept! Hit %d buildings for %d base dmg",
-            player.Name, titanDef.DisplayName, hitCount, scaledDmg))
+        print(
+            string.format(
+                "[MonsterService] [TailSweep] %s (%s) swept! Hit %d buildings for %d base dmg",
+                player.Name,
+                titanDef.DisplayName,
+                hitCount,
+                scaledDmg
+            )
+        )
     end
 end
 
@@ -544,8 +597,15 @@ function MonsterService.ExecuteHeavyStomp(player: Player, character: Model, hrp:
     local radius = TitanRegistry.CalculateAbilityRadius(titanDef.Id, "HeavyStomp", upgradeRadius)
     local groundPos = hrp.Position - Vector3.new(0, hrp.Size.Y * 0.5, 0)
 
-    print(string.format("[MonsterService] [Heavy Stomp Wind-up] %s (%s) rearing up (%.2fs windup, %d radius)...",
-        player.Name, titanDef.DisplayName, windUp, radius))
+    print(
+        string.format(
+            "[MonsterService] [Heavy Stomp Wind-up] %s (%s) rearing up (%.2fs windup, %d radius)...",
+            player.Name,
+            titanDef.DisplayName,
+            windUp,
+            radius
+        )
+    )
 
     TitanEffectRemote:FireAllClients("HeavyStompWindup", character, {
         Position = groundPos,
@@ -586,12 +646,21 @@ function MonsterService.ExecuteHeavyStomp(player: Player, character: Model, hrp:
                     local calculatedDamage = math.floor(maxStomp * multiplier)
 
                     local success = DestructionService.DamageBuilding(bld, calculatedDamage, player, "HeavyStomp")
-                    if success then count += 1 end
+                    if success then
+                        count += 1
+                    end
                 end
             end
 
-            print(string.format("[MonsterService] [Heavy Stomp IMPACT] %s (%s) seismic shock hit %d buildings (Radius: %d studs)!",
-                player.Name, titanDef.DisplayName, count, radius))
+            print(
+                string.format(
+                    "[MonsterService] [Heavy Stomp IMPACT] %s (%s) seismic shock hit %d buildings (Radius: %d studs)!",
+                    player.Name,
+                    titanDef.DisplayName,
+                    count,
+                    radius
+                )
+            )
         end
     end)
 end
@@ -641,12 +710,25 @@ function MonsterService.ExecuteNeckStrike(player: Player, character: Model, hrp:
 
             local success, damageApplied = DestructionService.DamageBuilding(targetBuilding, calculatedDamage, player, "NeckStrike")
             if success then
-                print(string.format("[MonsterService] [NeckStrike] %s (%s) plunged downward into '%s' (Tier %d) for %d damage!",
-                    player.Name, titanDef.DisplayName, targetBuilding.Name, tier, damageApplied))
+                print(
+                    string.format(
+                        "[MonsterService] [NeckStrike] %s (%s) plunged downward into '%s' (Tier %d) for %d damage!",
+                        player.Name,
+                        titanDef.DisplayName,
+                        targetBuilding.Name,
+                        tier,
+                        damageApplied
+                    )
+                )
             end
         else
-            print(string.format("[MonsterService] [NeckStrike] %s (%s) attacked air. No building in forward strike reach.",
-                player.Name, titanDef.DisplayName))
+            print(
+                string.format(
+                    "[MonsterService] [NeckStrike] %s (%s) attacked air. No building in forward strike reach.",
+                    player.Name,
+                    titanDef.DisplayName
+                )
+            )
         end
     end
 end
@@ -661,8 +743,14 @@ function MonsterService.ExecuteRoar(player: Player, character: Model, hrp: BaseP
     local radius = abilityDef.Radius or 45
     local titanId = titanDef.Id
 
-    print(string.format("[MonsterService] [Roar EVENT] %s (%s) unleashed a thunderous Roar! Radius: %d studs.",
-        player.Name, titanDef.DisplayName, radius))
+    print(
+        string.format(
+            "[MonsterService] [Roar EVENT] %s (%s) unleashed a thunderous Roar! Radius: %d studs.",
+            player.Name,
+            titanDef.DisplayName,
+            radius
+        )
+    )
 
     TitanEffectRemote:FireAllClients("Roar", character, {
         Position = roarOrigin,
@@ -694,14 +782,23 @@ function MonsterService.ProcessAbilityRequest(player: Player, actionName: string
     local hrp = character:FindFirstChild("HumanoidRootPart") :: BasePart?
     if not hrp then return end
 
-    local titanId = (character:GetAttribute("TitanId") :: string?) or activeTitans[player.UserId] or PlayerDataService.GetSelectedTitan(player) or "Ravager"
+    local titanId = (character:GetAttribute("TitanId") :: string?)
+        or activeTitans[player.UserId]
+        or PlayerDataService.GetSelectedTitan(player)
+        or "Ravager"
     local titanDef = TitanRegistry.Get(titanId)
     if not titanDef then return end
 
     local abilityDef = titanDef.Abilities[actionName]
     if not abilityDef then
-        warn(string.format("[MonsterService] 🛑 %s (%s) requested invalid/cross-Titan ability: %s",
-            player.Name, titanDef.DisplayName, tostring(actionName)))
+        warn(
+            string.format(
+                "[MonsterService] 🛑 %s (%s) requested invalid/cross-Titan ability: %s",
+                player.Name,
+                titanDef.DisplayName,
+                tostring(actionName)
+            )
+        )
         TitanFeedbackRemote:FireClient(player, "AbilityRejected", {
             TitanId = titanId,
             Ability = actionName,
@@ -746,9 +843,7 @@ function MonsterService.ProcessAbilityRequest(player: Player, actionName: string
     })
 
     -- Execute server-authoritative ability
-    if CityService and type(CityService.RecordAbilityUsed) == "function" then
-        CityService.RecordAbilityUsed(player, actionName)
-    end
+    if CityService and type(CityService.RecordAbilityUsed) == "function" then CityService.RecordAbilityUsed(player, actionName) end
 
     local executor = AbilityExecutors[actionName]
     if executor then

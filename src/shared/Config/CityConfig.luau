@@ -225,17 +225,13 @@ local CityConfig = {
         local list: { CityDefinition } = {}
         for _, id in ipairs(DisplayOrder) do
             local def = Cities[id]
-            if def then
-                table.insert(list, def)
-            end
+            if def then table.insert(list, def) end
         end
         return list
     end,
 
     GetLightingProfile = function(zoneId: string): LightingProfile?
-        if zoneId == "KaijuHub" then
-            return HubLightingProfile
-        end
+        if zoneId == "KaijuHub" then return HubLightingProfile end
         local city = Cities[zoneId]
         return if city then city.LightingProfile else nil
     end,
@@ -244,12 +240,9 @@ local CityConfig = {
 -- Support table indexing syntax: CityConfig["SmallTown"] or CityConfig.SmallTown
 setmetatable(CityConfig, {
     __index = function(tbl, key)
-        if Cities[key] then
-            return Cities[key]
-        end
+        if Cities[key] then return Cities[key] end
         return rawget(tbl, key)
     end,
 })
 
 return CityConfig
-

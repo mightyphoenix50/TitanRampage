@@ -32,7 +32,7 @@ local AudioConfig: AudioConfigType = {
         Master = { Volume = 1.0, Parent = nil },
         Combat = { Volume = 0.9, Parent = "Master" },
         Destruction = { Volume = 0.9, Parent = "Master" },
-        UI = { Volume = 0.5, Parent = "Master" },       -- Quieter per specifications
+        UI = { Volume = 0.5, Parent = "Master" }, -- Quieter per specifications
         Music = { Volume = 0.6, Parent = "Master" },
     },
 

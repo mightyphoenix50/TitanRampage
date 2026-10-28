@@ -29,9 +29,7 @@ local DestructionService = nil
 local MonetizationService = nil
 
 local function getDestructionService()
-    if not DestructionService then
-        DestructionService = require(script.Parent:WaitForChild("DestructionService") :: ModuleScript)
-    end
+    if not DestructionService then DestructionService = require(script.Parent:WaitForChild("DestructionService") :: ModuleScript) end
     return DestructionService
 end
 
@@ -187,9 +185,7 @@ local function resetRun(cityId: string)
 end
 
 local function ensureInitialized()
-    if #buildingList == 0 then
-        CityService.RegisterCity(activeCityName)
-    end
+    if #buildingList == 0 then CityService.RegisterCity(activeCityName) end
 end
 
 --[=[
@@ -216,7 +212,14 @@ function CityService.Init()
 
         local unlocked, reason = CityService.IsCityUnlocked(player, requestedCity)
         if not unlocked then
-            warn(string.format("[CityService] Rejected CitySelectRequest from %s for '%s': %s", player.Name, requestedCity, reason or "Locked"))
+            warn(
+                string.format(
+                    "[CityService] Rejected CitySelectRequest from %s for '%s': %s",
+                    player.Name,
+                    requestedCity,
+                    reason or "Locked"
+                )
+            )
             CityFeedbackRemote:FireClient(player, "CitySelectRejected", {
                 CityId = requestedCity,
                 Reason = reason or "City is locked!",
@@ -264,9 +267,7 @@ function CityService.Init()
                 CityFeedbackRemote:FireClient(player, "CityProgressUpdate", CityService.GetCityStats())
                 CityFeedbackRemote:FireClient(player, "CityListSync", CityService.GetAvailableCities(player))
                 local hubLighting = CityConfig.GetLightingProfile("KaijuHub")
-                if hubLighting then
-                    CityFeedbackRemote:FireClient(player, "CityLightingChanged", hubLighting)
-                end
+                if hubLighting then CityFeedbackRemote:FireClient(player, "CityLightingChanged", hubLighting) end
             end
         end)
     end)
@@ -282,7 +283,14 @@ end
 function CityService.Start()
     print("[CityService] CityService started.")
     local stats = CityService.GetCityStats()
-    print(string.format("[CityService] City '%s' active: %d buildings (Total HP: %d)", stats.CityName, stats.TotalBuildings, stats.TotalHealth))
+    print(
+        string.format(
+            "[CityService] City '%s' active: %d buildings (Total HP: %d)",
+            stats.CityName,
+            stats.TotalBuildings,
+            stats.TotalHealth
+        )
+    )
 end
 
 --[=[
@@ -334,9 +342,7 @@ function CityService.RegisterCity(cityName: string)
             local windowParts: { BasePart } = {}
             if windowsFolder then
                 for _, part in ipairs(windowsFolder:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        table.insert(windowParts, part)
-                    end
+                    if part:IsA("BasePart") then table.insert(windowParts, part) end
                 end
             end
 
@@ -344,9 +350,7 @@ function CityService.RegisterCity(cityName: string)
             local propParts: { BasePart } = {}
             if propsFolder then
                 for _, part in ipairs(propsFolder:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        table.insert(propParts, part)
-                    end
+                    if part:IsA("BasePart") then table.insert(propParts, part) end
                 end
             end
 
@@ -388,7 +392,14 @@ function CityService.RegisterCity(cityName: string)
         end
     end
 
-    print(string.format("[CityService] Successfully registered city '%s' with %d destructible buildings. Total HP: %d", cityName, #buildingList, totalHP))
+    print(
+        string.format(
+            "[CityService] Successfully registered city '%s' with %d destructible buildings. Total HP: %d",
+            cityName,
+            #buildingList,
+            totalHP
+        )
+    )
 end
 
 function CityService.GetCityName(): string
@@ -405,9 +416,7 @@ end
 
 function CityService.GetPlayerCityCompletions(player: Player, cityId: string): number
     local profile = PlayerDataService.GetProfile(player)
-    if profile and profile.Cities and profile.Cities[cityId] then
-        return profile.Cities[cityId].Clears
-    end
+    if profile and profile.Cities and profile.Cities[cityId] then return profile.Cities[cityId].Clears end
     local comps = playerCityCompletions[player.UserId]
     if not comps then return 0 end
     return comps[cityId] or 0
@@ -415,20 +424,14 @@ end
 
 function CityService.IsCityUnlocked(player: Player, cityId: string): (boolean, string?)
     local cityDef = CityConfig.GetCity(cityId)
-    if not cityDef then
-        return false, "City does not exist"
-    end
+    if not cityDef then return false, "City does not exist" end
 
     local req = cityDef.UnlockRequirements
-    if req.UnlockedByDefault then
-        return true, nil
-    end
+    if req.UnlockedByDefault then return true, nil end
 
     -- Check persistent profile unlock state
     local profile = PlayerDataService.GetProfile(player)
-    if profile and profile.Cities and profile.Cities[cityId] and profile.Cities[cityId].Unlocked then
-        return true, nil
-    end
+    if profile and profile.Cities and profile.Cities[cityId] and profile.Cities[cityId].Unlocked then return true, nil end
 
     -- Check required level
     if req.RequiredLevel then
@@ -449,9 +452,7 @@ function CityService.IsCityUnlocked(player: Player, cityId: string): (boolean, s
     -- If requirements are met, record unlock in persistent profile
     if profile and profile.Cities and profile.Cities[cityId] then
         PlayerDataService.UpdateProfile(player, function(prof)
-            if prof.Cities[cityId] then
-                prof.Cities[cityId].Unlocked = true
-            end
+            if prof.Cities[cityId] then prof.Cities[cityId].Unlocked = true end
         end)
     end
 
@@ -464,12 +465,20 @@ function CityService.GetAvailableCities(player: Player): { any }
     for _, def in ipairs(CityConfig.GetCityList()) do
         local unlocked, reason = CityService.IsCityUnlocked(player, def.CityId)
         local cityRecord = if profile and profile.Cities then profile.Cities[def.CityId] else nil
-        local bestTime = if cityRecord and cityRecord.BestTime then cityRecord.BestTime else (cityBestRecords[def.CityId] and cityBestRecords[def.CityId].BestTime or 0)
-        local bestCombo = if cityRecord and cityRecord.BestCombo then cityRecord.BestCombo else (cityBestRecords[def.CityId] and cityBestRecords[def.CityId].BestCombo or 1)
+        local bestTime = if cityRecord and cityRecord.BestTime
+            then cityRecord.BestTime
+            else (cityBestRecords[def.CityId] and cityBestRecords[def.CityId].BestTime or 0)
+        local bestCombo = if cityRecord and cityRecord.BestCombo
+            then cityRecord.BestCombo
+            else (cityBestRecords[def.CityId] and cityBestRecords[def.CityId].BestCombo or 1)
         local clears = if cityRecord then cityRecord.Clears else CityService.GetPlayerCityCompletions(player, def.CityId)
 
-        local bestScore = if cityRecord and cityRecord.BestScore then cityRecord.BestScore else (cityBestRecords[def.CityId] and cityBestRecords[def.CityId].BestScore or 0)
-        local bestBpm = if cityRecord and cityRecord.BestBuildingsPerMinute then cityRecord.BestBuildingsPerMinute else (cityBestRecords[def.CityId] and cityBestRecords[def.CityId].BestBPM or 0)
+        local bestScore = if cityRecord and cityRecord.BestScore
+            then cityRecord.BestScore
+            else (cityBestRecords[def.CityId] and cityBestRecords[def.CityId].BestScore or 0)
+        local bestBpm = if cityRecord and cityRecord.BestBuildingsPerMinute
+            then cityRecord.BestBuildingsPerMinute
+            else (cityBestRecords[def.CityId] and cityBestRecords[def.CityId].BestBPM or 0)
 
         table.insert(result, {
             CityId = def.CityId,
@@ -492,15 +501,11 @@ end
 
 function CityService.LoadCity(cityId: string, player: Player?): (boolean, string)
     local cityDef = CityConfig.GetCity(cityId)
-    if not cityDef then
-        return false, "Invalid city ID: " .. tostring(cityId)
-    end
+    if not cityDef then return false, "Invalid city ID: " .. tostring(cityId) end
 
     if player then
         local unlocked, reason = CityService.IsCityUnlocked(player, cityId)
-        if not unlocked then
-            return false, reason or "City is locked!"
-        end
+        if not unlocked then return false, reason or "City is locked!" end
     end
 
     -- Security check: do not switch if current city has active incomplete run with damage
@@ -513,9 +518,7 @@ function CityService.LoadCity(cityId: string, player: Player?): (boolean, string
 
     -- Reset DestructionService state
     local dest = getDestructionService()
-    if dest and type(dest.ClearCollapsingBuildings) == "function" then
-        dest.ClearCollapsingBuildings()
-    end
+    if dest and type(dest.ClearCollapsingBuildings) == "function" then dest.ClearCollapsingBuildings() end
 
     -- Reset run statistics
     resetRun(cityId)
@@ -526,15 +529,19 @@ function CityService.LoadCity(cityId: string, player: Player?): (boolean, string
         player.Character:PivotTo(CFrame.new(spawnPos + Vector3.new(0, 4, 0)))
     else
         for _, p in ipairs(Players:GetPlayers()) do
-            if p.Character and p.Character.PrimaryPart then
-                p.Character:PivotTo(CFrame.new(spawnPos + Vector3.new(0, 4, 0)))
-            end
+            if p.Character and p.Character.PrimaryPart then p.Character:PivotTo(CFrame.new(spawnPos + Vector3.new(0, 4, 0))) end
         end
     end
 
     local stats = CityService.GetCityStats()
-    print(string.format("[CityService] ✅ Successfully loaded city '%s' (%d buildings, Total HP: %d)",
-        cityId, stats.TotalBuildings, stats.TotalHealth))
+    print(
+        string.format(
+            "[CityService] ✅ Successfully loaded city '%s' (%d buildings, Total HP: %d)",
+            cityId,
+            stats.TotalBuildings,
+            stats.TotalHealth
+        )
+    )
 
     -- Broadcast to clients
     CityFeedbackRemote:FireAllClients("CityLoaded", {
@@ -544,9 +551,7 @@ function CityService.LoadCity(cityId: string, player: Player?): (boolean, string
         Stats = stats,
     })
     CityFeedbackRemote:FireAllClients("CityProgressUpdate", stats)
-    if cityDef.LightingProfile then
-        CityFeedbackRemote:FireAllClients("CityLightingChanged", cityDef.LightingProfile)
-    end
+    if cityDef.LightingProfile then CityFeedbackRemote:FireAllClients("CityLightingChanged", cityDef.LightingProfile) end
 
     for _, p in ipairs(Players:GetPlayers()) do
         CityFeedbackRemote:FireClient(p, "CityListSync", CityService.GetAvailableCities(p))
@@ -558,16 +563,12 @@ end
 function CityService.ReturnToHub(player: Player): (boolean, string)
     local hub = Workspace:FindFirstChild("KaijuHub")
     local hubSpawn = hub and hub:FindFirstChild("HubSpawnLocation", true)
-    if not hubSpawn or not hubSpawn:IsA("BasePart") then
-        return false, "Kaiju Hub spawn not found!"
-    end
+    if not hubSpawn or not hubSpawn:IsA("BasePart") then return false, "Kaiju Hub spawn not found!" end
 
     if player.Character and player.Character.PrimaryPart then
         player.Character:PivotTo(hubSpawn.CFrame + Vector3.new(0, 8, 0))
         local hubLighting = CityConfig.GetLightingProfile("KaijuHub")
-        if hubLighting then
-            CityFeedbackRemote:FireClient(player, "CityLightingChanged", hubLighting)
-        end
+        if hubLighting then CityFeedbackRemote:FireClient(player, "CityLightingChanged", hubLighting) end
         return true, "Returned to Kaiju Hub"
     end
     return false, "Player character not found"
@@ -681,7 +682,7 @@ function CityService.GetCityStats(): CityStats
 
         local attrDestroyed = entry.Model:GetAttribute("IsDestroyed")
         local destroyed = if attrDestroyed ~= nil then (attrDestroyed == true) else entry.IsDestroyed
-        
+
         entry.MaxHealth = tonumber(maxHp) or 500
         entry.CurrentHealth = tonumber(health) or 0
         entry.IsDestroyed = destroyed
@@ -770,9 +771,7 @@ function CityService.RecordDestruction(player: Player?, building: Model, cash: n
     currentRun.BuildingsPoints += math.max(0, points)
     currentRun.BuildingsXP += math.max(0, xp)
 
-    if combo > currentRun.HighestCombo then
-        currentRun.HighestCombo = combo
-    end
+    if combo > currentRun.HighestCombo then currentRun.HighestCombo = combo end
 
     local stats = CityService.GetCityStats()
 
@@ -780,9 +779,7 @@ function CityService.RecordDestruction(player: Player?, building: Model, cash: n
     CityFeedbackRemote:FireAllClients("CityProgressUpdate", stats)
 
     -- Check for city completion transition
-    if stats.DestroyedBuildings >= stats.TotalBuildings and not currentRun.CityCompleted then
-        CityService.TriggerCityCompletion(player)
-    end
+    if stats.DestroyedBuildings >= stats.TotalBuildings and not currentRun.CityCompleted then CityService.TriggerCityCompletion(player) end
 end
 
 --[=[
@@ -796,7 +793,13 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
     local cityDef = CityConfig[activeCityName]
     local completionReward = if cityDef then cityDef.CompletionReward else { Cash = 5000, DestructionPoints = 2500, XP = 2000 }
 
-    print(string.format("[CityService] 🏆 CITY DESTROYED! All %d buildings in '%s' flattened! Awarding completion bonuses...", #buildingList, activeCityName))
+    print(
+        string.format(
+            "[CityService] 🏆 CITY DESTROYED! All %d buildings in '%s' flattened! Awarding completion bonuses...",
+            #buildingList,
+            activeCityName
+        )
+    )
 
     -- Award completion reward exactly once via ProgressionService
     if not currentRun.CompletionAwarded then
@@ -804,8 +807,15 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
         if ProgressionService then
             for _, player in ipairs(Players:GetPlayers()) do
                 ProgressionService.AddRewards(player, completionReward.Cash, completionReward.DestructionPoints, completionReward.XP)
-                print(string.format("[CityService] Awarded City Completion Bonus to %s: +$%d Cash, +%d Pts, +%d XP",
-                    player.Name, completionReward.Cash, completionReward.DestructionPoints, completionReward.XP))
+                print(
+                    string.format(
+                        "[CityService] Awarded City Completion Bonus to %s: +$%d Cash, +%d Pts, +%d XP",
+                        player.Name,
+                        completionReward.Cash,
+                        completionReward.DestructionPoints,
+                        completionReward.XP
+                    )
+                )
             end
         end
     end
@@ -815,7 +825,8 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
     local bpm = math.floor((currentRun.BuildingsDestroyed / (duration / 60)) * 10) / 10
     currentRun.BuildingsPerMinute = bpm
 
-    local totalScore, baseScore, comboBonus, speedBonus, completionScoreBonus = CityService.CalculateDestructionScore(activeCityName, currentRun)
+    local totalScore, baseScore, comboBonus, speedBonus, completionScoreBonus =
+        CityService.CalculateDestructionScore(activeCityName, currentRun)
     currentRun.DestructionScore = totalScore
 
     local totalCash = currentRun.BuildingsCash + completionReward.Cash
@@ -867,18 +878,10 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
             isNewBestScoreMap[p.UserId] = isNewScore
             isNewBestBpmMap[p.UserId] = isNewBpm
 
-            if isNewTime then
-                cityData.BestTime = duration
-            end
-            if isNewCombo then
-                cityData.BestCombo = currentRun.HighestCombo
-            end
-            if isNewScore then
-                cityData.BestScore = totalScore
-            end
-            if isNewBpm then
-                cityData.BestBuildingsPerMinute = bpm
-            end
+            if isNewTime then cityData.BestTime = duration end
+            if isNewCombo then cityData.BestCombo = currentRun.HighestCombo end
+            if isNewScore then cityData.BestScore = totalScore end
+            if isNewBpm then cityData.BestBuildingsPerMinute = bpm end
 
             -- Update persistent lifetime statistics
             if prof.Statistics then
@@ -890,25 +893,27 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
                 stats.TotalCashEarned += totalCash
                 stats.TotalPointsEarned += totalPoints
                 stats.TotalXPEarned += totalXP
-                if currentRun.HighestCombo > stats.HighestCombo then
-                    stats.HighestCombo = currentRun.HighestCombo
-                end
+                if currentRun.HighestCombo > stats.HighestCombo then stats.HighestCombo = currentRun.HighestCombo end
                 stats.TotalPlayTime += duration
             end
 
             -- Automatically unlock Metrovale if player meets requirements
             if prof.Cities.Metrovale and not prof.Cities.Metrovale.Unlocked then
-                if prof.Level >= 4 and prof.Cities.SmallTown.Clears >= 1 then
-                    prof.Cities.Metrovale.Unlocked = true
-                end
+                if prof.Level >= 4 and prof.Cities.SmallTown.Clears >= 1 then prof.Cities.Metrovale.Unlocked = true end
             end
         end)
     end
 
     if triggeringPlayer then
         local comps = playerCityCompletions[triggeringPlayer.UserId]
-        print(string.format("[CityService] %s now has %d completions for '%s'",
-            triggeringPlayer.Name, comps and comps[activeCityName] or 1, activeCityName))
+        print(
+            string.format(
+                "[CityService] %s now has %d completions for '%s'",
+                triggeringPlayer.Name,
+                comps and comps[activeCityName] or 1,
+                activeCityName
+            )
+        )
     end
 
     -- Update session best records
@@ -1032,9 +1037,7 @@ function CityService.ResetCity(requestingPlayer: Player?): (boolean, string)
 
         -- Remove any rubble parts
         local rubble = bld:FindFirstChild("Rubble")
-        if rubble then
-            rubble:Destroy()
-        end
+        if rubble then rubble:Destroy() end
 
         -- Restore MainBody
         if backup.MainBody and backup.MainBodyCFrame then
@@ -1079,9 +1082,7 @@ function CityService.ResetCity(requestingPlayer: Player?): (boolean, string)
 
     -- 2. Reset DestructionService state
     local dest = getDestructionService()
-    if dest and type(dest.ClearCollapsingBuildings) == "function" then
-        dest.ClearCollapsingBuildings()
-    end
+    if dest and type(dest.ClearCollapsingBuildings) == "function" then dest.ClearCollapsingBuildings() end
 
     -- 3. Reset run statistics
     resetRun(activeCityName)
@@ -1121,9 +1122,7 @@ function CityService.ApplyDamage(buildingModel: Model, damage: number, attacker:
     end
 
     local entry = CityService.GetBuildingEntry(buildingModel)
-    if not entry or entry.IsDestroyed then
-        return false, 0
-    end
+    if not entry or entry.IsDestroyed then return false, 0 end
 
     local curHp = tonumber(buildingModel:GetAttribute("CurrentHealth")) or entry.CurrentHealth
     if curHp <= 0 then

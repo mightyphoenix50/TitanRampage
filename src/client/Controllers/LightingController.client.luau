@@ -88,9 +88,7 @@ local function applyLightingProfile(profile: any)
 end
 
 CityFeedbackRemote.OnClientEvent:Connect(function(action: string, payload: any)
-    if action == "CityLightingChanged" and payload then
-        applyLightingProfile(payload)
-    end
+    if action == "CityLightingChanged" and payload then applyLightingProfile(payload) end
 end)
 
 print("[LightingController] Client lighting controller initialized.")

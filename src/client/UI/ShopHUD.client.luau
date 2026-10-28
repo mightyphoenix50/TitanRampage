@@ -340,21 +340,20 @@ local function renderTabItems()
                 buyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
                 buyBtn.Font = Enum.Font.GothamBlack
                 buyBtn.TextSize = 11
-                buyBtn.Text = if isStudioMode then string.format("TEST UNLOCK\n(R$ %d)", pass.RobuxPrice) else string.format("BUY PASS\nR$ %d", pass.RobuxPrice)
+                buyBtn.Text = if isStudioMode
+                    then string.format("TEST UNLOCK\n(R$ %d)", pass.RobuxPrice)
+                    else string.format("BUY PASS\nR$ %d", pass.RobuxPrice)
                 buyBtn.AutoButtonColor = true
 
                 buyBtn.MouseButton1Click:Connect(function()
                     AudioController.PlayUI("ButtonClick")
                     local res = ShopActionRemote:InvokeServer("PromptPurchase", { Type = "Gamepass", Id = pass.Id })
-                    if res and res.Success then
-                        AudioController.PlayUI("UpgradeSuccess")
-                    end
+                    if res and res.Success then AudioController.PlayUI("UpgradeSuccess") end
                 end)
             end
 
             totalHeight += 72
         end
-
     else
         -- Products (Currency or Combat)
         local targetCat = if currentTab == "Currency" then { Currency = true, XP = true } else { Combat = true }
@@ -426,7 +425,9 @@ local function renderTabItems()
                 buyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
                 buyBtn.Font = Enum.Font.GothamBlack
                 buyBtn.TextSize = 11
-                buyBtn.Text = if isStudioMode then string.format("TEST BUY\n(R$ %d)", prod.RobuxPrice) else string.format("BUY\nR$ %d", prod.RobuxPrice)
+                buyBtn.Text = if isStudioMode
+                    then string.format("TEST BUY\n(R$ %d)", prod.RobuxPrice)
+                    else string.format("BUY\nR$ %d", prod.RobuxPrice)
                 buyBtn.ZIndex = 33
                 buyBtn.Parent = card
 
@@ -437,9 +438,7 @@ local function renderTabItems()
                 buyBtn.MouseButton1Click:Connect(function()
                     AudioController.PlayUI("ButtonClick")
                     local res = ShopActionRemote:InvokeServer("PromptPurchase", { Type = "Product", Id = prod.Id })
-                    if res and res.Success then
-                        AudioController.PlayUI("UpgradeSuccess")
-                    end
+                    if res and res.Success then AudioController.PlayUI("UpgradeSuccess") end
                 end)
 
                 totalHeight += 72
@@ -507,17 +506,13 @@ end)
 
 -- Hook ProximityPrompt for Hub Market Pavilion
 ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
-    if player == LocalPlayer and prompt.Name == "MarketPavilionPrompt" then
-        toggleShop(true)
-    end
+    if player == LocalPlayer and prompt.Name == "MarketPavilionPrompt" then toggleShop(true) end
 end)
 
 -- Keybinds: B toggles shop
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.B then
-        toggleShop()
-    end
+    if input.KeyCode == Enum.KeyCode.B then toggleShop() end
 end)
 
 -- ShopFeedback listener

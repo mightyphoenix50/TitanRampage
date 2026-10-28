@@ -30,16 +30,12 @@ local services = {
 
 print("[Titan Rampage] Initializing server services...")
 for _, service in ipairs(services) do
-    if type(service.Init) == "function" then
-        service.Init()
-    end
+    if type(service.Init) == "function" then service.Init() end
 end
 
 print("[Titan Rampage] Starting server services...")
 for _, service in ipairs(services) do
-    if type(service.Start) == "function" then
-        service.Start()
-    end
+    if type(service.Start) == "function" then service.Start() end
 end
 
 print("[Titan Rampage] Server successfully initialized!")

@@ -118,9 +118,7 @@ function TitanAnimationController.new(character: Model): AnimationController
         local idlePhase = 0
         local lastYaw = 0
         local rootPart = character:FindFirstChild("HumanoidRootPart") :: BasePart?
-        if rootPart then
-            lastYaw = select(2, rootPart.CFrame:ToEulerAnglesYXZ())
-        end
+        if rootPart then lastYaw = select(2, rootPart.CFrame:ToEulerAnglesYXZ()) end
 
         local leftShoulder = motors["Left Shoulder"]
         local rightShoulder = motors["Right Shoulder"]
@@ -142,7 +140,7 @@ function TitanAnimationController.new(character: Model): AnimationController
         local origTM = origC0["TailMidJoint"]
         local origTT = origC0["TailTipJoint"]
 
-        walkConn =RunService.RenderStepped:Connect(function(dt)
+        walkConn = RunService.RenderStepped:Connect(function(dt)
             if not character.Parent or humanoid.Health <= 0 then
                 if walkConn then walkConn:Disconnect() end
                 return
@@ -157,8 +155,11 @@ function TitanAnimationController.new(character: Model): AnimationController
             if rootPart and rootPart.Parent then
                 currentYaw = select(2, rootPart.CFrame:ToEulerAnglesYXZ())
                 local deltaYaw = currentYaw - lastYaw
-                if deltaYaw > math.pi then deltaYaw -= 2 * math.pi
-                elseif deltaYaw < -math.pi then deltaYaw += 2 * math.pi end
+                if deltaYaw > math.pi then
+                    deltaYaw -= 2 * math.pi
+                elseif deltaYaw < -math.pi then
+                    deltaYaw += 2 * math.pi
+                end
                 turnYaw = math.clamp(deltaYaw / math.max(0.001, dt), -3, 3)
                 lastYaw = currentYaw
             end
@@ -176,39 +177,21 @@ function TitanAnimationController.new(character: Model): AnimationController
                 local tailTurnAngle = -math.clamp(turnYaw * 0.06, -math.rad(12), math.rad(12))
 
                 if not animState.IsStomping then
-                    if leftShoulder and origLS then
-                        leftShoulder.C0 = origLS * CFrame.Angles(legAngle, 0, 0)
-                    end
-                    if rightShoulder and origRS then
-                        rightShoulder.C0 = origRS * CFrame.Angles(-legAngle, 0, 0)
-                    end
-                    if leftHip and origLH then
-                        leftHip.C0 = origLH * CFrame.Angles(-legAngle, 0, 0)
-                    end
-                    if rightHip and origRH then
-                        rightHip.C0 = origRH * CFrame.Angles(legAngle, 0, 0)
-                    end
+                    if leftShoulder and origLS then leftShoulder.C0 = origLS * CFrame.Angles(legAngle, 0, 0) end
+                    if rightShoulder and origRS then rightShoulder.C0 = origRS * CFrame.Angles(-legAngle, 0, 0) end
+                    if leftHip and origLH then leftHip.C0 = origLH * CFrame.Angles(-legAngle, 0, 0) end
+                    if rightHip and origRH then rightHip.C0 = origRH * CFrame.Angles(legAngle, 0, 0) end
                 end
 
                 if not animState.IsNeckStriking and not animState.IsRoaring and not animState.IsStomping then
-                    if neckBase and origNB then
-                        neckBase.C0 = origNB * CFrame.Angles(neckBob, neckTurnAngle, 0)
-                    end
-                    if neckMid and origNM then
-                        neckMid.C0 = origNM * CFrame.Angles(neckBob * 0.6, neckTurnAngle * 0.7, 0)
-                    end
+                    if neckBase and origNB then neckBase.C0 = origNB * CFrame.Angles(neckBob, neckTurnAngle, 0) end
+                    if neckMid and origNM then neckMid.C0 = origNM * CFrame.Angles(neckBob * 0.6, neckTurnAngle * 0.7, 0) end
                 end
 
                 if not animState.IsTailSweeping and not animState.IsStomping then
-                    if tailBase and origTB then
-                        tailBase.C0 = origTB * CFrame.Angles(0, tailSway + tailTurnAngle, 0)
-                    end
-                    if tailMid and origTM then
-                        tailMid.C0 = origTM * CFrame.Angles(0, tailSway * 1.3 + tailTurnAngle * 1.2, 0)
-                    end
-                    if tailTip and origTT then
-                        tailTip.C0 = origTT * CFrame.Angles(0, tailSway * 1.6 + tailTurnAngle * 1.4, 0)
-                    end
+                    if tailBase and origTB then tailBase.C0 = origTB * CFrame.Angles(0, tailSway + tailTurnAngle, 0) end
+                    if tailMid and origTM then tailMid.C0 = origTM * CFrame.Angles(0, tailSway * 1.3 + tailTurnAngle * 1.2, 0) end
+                    if tailTip and origTT then tailTip.C0 = origTT * CFrame.Angles(0, tailSway * 1.6 + tailTurnAngle * 1.4, 0) end
                 end
             else
                 -- Idle resting stance with subtle breathing sway in neck and tail
@@ -225,24 +208,14 @@ function TitanAnimationController.new(character: Model): AnimationController
                 end
 
                 if not animState.IsNeckStriking and not animState.IsRoaring and not animState.IsStomping then
-                    if neckBase and origNB then
-                        neckBase.C0 = origNB * CFrame.Angles(breathAngle, 0, 0)
-                    end
-                    if neckMid and origNM then
-                        neckMid.C0 = origNM * CFrame.Angles(breathAngle * 0.7, 0, 0)
-                    end
+                    if neckBase and origNB then neckBase.C0 = origNB * CFrame.Angles(breathAngle, 0, 0) end
+                    if neckMid and origNM then neckMid.C0 = origNM * CFrame.Angles(breathAngle * 0.7, 0, 0) end
                 end
 
                 if not animState.IsTailSweeping and not animState.IsStomping then
-                    if tailBase and origTB then
-                        tailBase.C0 = origTB * CFrame.Angles(0, tailIdle, 0)
-                    end
-                    if tailMid and origTM then
-                        tailMid.C0 = origTM * CFrame.Angles(0, tailIdle * 1.2, 0)
-                    end
-                    if tailTip and origTT then
-                        tailTip.C0 = origTT * CFrame.Angles(0, tailIdle * 1.5, 0)
-                    end
+                    if tailBase and origTB then tailBase.C0 = origTB * CFrame.Angles(0, tailIdle, 0) end
+                    if tailMid and origTM then tailMid.C0 = origTM * CFrame.Angles(0, tailIdle * 1.2, 0) end
+                    if tailTip and origTT then tailTip.C0 = origTT * CFrame.Angles(0, tailIdle * 1.5, 0) end
                 end
             end
         end)
@@ -272,9 +245,7 @@ end
     Returns (variantUsed: string, duration: number).
 ]=]
 function TitanAnimationController:PlayBasicAttack(variantOverride: string?): (string, number)
-    if self.TitanId == "Brontara" then
-        return "None", 0
-    end
+    if self.TitanId == "Brontara" then return "None", 0 end
     local variant = variantOverride
     if not variant then
         -- Cycle through the 3 variants
@@ -287,9 +258,7 @@ function TitanAnimationController:PlayBasicAttack(variantOverride: string?): (st
 
     -- If a custom AnimationTrack exists, play it
     local track = self.Tracks[variant]
-    if track then
-        track:Play(0.06)
-    end
+    if track then track:Play(0.06) end
 
     -- Procedural Motor6D Joint Animation (Works in all conditions)
     local rootJoint = self.Motors["RootJoint"]
@@ -307,7 +276,13 @@ function TitanAnimationController:PlayBasicAttack(variantOverride: string?): (st
             -- ATTACK 1: LEFT SWIPE (Retargeted 0.42s total)
             -- Phase 1: Anticipation / Coil (0.09s) - Torso twists right, Left Arm winds back
             if leftShoulder and origLeft then
-                tweenMotor(leftShoulder, origLeft * CFrame.Angles(math.rad(25), math.rad(45), math.rad(-30)), 0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                tweenMotor(
+                    leftShoulder,
+                    origLeft * CFrame.Angles(math.rad(25), math.rad(45), math.rad(-30)),
+                    0.09,
+                    Enum.EasingStyle.Quad,
+                    Enum.EasingDirection.Out
+                )
             end
             if rootJoint and origRoot then
                 tweenMotor(rootJoint, origRoot * CFrame.Angles(0, math.rad(-15), 0), 0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -319,10 +294,22 @@ function TitanAnimationController:PlayBasicAttack(variantOverride: string?): (st
 
             -- Phase 2: Powerful Horizontal Sweep & Strike (0.14s) - Left Arm swings across chest
             if leftShoulder and origLeft then
-                tweenMotor(leftShoulder, origLeft * CFrame.Angles(math.rad(95), math.rad(-75), math.rad(40)), 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+                tweenMotor(
+                    leftShoulder,
+                    origLeft * CFrame.Angles(math.rad(95), math.rad(-75), math.rad(40)),
+                    0.14,
+                    Enum.EasingStyle.Quad,
+                    Enum.EasingDirection.In
+                )
             end
             if rootJoint and origRoot then
-                tweenMotor(rootJoint, origRoot * CFrame.Angles(math.rad(6), math.rad(30), 0), 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+                tweenMotor(
+                    rootJoint,
+                    origRoot * CFrame.Angles(math.rad(6), math.rad(30), 0),
+                    0.14,
+                    Enum.EasingStyle.Quad,
+                    Enum.EasingDirection.In
+                )
             end
             if neck and origNeck then
                 tweenMotor(neck, origNeck * CFrame.Angles(0, math.rad(-15), 0), 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -330,22 +317,21 @@ function TitanAnimationController:PlayBasicAttack(variantOverride: string?): (st
             task.wait(0.14)
 
             -- Phase 3: Recovery / Return (0.19s)
-            if leftShoulder and origLeft then
-                tweenMotor(leftShoulder, origLeft, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            end
-            if rootJoint and origRoot then
-                tweenMotor(rootJoint, origRoot, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            end
-            if neck and origNeck then
-                tweenMotor(neck, origNeck, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            end
+            if leftShoulder and origLeft then tweenMotor(leftShoulder, origLeft, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
+            if rootJoint and origRoot then tweenMotor(rootJoint, origRoot, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
+            if neck and origNeck then tweenMotor(neck, origNeck, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
             task.wait(0.19)
-
         elseif variant == "RightSwipe" then
             -- ATTACK 2: RIGHT SWIPE (Retargeted 0.42s total)
             -- Phase 1: Anticipation / Coil (0.09s) - Torso twists left, Right Arm winds back
             if rightShoulder and origRight then
-                tweenMotor(rightShoulder, origRight * CFrame.Angles(math.rad(25), math.rad(-45), math.rad(30)), 0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                tweenMotor(
+                    rightShoulder,
+                    origRight * CFrame.Angles(math.rad(25), math.rad(-45), math.rad(30)),
+                    0.09,
+                    Enum.EasingStyle.Quad,
+                    Enum.EasingDirection.Out
+                )
             end
             if rootJoint and origRoot then
                 tweenMotor(rootJoint, origRoot * CFrame.Angles(0, math.rad(15), 0), 0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -357,10 +343,22 @@ function TitanAnimationController:PlayBasicAttack(variantOverride: string?): (st
 
             -- Phase 2: Powerful Horizontal Sweep & Strike (0.14s) - Right Arm swings across chest
             if rightShoulder and origRight then
-                tweenMotor(rightShoulder, origRight * CFrame.Angles(math.rad(95), math.rad(75), math.rad(-40)), 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+                tweenMotor(
+                    rightShoulder,
+                    origRight * CFrame.Angles(math.rad(95), math.rad(75), math.rad(-40)),
+                    0.14,
+                    Enum.EasingStyle.Quad,
+                    Enum.EasingDirection.In
+                )
             end
             if rootJoint and origRoot then
-                tweenMotor(rootJoint, origRoot * CFrame.Angles(math.rad(6), math.rad(-30), 0), 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+                tweenMotor(
+                    rootJoint,
+                    origRoot * CFrame.Angles(math.rad(6), math.rad(-30), 0),
+                    0.14,
+                    Enum.EasingStyle.Quad,
+                    Enum.EasingDirection.In
+                )
             end
             if neck and origNeck then
                 tweenMotor(neck, origNeck * CFrame.Angles(0, math.rad(15), 0), 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -371,22 +369,29 @@ function TitanAnimationController:PlayBasicAttack(variantOverride: string?): (st
             if rightShoulder and origRight then
                 tweenMotor(rightShoulder, origRight, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
             end
-            if rootJoint and origRoot then
-                tweenMotor(rootJoint, origRoot, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            end
-            if neck and origNeck then
-                tweenMotor(neck, origNeck, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            end
+            if rootJoint and origRoot then tweenMotor(rootJoint, origRoot, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
+            if neck and origNeck then tweenMotor(neck, origNeck, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
             task.wait(0.19)
-
         else
             -- ATTACK 3: DOWNWARD SMASH (Two-Handed Overhead Slam - Retargeted 0.42s total)
             -- Phase 1: Overhead Windup (0.09s) - Both arms raise high overhead, torso arches back
             if rightShoulder and origRight then
-                tweenMotor(rightShoulder, origRight * CFrame.Angles(math.rad(130), math.rad(-20), math.rad(25)), 0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                tweenMotor(
+                    rightShoulder,
+                    origRight * CFrame.Angles(math.rad(130), math.rad(-20), math.rad(25)),
+                    0.09,
+                    Enum.EasingStyle.Quad,
+                    Enum.EasingDirection.Out
+                )
             end
             if leftShoulder and origLeft then
-                tweenMotor(leftShoulder, origLeft * CFrame.Angles(math.rad(130), math.rad(20), math.rad(-25)), 0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                tweenMotor(
+                    leftShoulder,
+                    origLeft * CFrame.Angles(math.rad(130), math.rad(20), math.rad(-25)),
+                    0.09,
+                    Enum.EasingStyle.Quad,
+                    Enum.EasingDirection.Out
+                )
             end
             if rootJoint and origRoot then
                 tweenMotor(rootJoint, origRoot * CFrame.Angles(math.rad(-14), 0, 0), 0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -395,10 +400,22 @@ function TitanAnimationController:PlayBasicAttack(variantOverride: string?): (st
 
             -- Phase 2: Downward Hammer Impact (0.14s) - Both arms slam down with forward torso crunch
             if rightShoulder and origRight then
-                tweenMotor(rightShoulder, origRight * CFrame.Angles(math.rad(-35), math.rad(-10), 0), 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+                tweenMotor(
+                    rightShoulder,
+                    origRight * CFrame.Angles(math.rad(-35), math.rad(-10), 0),
+                    0.14,
+                    Enum.EasingStyle.Quad,
+                    Enum.EasingDirection.In
+                )
             end
             if leftShoulder and origLeft then
-                tweenMotor(leftShoulder, origLeft * CFrame.Angles(math.rad(-35), math.rad(10), 0), 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+                tweenMotor(
+                    leftShoulder,
+                    origLeft * CFrame.Angles(math.rad(-35), math.rad(10), 0),
+                    0.14,
+                    Enum.EasingStyle.Quad,
+                    Enum.EasingDirection.In
+                )
             end
             if rootJoint and origRoot then
                 tweenMotor(rootJoint, origRoot * CFrame.Angles(math.rad(22), 0, 0), 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -409,12 +426,8 @@ function TitanAnimationController:PlayBasicAttack(variantOverride: string?): (st
             if rightShoulder and origRight then
                 tweenMotor(rightShoulder, origRight, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
             end
-            if leftShoulder and origLeft then
-                tweenMotor(leftShoulder, origLeft, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            end
-            if rootJoint and origRoot then
-                tweenMotor(rootJoint, origRoot, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            end
+            if leftShoulder and origLeft then tweenMotor(leftShoulder, origLeft, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
+            if rootJoint and origRoot then tweenMotor(rootJoint, origRoot, 0.19, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
             task.wait(0.19)
         end
 
@@ -429,16 +442,12 @@ end
     Synchronized with the 0.35s server windup delay and impact moment.
 ]=]
 function TitanAnimationController:PlayStomp(): number
-    if self.TitanId == "Brontara" then
-        return 0
-    end
+    if self.TitanId == "Brontara" then return 0 end
     local duration = 0.75
     self.IsStomping = true
 
     local track = self.Tracks["Stomp"]
-    if track then
-        track:Play(0.1)
-    end
+    if track then track:Play(0.1) end
 
     local rootJoint = self.Motors["RootJoint"]
     local rightHip = self.Motors["Right Hip"]
@@ -453,56 +462,102 @@ function TitanAnimationController:PlayStomp(): number
     task.spawn(function()
         -- Phase 1: Anticipation & Crouch (0.15s)
         if rootJoint and origRoot then
-            tweenMotor(rootJoint, origRoot * CFrame.new(0, -1.2, 0) * CFrame.Angles(math.rad(-10), 0, 0), 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            tweenMotor(
+                rootJoint,
+                origRoot * CFrame.new(0, -1.2, 0) * CFrame.Angles(math.rad(-10), 0, 0),
+                0.15,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            )
         end
         if rightHip and origHip then
             tweenMotor(rightHip, origHip * CFrame.Angles(math.rad(25), 0, 0), 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         end
         if rightShoulder and origRight then
-            tweenMotor(rightShoulder, origRight * CFrame.Angles(math.rad(-25), 0, math.rad(20)), 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            tweenMotor(
+                rightShoulder,
+                origRight * CFrame.Angles(math.rad(-25), 0, math.rad(20)),
+                0.15,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            )
         end
         if leftShoulder and origLeft then
-            tweenMotor(leftShoulder, origLeft * CFrame.Angles(math.rad(-25), 0, math.rad(-20)), 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            tweenMotor(
+                leftShoulder,
+                origLeft * CFrame.Angles(math.rad(-25), 0, math.rad(-20)),
+                0.15,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            )
         end
         task.wait(0.15)
 
         -- Phase 2: Leg Raise (0.20s) - Total elapsed = 0.35s (exact match to server windup!)
         if rightHip and origHip then
-            tweenMotor(rightHip, origHip * CFrame.new(0, 2.5, -1.5) * CFrame.Angles(math.rad(65), 0, 0), 0.20, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+            tweenMotor(
+                rightHip,
+                origHip * CFrame.new(0, 2.5, -1.5) * CFrame.Angles(math.rad(65), 0, 0),
+                0.20,
+                Enum.EasingStyle.Back,
+                Enum.EasingDirection.Out
+            )
         end
         if rootJoint and origRoot then
-            tweenMotor(rootJoint, origRoot * CFrame.new(0, 0.8, 0) * CFrame.Angles(math.rad(-15), 0, 0), 0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            tweenMotor(
+                rootJoint,
+                origRoot * CFrame.new(0, 0.8, 0) * CFrame.Angles(math.rad(-15), 0, 0),
+                0.20,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            )
         end
         task.wait(0.20)
 
         -- Phase 3: Thunderous Ground Slam Impact (0.10s)
         if rightHip and origHip then
-            tweenMotor(rightHip, origHip * CFrame.new(0, -0.6, 0.5) * CFrame.Angles(math.rad(-15), 0, 0), 0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+            tweenMotor(
+                rightHip,
+                origHip * CFrame.new(0, -0.6, 0.5) * CFrame.Angles(math.rad(-15), 0, 0),
+                0.10,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.In
+            )
         end
         if rootJoint and origRoot then
-            tweenMotor(rootJoint, origRoot * CFrame.new(0, -1.8, 0) * CFrame.Angles(math.rad(18), 0, 0), 0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+            tweenMotor(
+                rootJoint,
+                origRoot * CFrame.new(0, -1.8, 0) * CFrame.Angles(math.rad(18), 0, 0),
+                0.10,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.In
+            )
         end
         if rightShoulder and origRight then
-            tweenMotor(rightShoulder, origRight * CFrame.Angles(math.rad(45), 0, math.rad(35)), 0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+            tweenMotor(
+                rightShoulder,
+                origRight * CFrame.Angles(math.rad(45), 0, math.rad(35)),
+                0.10,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.In
+            )
         end
         if leftShoulder and origLeft then
-            tweenMotor(leftShoulder, origLeft * CFrame.Angles(math.rad(45), 0, math.rad(-35)), 0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+            tweenMotor(
+                leftShoulder,
+                origLeft * CFrame.Angles(math.rad(45), 0, math.rad(-35)),
+                0.10,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.In
+            )
         end
         task.wait(0.10)
 
         -- Phase 4: Recovery (0.30s)
-        if rightHip and origHip then
-            tweenMotor(rightHip, origHip, 0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        end
-        if rootJoint and origRoot then
-            tweenMotor(rootJoint, origRoot, 0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        end
-        if rightShoulder and origRight then
-            tweenMotor(rightShoulder, origRight, 0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        end
-        if leftShoulder and origLeft then
-            tweenMotor(leftShoulder, origLeft, 0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        end
+        if rightHip and origHip then tweenMotor(rightHip, origHip, 0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
+        if rootJoint and origRoot then tweenMotor(rootJoint, origRoot, 0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
+        if rightShoulder and origRight then tweenMotor(rightShoulder, origRight, 0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
+        if leftShoulder and origLeft then tweenMotor(leftShoulder, origLeft, 0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
         task.wait(0.30)
 
         self.IsStomping = false
@@ -516,16 +571,12 @@ end
     Sequence: Chest expands -> Head tilts up -> Arms spread wide -> Roar hold -> Recovery.
 ]=]
 function TitanAnimationController:PlayRoar(): number
-    if self.TitanId == "Brontara" then
-        return self:PlayBrontaraRoar()
-    end
+    if self.TitanId == "Brontara" then return self:PlayBrontaraRoar() end
     local duration = 1.00
     self.IsRoaring = true
 
     local track = self.Tracks["Roar"]
-    if track then
-        track:Play(0.15)
-    end
+    if track then track:Play(0.15) end
 
     local rootJoint = self.Motors["RootJoint"]
     local neck = self.Motors["Neck"]
@@ -546,10 +597,22 @@ function TitanAnimationController:PlayRoar(): number
             tweenMotor(neck, origNeck * CFrame.Angles(math.rad(35), 0, 0), 0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         end
         if rightShoulder and origRight then
-            tweenMotor(rightShoulder, origRight * CFrame.Angles(math.rad(30), math.rad(65), math.rad(55)), 0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            tweenMotor(
+                rightShoulder,
+                origRight * CFrame.Angles(math.rad(30), math.rad(65), math.rad(55)),
+                0.30,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            )
         end
         if leftShoulder and origLeft then
-            tweenMotor(leftShoulder, origLeft * CFrame.Angles(math.rad(30), math.rad(-65), math.rad(-55)), 0.30, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            tweenMotor(
+                leftShoulder,
+                origLeft * CFrame.Angles(math.rad(30), math.rad(-65), math.rad(-55)),
+                0.30,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            )
         end
         task.wait(0.30)
 
@@ -562,18 +625,10 @@ function TitanAnimationController:PlayRoar(): number
         end
 
         -- Phase 3: Recovery / Return to Stance (0.25s)
-        if rootJoint and origRoot then
-            tweenMotor(rootJoint, origRoot, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        end
-        if neck and origNeck then
-            tweenMotor(neck, origNeck, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        end
-        if rightShoulder and origRight then
-            tweenMotor(rightShoulder, origRight, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        end
-        if leftShoulder and origLeft then
-            tweenMotor(leftShoulder, origLeft, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        end
+        if rootJoint and origRoot then tweenMotor(rootJoint, origRoot, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
+        if neck and origNeck then tweenMotor(neck, origNeck, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
+        if rightShoulder and origRight then tweenMotor(rightShoulder, origRight, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
+        if leftShoulder and origLeft then tweenMotor(leftShoulder, origLeft, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) end
         task.wait(0.25)
 
         if rootJoint and origRoot then rootJoint.C0 = origRoot end
@@ -703,13 +758,31 @@ function TitanAnimationController:PlayHeavyStomp(): number
     task.spawn(function()
         -- Phase 1: Colossal Rear-Up (0.50s) - Exact match to server 0.50s windup
         if rootJoint and origRoot then
-            tweenMotor(rootJoint, origRoot * CFrame.new(0, 3.5, -0.8) * CFrame.Angles(math.rad(-28), 0, 0), 0.50, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            tweenMotor(
+                rootJoint,
+                origRoot * CFrame.new(0, 3.5, -0.8) * CFrame.Angles(math.rad(-28), 0, 0),
+                0.50,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            )
         end
         if leftShoulder and origLS then
-            tweenMotor(leftShoulder, origLS * CFrame.Angles(math.rad(42), 0, math.rad(-12)), 0.50, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            tweenMotor(
+                leftShoulder,
+                origLS * CFrame.Angles(math.rad(42), 0, math.rad(-12)),
+                0.50,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            )
         end
         if rightShoulder and origRS then
-            tweenMotor(rightShoulder, origRS * CFrame.Angles(math.rad(42), 0, math.rad(12)), 0.50, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            tweenMotor(
+                rightShoulder,
+                origRS * CFrame.Angles(math.rad(42), 0, math.rad(12)),
+                0.50,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            )
         end
         if leftHip and origLH then
             tweenMotor(leftHip, origLH * CFrame.Angles(math.rad(18), 0, 0), 0.50, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -727,7 +800,13 @@ function TitanAnimationController:PlayHeavyStomp(): number
 
         -- Phase 2: Downward Seismic Pillar Slam (0.15s) - Exact impact moment
         if rootJoint and origRoot then
-            tweenMotor(rootJoint, origRoot * CFrame.new(0, -1.8, 0.4) * CFrame.Angles(math.rad(14), 0, 0), 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+            tweenMotor(
+                rootJoint,
+                origRoot * CFrame.new(0, -1.8, 0.4) * CFrame.Angles(math.rad(14), 0, 0),
+                0.15,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.In
+            )
         end
         if leftShoulder and origLS then
             tweenMotor(leftShoulder, origLS * CFrame.Angles(math.rad(-18), 0, 0), 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -905,18 +984,28 @@ function TitanAnimationController:PlayBrontaraRoar(): number
             tweenMotor(neck, origN * CFrame.Angles(math.rad(-28), 0, 0), 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         end
         if leftShoulder and origLS then
-            tweenMotor(leftShoulder, origLS * CFrame.Angles(math.rad(-8), 0, math.rad(-10)), 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            tweenMotor(
+                leftShoulder,
+                origLS * CFrame.Angles(math.rad(-8), 0, math.rad(-10)),
+                0.35,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            )
         end
         if rightShoulder and origRS then
-            tweenMotor(rightShoulder, origRS * CFrame.Angles(math.rad(-8), 0, math.rad(10)), 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            tweenMotor(
+                rightShoulder,
+                origRS * CFrame.Angles(math.rad(-8), 0, math.rad(10)),
+                0.35,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            )
         end
         task.wait(0.35)
 
         -- Phase 2: Seismic Tremor / Bellow (0.45s)
         for _ = 1, 4 do
-            if neck and origN then
-                neck.C0 = origN * CFrame.Angles(math.rad(-28 + math.random(-2, 2)), math.rad(math.random(-2, 2)), 0)
-            end
+            if neck and origN then neck.C0 = origN * CFrame.Angles(math.rad(-28 + math.random(-2, 2)), math.rad(math.random(-2, 2)), 0) end
             if neckUpper and origNU then
                 neckUpper.C0 = origNU * CFrame.Angles(math.rad(-25 + math.random(-2, 2)), math.rad(math.random(-2, 2)), 0)
             end
@@ -976,9 +1065,7 @@ function TitanAnimationController:StopAll()
     end
     for name, motor in pairs(self.Motors) do
         local orig = self.OrigC0[name]
-        if orig and motor then
-            motor.C0 = orig
-        end
+        if orig and motor then motor.C0 = orig end
     end
     self.IsAttacking = false
     self.IsStomping = false

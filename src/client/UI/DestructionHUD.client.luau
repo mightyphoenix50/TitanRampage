@@ -146,9 +146,7 @@ local function spawnDamageNumber(pos: Vector3, dmg: number, combo: number, sourc
     -- Throttle oldest active numbers if cap reached
     while #activeDamageNumbers >= MAX_CONCURRENT_DAMAGE_NUMBERS do
         local oldest = table.remove(activeDamageNumbers, 1)
-        if oldest and oldest.Anchor and oldest.Anchor.Parent then
-            oldest.Anchor:Destroy()
-        end
+        if oldest and oldest.Anchor and oldest.Anchor.Parent then oldest.Anchor:Destroy() end
     end
 
     local isStomp = (source == "Stomp")
@@ -182,12 +180,18 @@ local function spawnDamageNumber(pos: Vector3, dmg: number, combo: number, sourc
 
     if isStomp then
         text.Text = if combo > 1 then string.format("💥 -%d (%dx)", dmg, combo) else string.format("💥 -%d", dmg)
-        text.TextColor3 = if combo >= 4 then Color3.fromRGB(255, 240, 80) elseif combo >= 2 then Color3.fromRGB(255, 185, 30) else Color3.fromRGB(255, 160, 15)
+        text.TextColor3 = if combo >= 4
+            then Color3.fromRGB(255, 240, 80)
+            elseif combo >= 2 then Color3.fromRGB(255, 185, 30)
+            else Color3.fromRGB(255, 160, 15)
         text.Font = Enum.Font.GothamBlack
         text.TextSize = if combo >= 4 then 34 elseif combo >= 2 then 31 else 28
     else
         text.Text = if combo > 1 then string.format("-%d (%dx)", dmg, combo) else string.format("-%d", dmg)
-        text.TextColor3 = if combo >= 4 then Color3.fromRGB(255, 230, 60) elseif combo >= 2 then Color3.fromRGB(255, 140, 40) else Color3.fromRGB(255, 80, 40)
+        text.TextColor3 = if combo >= 4
+            then Color3.fromRGB(255, 230, 60)
+            elseif combo >= 2 then Color3.fromRGB(255, 140, 40)
+            else Color3.fromRGB(255, 80, 40)
         text.Font = Enum.Font.GothamBlack
         text.TextSize = if combo >= 4 then 26 elseif combo >= 2 then 24 else 22
     end
@@ -221,12 +225,8 @@ local function spawnDamageNumber(pos: Vector3, dmg: number, combo: number, sourc
 
     task.delay(0.90, function()
         local idx = table.find(activeDamageNumbers, entry)
-        if idx then
-            table.remove(activeDamageNumbers, idx)
-        end
-        if anchor and anchor.Parent then
-            anchor:Destroy()
-        end
+        if idx then table.remove(activeDamageNumbers, idx) end
+        if anchor and anchor.Parent then anchor:Destroy() end
     end)
 end
 
@@ -405,7 +405,8 @@ local function buildUpgradeMatrix()
                 local currentLevel = localProgression.Upgrades[catId] or 1
                 local nextTier = UpgradeConfig.GetNextTier(catId, currentLevel)
                 if nextTier then
-                    local canAfford = (localProgression.Cash >= nextTier.CashCost) and (localProgression.DestructionPoints >= nextTier.PointCost)
+                    local canAfford = (localProgression.Cash >= nextTier.CashCost)
+                        and (localProgression.DestructionPoints >= nextTier.PointCost)
                     if canAfford then
                         AudioController.PlayUI("ButtonClick")
                     else
@@ -584,9 +585,7 @@ end)
 TitanSelectButton.MouseButton1Click:Connect(function()
     AudioController.PlayUI("PanelToggle")
     TitanSelectionPanel.Visible = not TitanSelectionPanel.Visible
-    if TitanSelectionPanel.Visible then
-        TitanSelectRequestRemote:FireServer("RequestSync")
-    end
+    if TitanSelectionPanel.Visible then TitanSelectRequestRemote:FireServer("RequestSync") end
 end)
 
 TitanCloseButton.MouseButton1Click:Connect(function()
@@ -600,9 +599,7 @@ local boundTitanButtons: { [string]: boolean } = {}
 
 local function updateTitanSelectionView(data: any)
     if not data then return end
-    if data.Titans then
-        lastKnownTitans = data.Titans
-    end
+    if data.Titans then lastKnownTitans = data.Titans end
     if data.SelectedTitan then
         lastKnownSelected = data.SelectedTitan
     elseif data.TitanId then
@@ -616,22 +613,24 @@ local function updateTitanSelectionView(data: any)
         local card = TitanCardsContainer:FindFirstChild("Card_" .. titanDef.Id) :: Frame?
         if card then
             local isSelected = (selected == titanDef.Id)
-            local isUnlocked = if titans[titanDef.Id] then (titans[titanDef.Id].Unlocked == true) else (titanDef.UnlockRequirement.Level <= 1 and titanDef.UnlockRequirement.Clears <= 0)
+            local isUnlocked = if titans[titanDef.Id]
+                then (titans[titanDef.Id].Unlocked == true)
+                else (titanDef.UnlockRequirement.Level <= 1 and titanDef.UnlockRequirement.Clears <= 0)
 
             local titanNameLbl = card:FindFirstChild("TitanName") :: TextLabel?
-            if titanNameLbl then
-                titanNameLbl.Text = titanDef.DisplayName
-            end
+            if titanNameLbl then titanNameLbl.Text = titanDef.DisplayName end
 
             local titleLbl = card:FindFirstChild("Title") :: TextLabel?
-            if titleLbl then
-                titleLbl.Text = titanDef.Title
-            end
+            if titleLbl then titleLbl.Text = titanDef.Title end
 
             local reqLbl = card:FindFirstChild("Requirements") :: TextLabel?
             if reqLbl then
                 if titanDef.UnlockRequirement.Level > 1 or titanDef.UnlockRequirement.Clears > 0 then
-                    reqLbl.Text = string.format("Requires: Level %d • %d City Clears", titanDef.UnlockRequirement.Level, titanDef.UnlockRequirement.Clears)
+                    reqLbl.Text = string.format(
+                        "Requires: Level %d • %d City Clears",
+                        titanDef.UnlockRequirement.Level,
+                        titanDef.UnlockRequirement.Clears
+                    )
                 else
                     reqLbl.Text = "Starter Titan • Always Available"
                 end
@@ -685,12 +684,12 @@ local function updateTitanSelectionView(data: any)
                     local targetId = titanDef.Id
                     actionBtn.MouseButton1Click:Connect(function()
                         local currentSel = lastKnownSelected
-                        local isCurrentlyUnlocked = if lastKnownTitans[targetId] then (lastKnownTitans[targetId].Unlocked == true) else false
+                        local isCurrentlyUnlocked = if lastKnownTitans[targetId]
+                            then (lastKnownTitans[targetId].Unlocked == true)
+                            else false
                         if targetId == "Ravager" then isCurrentlyUnlocked = true end
 
-                        if currentSel == targetId then
-                            return
-                        end
+                        if currentSel == targetId then return end
 
                         if not isCurrentlyUnlocked then
                             AudioController.PlayUI("UpgradeError")
@@ -826,9 +825,7 @@ if not MobileSprintButton and UserInputService.TouchEnabled then
     mbStroke.Parent = MobileSprintButton
 
     MobileSprintButton.MouseButton1Click:Connect(function()
-        if SprintToggleBindable then
-            SprintToggleBindable:Fire()
-        end
+        if SprintToggleBindable then SprintToggleBindable:Fire() end
     end)
 end
 
@@ -889,9 +886,7 @@ local function bindCharacterStamina(character: Model)
     updateStaminaUI()
 end
 
-if LocalPlayer.Character then
-    bindCharacterStamina(LocalPlayer.Character)
-end
+if LocalPlayer.Character then bindCharacterStamina(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(bindCharacterStamina)
 
 local AbilitiesFrame = MainUI:FindFirstChild("AbilitiesFrame") :: Frame?
@@ -1088,24 +1083,14 @@ TitanFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
     if eventType == "TitanListSync" or eventType == "TitanSelected" then
         updateTitanSelectionView(data)
         local newSel = data.SelectedTitan or data.TitanId
-        if newSel and type(newSel) == "string" then
-            refreshAbilitiesHUD(newSel)
-        end
+        if newSel and type(newSel) == "string" then refreshAbilitiesHUD(newSel) end
     elseif eventType == "TitanSpawned" then
-        if data.TitanId and type(data.TitanId) == "string" then
-            refreshAbilitiesHUD(data.TitanId)
-        end
+        if data.TitanId and type(data.TitanId) == "string" then refreshAbilitiesHUD(data.TitanId) end
     elseif eventType == "AbilityUsed" then
-        if data.Ability and data.Cooldown then
-            triggerAbilityCooldownUI(data.Ability, data.Cooldown)
-        end
+        if data.Ability and data.Cooldown then triggerAbilityCooldownUI(data.Ability, data.Cooldown) end
     elseif eventType == "AbilityRejected" then
-        if data.Remaining and data.Ability then
-            triggerAbilityCooldownUI(data.Ability, data.Remaining)
-        end
-        if data.Reason then
-            warn("[TitanSelect] " .. tostring(data.Reason))
-        end
+        if data.Remaining and data.Ability then triggerAbilityCooldownUI(data.Ability, data.Remaining) end
+        if data.Reason then warn("[TitanSelect] " .. tostring(data.Reason)) end
     end
 end)
 
@@ -1124,9 +1109,7 @@ TitanEffectRemote.OnClientEvent:Connect(function(effectType: string, sourceChar:
         local ab = abilityMap[effectType]
         if ab and not activeAbilityCooldowns[ab] then
             local def = TitanRegistry.GetAbility(activeTitanIdForHUD, ab)
-            if def and def.Cooldown then
-                triggerAbilityCooldownUI(ab, def.Cooldown)
-            end
+            if def and def.Cooldown then triggerAbilityCooldownUI(ab, def.Cooldown) end
         end
     end
 end)
@@ -1230,9 +1213,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         CitySelectionPanel.Visible = not CitySelectionPanel.Visible
     elseif input.KeyCode == Enum.KeyCode.T then
         TitanSelectionPanel.Visible = not TitanSelectionPanel.Visible
-        if TitanSelectionPanel.Visible then
-            TitanSelectRequestRemote:FireServer("RequestSync")
-        end
+        if TitanSelectionPanel.Visible then TitanSelectRequestRemote:FireServer("RequestSync") end
     end
 end)
 
@@ -1241,10 +1222,7 @@ CityFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
     if not data then return end
 
     if eventType == "CityListSync" then
-        if type(data) == "table" then
-            updateCitySelectionView(data)
-        end
-
+        if type(data) == "table" then updateCitySelectionView(data) end
     elseif eventType == "CityLoaded" then
         for _, entry in ipairs(activeDamageNumbers) do
             if entry.Anchor and entry.Anchor.Parent then entry.Anchor:Destroy() end
@@ -1258,7 +1236,6 @@ CityFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
         cityState.IsCompleted = false
         cityState.RunStartTime = os.clock()
         TimerLabel.Text = "⏱️ 00:00.00"
-
     elseif eventType == "CityUnlocked" then
         if data and data.CityName then
             BannerTitle.Text = string.format("🔓 %s UNLOCKED!", string.upper(data.CityName))
@@ -1274,16 +1251,10 @@ CityFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
                 }):Play()
             end)
         end
-
     elseif eventType == "CitySelectRejected" then
-        if data and data.Reason then
-            warn("[CitySelect] Selection rejected: " .. tostring(data.Reason))
-        end
-
+        if data and data.Reason then warn("[CitySelect] Selection rejected: " .. tostring(data.Reason)) end
     elseif eventType == "CityProgressUpdate" then
-        if data.CityName then
-            CityNameLabel.Text = string.format("🏙️ %s", string.upper(data.CityName))
-        end
+        if data.CityName then CityNameLabel.Text = string.format("🏙️ %s", string.upper(data.CityName)) end
 
         local total = data.TotalBuildings or 15
         local destroyed = data.DestroyedBuildings or 0
@@ -1297,11 +1268,8 @@ CityFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
             Size = UDim2.new(ratio, 0, 1, 0),
         }):Play()
 
-        if data.RunStartTime then
-            cityState.RunStartTime = data.RunStartTime
-        end
+        if data.RunStartTime then cityState.RunStartTime = data.RunStartTime end
         cityState.IsCompleted = (data.CityCompleted == true)
-
     elseif eventType == "CityCompleted" then
         cityState.IsCompleted = true
         AudioController.PlayCityComplete()
@@ -1309,11 +1277,8 @@ CityFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
         -- Celebration camera rumble
         task.spawn(function()
             for _ = 1, 8 do
-                Workspace.CurrentCamera.CFrame = Workspace.CurrentCamera.CFrame * CFrame.Angles(
-                    math.rad(math.random(-10, 10) * 0.05),
-                    math.rad(math.random(-10, 10) * 0.05),
-                    0
-                )
+                Workspace.CurrentCamera.CFrame = Workspace.CurrentCamera.CFrame
+                    * CFrame.Angles(math.rad(math.random(-10, 10) * 0.05), math.rad(math.random(-10, 10) * 0.05), 0)
                 task.wait(0.03)
             end
         end)
@@ -1333,7 +1298,8 @@ CityFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
         -- 1. Score Card Display with animated count-up
         local finalScore = data.DestructionScore or 0
         local sb = data.ScoreBreakdown or {}
-        ScoreBreakdown.Text = string.format("Base: %s | Combo: +%s | Speed: +%s | Clear: +%s",
+        ScoreBreakdown.Text = string.format(
+            "Base: %s | Combo: +%s | Speed: +%s | Clear: +%s",
             formatCommas(sb.BaseScore or 0),
             formatCommas(sb.ComboBonus or 0),
             formatCommas(sb.SpeedBonus or 0),
@@ -1341,9 +1307,7 @@ CityFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
         )
 
         ScoreBadge.Visible = (data.IsNewBestScore == true)
-        if data.IsNewBestScore then
-            ScoreBadge.Text = "★ NEW BEST SCORE! ★"
-        end
+        if data.IsNewBestScore then ScoreBadge.Text = "★ NEW BEST SCORE! ★" end
 
         -- Animate score count-up
         task.spawn(function()
@@ -1393,12 +1357,24 @@ CityFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
         CardAbilities.Text = string.format("⚔️ Abilities: %d Strikes | %d Stomps | %d Roars", attacks, stomps, roars)
 
         -- 3. Rewards Card
-        RewBuildings.Text = string.format("Buildings: +$%s Cash | +%s Pts | +%s XP",
-            formatCommas(data.BuildingsCash or 0), formatCommas(data.BuildingsPoints or 0), formatCommas(data.BuildingsXP or 0))
-        RewBonus.Text = string.format("City Bonus: +$%s Cash | +%s Pts | +%s XP",
-            formatCommas(data.CompletionCash or 5000), formatCommas(data.CompletionPoints or 2500), formatCommas(data.CompletionXP or 2000))
-        RewTotal.Text = string.format("TOTAL RUN: +$%s Cash | +%s Pts | +%s XP",
-            formatCommas(data.TotalCash or 0), formatCommas(data.TotalPoints or 0), formatCommas(data.TotalXP or 0))
+        RewBuildings.Text = string.format(
+            "Buildings: +$%s Cash | +%s Pts | +%s XP",
+            formatCommas(data.BuildingsCash or 0),
+            formatCommas(data.BuildingsPoints or 0),
+            formatCommas(data.BuildingsXP or 0)
+        )
+        RewBonus.Text = string.format(
+            "City Bonus: +$%s Cash | +%s Pts | +%s XP",
+            formatCommas(data.CompletionCash or 5000),
+            formatCommas(data.CompletionPoints or 2500),
+            formatCommas(data.CompletionXP or 2000)
+        )
+        RewTotal.Text = string.format(
+            "TOTAL RUN: +$%s Cash | +%s Pts | +%s XP",
+            formatCommas(data.TotalCash or 0),
+            formatCommas(data.TotalPoints or 0),
+            formatCommas(data.TotalXP or 0)
+        )
 
         -- Animate completion screen into view
         CompletionScreen.Position = UDim2.new(0.5, 0, 0.45, 0)
@@ -1406,7 +1382,6 @@ CityFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
         TweenService:Create(CompletionScreen, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
             Position = UDim2.new(0.5, 0, 0.5, 0),
         }):Play()
-
     elseif eventType == "CityReset" then
         for _, entry in ipairs(activeDamageNumbers) do
             if entry.Anchor and entry.Anchor.Parent then entry.Anchor:Destroy() end
@@ -1559,7 +1534,9 @@ local function spawnBuildingImpactVFX(pos: Vector3, tier: number)
         Transparency = 1,
     })
     ft:Play()
-    ft.Completed:Connect(function() flash:Destroy() end)
+    ft.Completed:Connect(function()
+        flash:Destroy()
+    end)
 
     task.delay(1.0, function()
         vfxPart:Destroy()
@@ -1616,9 +1593,7 @@ DestructionFeedback.OnClientEvent:Connect(function(eventType: string, data: any)
         if data and data.Multiplier then
             local mult = math.clamp(data.Multiplier, 1, 5)
             local timeout = data.Timeout or 4.0
-            if mult > lastComboMult then
-                AudioController.PlayComboProgress(mult)
-            end
+            if mult > lastComboMult then AudioController.PlayComboProgress(mult) end
             lastComboMult = mult
 
             local comboColors = {
@@ -1659,7 +1634,6 @@ DestructionFeedback.OnClientEvent:Connect(function(eventType: string, data: any)
             })
             comboDrainTween:Play()
         end
-
     elseif eventType == "ComboReset" then
         if comboDrainTween then
             comboDrainTween:Cancel()
@@ -1683,7 +1657,6 @@ DestructionFeedback.OnClientEvent:Connect(function(eventType: string, data: any)
             ComboLabel.TextColor3 = Color3.fromRGB(180, 185, 190)
         end
         lastComboMult = 1
-
     elseif eventType == "BuildingDamaged" then
         local pos = data.Position or Vector3.zero
         local dmg = data.Damage or 0
@@ -1712,7 +1685,6 @@ DestructionFeedback.OnClientEvent:Connect(function(eventType: string, data: any)
 
         -- Spawn distinct, throttled floating damage number
         spawnDamageNumber(pos, dmg, combo, source)
-
     elseif eventType == "BuildingDestroyed" then
         local pos = data.Position or Vector3.zero
         local rewards = data.Rewards or {}
@@ -1798,7 +1770,9 @@ if DropFeedbackRemote then
             chime.PlaybackSpeed = math.random(115, 140) / 100
             chime.Parent = Workspace
             chime:Play()
-            chime.Ended:Connect(function() chime:Destroy() end)
+            chime.Ended:Connect(function()
+                chime:Destroy()
+            end)
 
             -- Floating green cash indicator "+$50"
             local billboard = Instance.new("BillboardGui")
@@ -1841,7 +1815,6 @@ if DropFeedbackRemote then
             task.delay(0.8, function()
                 anchor:Destroy()
             end)
-
         elseif actionType == "CashPop" then
             local pos = data.Position or Vector3.zero
             local popPart = Instance.new("Part")
@@ -1868,7 +1841,9 @@ if DropFeedbackRemote then
             p.Parent = att
             p:Emit(18)
 
-            task.delay(0.6, function() popPart:Destroy() end)
+            task.delay(0.6, function()
+                popPart:Destroy()
+            end)
         end
     end)
 end
