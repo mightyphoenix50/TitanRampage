@@ -848,3 +848,15 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
 - **Code (`src/server/Services/CityService.luau`):** `ResetCity` restored every window to 0.4 transparency and every prop to opaque/collidable, so SmallTown's opaque glass came back see-through after any rebuild. Each part's authored `Transparency`/`CanCollide` is now captured the first time a city registers and restored exactly.
 - **Verified:** collapsed and rebuilt `Building_Large_01` (SmallTown) and `Metrovale_Medium_01` in a play session: all 39 and 63 window/prop parts hid on collapse and matched their authored look after rebuild; no console errors. `rojo build`, `selene` (0 errors), `stylua --check`.
 - **Status:** Complete; the Studio changes need saving to Roblox from Studio.
+
+---
+
+### [2026-10-31 18:00 UTC] — Fix: Brontara Meshes Not Rendering
+- **Goal:** Make Brontara's `TailClub`, `BrowCrest` and `CervicalSpine` render. Their `SpecialMesh.MeshId`s pointed at `file:///C:/Tools/TitanRampage-BlenderMCP/...` paths (found in Milestone 13), which Roblox cannot load.
+- **Actions Executed (Studio):**
+  - Imported the three `.fbx` files from `C:\Tools\TitanRampage-BlenderMCP\tests\` with Studio's 3D Importer as mesh assets: BrowCrest `126927754139479`, TailClub `72071169030591`, CervicalSpine `107662059267847`. Scripts cannot upload meshes (`AssetService:CreateAssetAsync` is not available yet), so this has to go through the importer.
+  - Repointed all 17 `SpecialMesh`es that used these files: the production model (`ReplicatedStorage.Assets.Models.Brontara`), the Hall of Titans statue, and the `ServerStorage` backups.
+  - The importer reads the FBX in centimetres (meshes came in 100× too big) and recentres each mesh, so each `SpecialMesh` has `Scale = 0.01` and an `Offset` equal to the OBJ bounding-box centre, which keeps the mesh where it was authored relative to its part.
+- **Verified:** play session shows no `MeshContentProvider` errors (previously nine per start); all three asset IDs preload with `AssetFetchStatus.Success`.
+- **Left as is:** seven `file://` meshes in `ServerStorage.PreHubRevamp_Backups.KaijuHub_PreRevamp` (old portals, pillars, pedestals); that backup is never loaded.
+- **Status:** Complete; the Studio changes need saving to Roblox from Studio.
