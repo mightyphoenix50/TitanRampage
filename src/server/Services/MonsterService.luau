@@ -190,9 +190,14 @@ function MonsterService.SelectTitan(player: Player, titanId: string)
 
     local unlocked = PlayerDataService.IsTitanUnlocked(player, titanId)
     if not unlocked then
+        local requirement = titanDef.UnlockRequirement
         TitanFeedbackRemote:FireClient(player, "TitanSelectRejected", {
             TitanId = titanId,
-            Reason = "Titan is locked.",
+            Reason = string.format(
+                "%s is locked. %s.",
+                titanDef.DisplayName,
+                if requirement then requirement.Description else "Keep destroying to unlock it"
+            ),
         })
         print(string.format("[MonsterService] ❌ Rejected Titan %s selection for %s: Locked", titanId, player.Name))
         return
@@ -202,6 +207,17 @@ function MonsterService.SelectTitan(player: Player, titanId: string)
         TitanFeedbackRemote:FireClient(player, "TitanSelectRejected", {
             TitanId = titanId,
             Reason = "Spawn in progress.",
+        })
+        return
+    end
+
+    -- Re-awakening the active titan would only respawn it in place, which reads as a dead button
+    local character = player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if character and humanoid and humanoid.Health > 0 and character:GetAttribute("TitanId") == titanId then
+        TitanFeedbackRemote:FireClient(player, "TitanSelectRejected", {
+            TitanId = titanId,
+            Reason = string.format("%s is already awake.", titanDef.DisplayName),
         })
         return
     end
@@ -556,9 +572,9 @@ function MonsterService.ExecuteTailSweep(player: Player, character: Model, hrp: 
             if not bld:GetAttribute("IsDestroyed") then
                 local bldPos = item.Entry.Position
                 local toBld = Vector3.new(bldPos.X, 0, bldPos.Z) - Vector3.new(hrp.Position.X, 0, hrp.Position.Z)
-                local dist = toBld.Magnitude
+                local dist = item.Distance -- To the building's footprint, so wide towers are reachable
 
-                if dist <= (range + 6) and dist > 0.01 then
+                if dist <= (range + 6) and toBld.Magnitude > 0.01 then
                     local dot = backVector:Dot(toBld.Unit)
                     -- 160° horizontal rear/flank arc: dot >= cos(80°) (~0.1736)
                     if dot >= 0.15 then

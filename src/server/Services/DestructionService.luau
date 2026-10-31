@@ -391,7 +391,10 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
     if player and player.Character and player.Character.PrimaryPart then
         local hrp = player.Character.PrimaryPart
         local buildingPos = building:GetPivot().Position
-        local dist = (Vector3.new(hrp.Position.X, 0, hrp.Position.Z) - Vector3.new(buildingPos.X, 0, buildingPos.Z)).Magnitude
+        local centerDist = (Vector3.new(hrp.Position.X, 0, hrp.Position.Z) - Vector3.new(buildingPos.X, 0, buildingPos.Z)).Magnitude
+        -- Measure to the building's edge rather than its centre so wide landmarks aren't rejected
+        local extents = building:GetExtentsSize()
+        local dist = math.max(0, centerDist - math.max(extents.X, extents.Z) * 0.5)
 
         local maxAllowedReach = 85 -- Generous boundary check
         if source == "BasicAttack" then

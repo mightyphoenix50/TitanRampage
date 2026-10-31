@@ -341,7 +341,7 @@ end
 function AudioController.PlayFootstep(titanId: string?, sourcePart: BasePart, speedRatio: number): Sound?
     local soundKey = AudioController.GetTitanSoundKey(titanId, "Footstep", nil)
     local ratio = math.clamp(speedRatio, 0, 1)
-    return playSoundInstance(soundKey, sourcePart, 0.45 + 0.55 * ratio, 0.94 + 0.12 * ratio)
+    return playSoundInstance(soundKey, sourcePart, 0.55 + 0.35 * ratio, 0.94 + 0.12 * ratio)
 end
 
 --[=[

@@ -1067,15 +1067,29 @@ local function spawnLightningStrike(targetPos: Vector3)
     sparks.Parent = att
     sparks:Emit(50)
 
-    -- Thunder Audio: Subdued, bassy, atmospheric (comfortable listening volume)
+    -- Thunder Audio: crack plus rolling decay, on its own emitter so it outlives the 0.3 s bolt
+    local thunderEmitter = Instance.new("Part")
+    thunderEmitter.Name = "ThunderEmitter"
+    thunderEmitter.Size = Vector3.new(1, 1, 1)
+    thunderEmitter.Position = lightPart.Position
+    thunderEmitter.Transparency = 1
+    thunderEmitter.Anchored = true
+    thunderEmitter.CanCollide = false
+    thunderEmitter.CanTouch = false
+    thunderEmitter.CanQuery = false
+    thunderEmitter.Parent = Workspace
+
     local sound = Instance.new("Sound")
-    sound.SoundId = "rbxasset://sounds/impact_explosion_03.mp3"
-    sound.Volume = 0.28 -- Comfortably quiet, atmospheric
-    sound.PlaybackSpeed = 0.90 -- Bassy, distant rumble pitch
-    sound.RollOffMinDistance = 50
-    sound.RollOffMaxDistance = 520
-    sound.Parent = lightPart
+    sound.SoundId = "rbxassetid://9116282875" -- ProSoundEffects: Lightning Strike Sharp Hissing Crack 5
+    sound.Volume = 0.35
+    sound.PlaybackSpeed = 0.85 + math.random() * 0.15 -- Bassy, varied per strike
+    sound.RollOffMinDistance = 60
+    sound.RollOffMaxDistance = 700
+    sound.Parent = thunderEmitter
     sound:Play()
+    task.delay(8, function()
+        thunderEmitter:Destroy()
+    end)
 
     boltModel.Parent = Workspace
 
@@ -1373,7 +1387,7 @@ function HubService.ConstructGrandSanctuary()
     pPrompt.Name = "MarketPavilionPrompt"
     pPrompt.ActionText = "Open Marketplace"
     pPrompt.ObjectText = "Titan Trader [B]"
-    pPrompt.KeyboardKeyCode = Enum.KeyCode.E
+    pPrompt.KeyboardKeyCode = Enum.KeyCode.F
     pPrompt.GamepadKeyCode = Enum.KeyCode.ButtonX
     pPrompt.MaxActivationDistance = 24
     pPrompt.RequiresLineOfSight = false
@@ -1455,6 +1469,7 @@ function HubService.ConstructGrandSanctuary()
     altarPrompt.ObjectText = "Altar of Ascension"
     altarPrompt.HoldDuration = 0.5
     altarPrompt.MaxActivationDistance = 26
+    altarPrompt.KeyboardKeyCode = Enum.KeyCode.F -- E is Stomp
     altarPrompt.RequiresLineOfSight = false
     altarPrompt.Parent = altarMonolith
 
@@ -1543,7 +1558,8 @@ function HubService.ConstructGrandSanctuary()
     promptRav.ObjectText = "Ravager"
     promptRav.ActionText = "Awaken The Ravager"
     promptRav.HoldDuration = 0.5
-    promptRav.MaxActivationDistance = 28
+    promptRav.MaxActivationDistance = 42 -- Titans are ~20 studs wide and the statue fills the pedestal
+    promptRav.KeyboardKeyCode = Enum.KeyCode.F -- E is Stomp
     promptRav.RequiresLineOfSight = false
     promptRav.Parent = pedRav
 
@@ -1588,7 +1604,8 @@ function HubService.ConstructGrandSanctuary()
     promptBron.ObjectText = "Brontara"
     promptBron.ActionText = "Awaken Brontara"
     promptBron.HoldDuration = 0.5
-    promptBron.MaxActivationDistance = 30
+    promptBron.MaxActivationDistance = 42 -- Titans are ~20 studs wide and the statue fills the pedestal
+    promptBron.KeyboardKeyCode = Enum.KeyCode.F -- E is Stomp
     promptBron.RequiresLineOfSight = false
     promptBron.Parent = pedBron
 
@@ -1695,6 +1712,7 @@ function HubService.ConstructGrandSanctuary()
     promptST.ActionText = "Deploy to SmallTown"
     promptST.HoldDuration = 0.5
     promptST.MaxActivationDistance = 28
+    promptST.KeyboardKeyCode = Enum.KeyCode.F -- E is Stomp
     promptST.RequiresLineOfSight = false
     promptST.Parent = fieldST
 
@@ -1757,6 +1775,7 @@ function HubService.ConstructGrandSanctuary()
     promptMV.ActionText = "Deploy to Metrovale"
     promptMV.HoldDuration = 0.5
     promptMV.MaxActivationDistance = 28
+    promptMV.KeyboardKeyCode = Enum.KeyCode.F -- E is Stomp
     promptMV.RequiresLineOfSight = false
     promptMV.Parent = fieldMV
 

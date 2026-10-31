@@ -18,6 +18,7 @@ local ConfigFolder = ReplicatedStorage:WaitForChild("Config")
 local RemotesFolder = ReplicatedStorage:WaitForChild("Remotes")
 
 local CityConfig = require(ConfigFolder:WaitForChild("CityConfig") :: ModuleScript)
+local DestructionConfig = require(ConfigFolder:WaitForChild("DestructionConfig") :: ModuleScript)
 local CityFeedbackRemote = RemotesFolder:WaitForChild("CityFeedback") :: RemoteEvent
 local RebuildCityRequestRemote = RemotesFolder:WaitForChild("RebuildCityRequest") :: RemoteEvent
 local CitySelectRequestRemote = RemotesFolder:WaitForChild("CitySelectRequest") :: RemoteEvent
@@ -335,11 +336,21 @@ function CityService.RegisterCity(cityName: string)
             local bId = child:GetAttribute("BuildingId") or child.Name
             local bName = child:GetAttribute("BuildingName") or child.Name
             local bType = child:GetAttribute("BuildingType") or "Small"
-            local maxHp = child:GetAttribute("MaxHealth") or 500
-            local curHp = child:GetAttribute("CurrentHealth") or maxHp
+            local tier = tonumber(child:GetAttribute("DestructionTier")) or 1
+
+            -- Scale the authored HP once per building; AuthoredMaxHealth keeps re-registration idempotent
+            local authoredHp = tonumber(child:GetAttribute("AuthoredMaxHealth"))
+            if not authoredHp then
+                authoredHp = tonumber(child:GetAttribute("MaxHealth")) or 500
+                child:SetAttribute("AuthoredMaxHealth", authoredHp)
+            end
+            local healthScale = DestructionConfig.TierHealthScale[tier] or 1
+            local maxHp = math.max(1, math.floor(authoredHp * healthScale))
+            local curHp = math.min(tonumber(child:GetAttribute("CurrentHealth")) or maxHp, maxHp)
+            child:SetAttribute("MaxHealth", maxHp)
+            child:SetAttribute("CurrentHealth", curHp)
             local reward = child:GetAttribute("DestructionReward") or child:GetAttribute("DestructonReward") or 100
             local points = child:GetAttribute("DestructionPoints") or 50
-            local tier = child:GetAttribute("DestructionTier") or 1
             local attrDestroyed = child:GetAttribute("IsDestroyed")
             local isDestroyed = if attrDestroyed ~= nil then (attrDestroyed == true) else false
 
@@ -615,6 +626,20 @@ function CityService.GetBuildingEntry(building: Model): BuildingEntry?
     return buildingsById[tostring(bId)]
 end
 
+-- Horizontal distance from `origin` to the building's footprint (its authored MainBody box), so a
+-- titan pressed against a wide tower is in range; falls back to the building's centre point
+local function footprintDistanceSq(entry: BuildingEntry, origin: Vector3): number
+    local backup = entry.VisualBackup
+    local bodyCFrame = backup and backup.MainBodyCFrame
+    local bodySize = backup and backup.MainBodySize
+    if not bodyCFrame or not bodySize then return (entry.Position.X - origin.X) ^ 2 + (entry.Position.Z - origin.Z) ^ 2 end
+
+    local localPos = bodyCFrame:PointToObjectSpace(Vector3.new(origin.X, bodyCFrame.Position.Y, origin.Z))
+    local dx = math.max(math.abs(localPos.X) - bodySize.X * 0.5, 0)
+    local dz = math.max(math.abs(localPos.Z) - bodySize.Z * 0.5, 0)
+    return dx * dx + dz * dz
+end
+
 function CityService.GetBuildingsInRadius(origin: Vector3, radius: number): { { Building: Model, Entry: BuildingEntry, Distance: number } }
     ensureInitialized()
     local results = {}
@@ -622,7 +647,7 @@ function CityService.GetBuildingsInRadius(origin: Vector3, radius: number): { { 
 
     for _, entry in ipairs(buildingList) do
         if not entry.IsDestroyed and entry.PrimaryPart then
-            local distSq = (entry.Position.X - origin.X) ^ 2 + (entry.Position.Z - origin.Z) ^ 2
+            local distSq = footprintDistanceSq(entry, origin)
             if distSq <= rSq then
                 local actualDist = math.sqrt(distSq)
                 table.insert(results, {
