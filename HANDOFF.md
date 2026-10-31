@@ -85,11 +85,35 @@
 
 ## 4. Immediate Next Steps / Roadmap
 
-### Open follow-ups from Milestone 13
-- **Brontara meshes don't load:** `Brontara_TailClub_Mesh`, `Brontara_BrowCrest_Mesh` and `Brontara_CervicalSpine_Mesh` (in `Assets.Models.Brontara` and the hall statue) use `file:///C:/Tools/TitanRampage-BlenderMCP/...` MeshIds. Import the `.fbx` files from that folder into Studio (3D Importer) and point the parts at the uploaded mesh assets.
-- **Sounds still on engine stand-ins:** progression (`RewardEarned`, `LevelUp`, `Combo_*`), UI clicks, `CityComplete`, `ShopPurchase`, `ShopPowerSurge`, and the hub thunder in `HubService`. Either upload owned sounds or find licensed library ones.
-- **Tune by ear:** every library sound was picked from its catalogue description; volumes and pitches need a listening pass in a play-test.
+### Open follow-ups from Milestone 14
+- **Sounds still on engine stand-ins:** progression (`RewardEarned`, `LevelUp`, `Combo_*`), UI clicks, `CityComplete`, `ShopPurchase`, `ShopPowerSurge`. The Creator Store search found no ProSoundEffects/Roblox-licensed matches; upload owned sounds or license some.
+- **Listening pass** on every library sound (needs a human ear).
 - **Ravager ChestPlate** brushes the right leg for ~0.3 s during the stomp; nudge its weld offset if it's visible.
+- **Hub:** further set dressing (banners, braziers, signposts toward portals/hall/colosseum) if the new look still feels sparse in play.
+
+### Done: Milestone 14 — First-Session Feel: Faster, Juicier Destruction + World Cleanup
+The first few minutes decide whether a player stays. Right now a Tier 3 tower takes ~47 basic hits (~37 s) and a landmark ~125 hits (~98 s), a collapse is a quiet sink-and-fade, the hub's awaken prompts seem dead, and the world has leftover test geometry. This milestone fixes the pacing and payoff, then cleans up the world and the open audio follow-ups.
+
+Findings behind each step (2026-10-31):
+- `DestructionConfig.BasicAttackDamage` is 150/100/75/60 by tier against building `MaxHealth` 450–7500 (SmallTown avg 1094 over 15 buildings, Metrovale avg 1977 over 27); Ravager's basic attack cooldown is 0.78 s.
+- `executeControlledCollapse` tweens `MainBody`/`Roof` down 0.85 s and fades them out; no debris is thrown.
+- The pedestal prompts do reach `MonsterService.SelectTitan`, but nothing on the client handles `TitanSelectRejected` (locked, spawn in progress), and picking the titan you already are respawns you in place, so both cases look like nothing happened.
+- The "giant cube" is `Workspace.Milestone10_1_TestCube`, a 200³ MeshPart at (-100, 181, 15) left from Milestone 10.1.
+- Terrain under SmallTown is `Grass` right up to the street surface (y ≈ 0); grass decoration blades poke through the flat road, sidewalk and plot parts sitting on it. Metrovale's ground is `Pavement`, so it doesn't happen there.
+- SmallTown (x −135…135) and Metrovale (x 1010…1390) are ~900 studs apart on the same open terrain, so towers are visible from the other city.
+
+0. **Save + cleanup (Studio, owner approval for deletes):** save the place (the Brontara mesh fix is only in the open session); delete `Workspace.Milestone10_1_TestCube`, `Workspace.Ravager_Prototype` and `ServerStorage.PreHubRevamp_Backups` (also removes the seven dead `file://` meshes in it).
+1. **Faster destruction (`DestructionConfig`, building attributes):** retune so base-level titans drop a small building in ~2 hits, medium ~4, large ~7, landmark ~15 (≈1.5 / 3 / 5.5 / 12 s of basic attacks). Do it with damage values in code rather than editing 42 `MaxHealth` attributes, so upgrades keep scaling from it. Check upgrade levels still feel meaningful and cash-per-minute in `ProgressionService` doesn't explode; adjust rewards if it does.
+2. **More satisfying destruction (client VFX, no new remotes):** on `BuildingDestroyed`, break the building into 8–20 client-side debris chunks (sized from `MainBody`, coloured to match) that get an outward/upward impulse, tumble, then fade after ~4 s; bigger dust burst and screen shake scaled by tier; a short hit-stop and floating damage numbers on hits; stronger cracking/scorch stages as HP drops. Keep the server's non-destructive hide/restore so `ResetCity` still works, and cap debris count per client for performance.
+3. **Awaken button (`MonsterService`, `DestructionHUD`):** show a toast for `TitanSelectRejected` with the reason (locked titans say how to unlock); if the titan is already active, say so instead of respawning; add a short awaken flash/roar so success is obvious. Confirm the preserved hub's prompts still carry the right `ObjectText`.
+4. **Grass clipping (Studio terrain):** repaint terrain under SmallTown's city footprint (plus a small margin) from `Grass` to `Ground`/`Pavement`, or drop it 1 stud below the street parts; keep grass in parks and outside the town.
+5. **Keep towns out of sight (Studio terrain):** done with a ~260-stud ridge between the towns at x ≈ 600 (ending in a sea headland) instead of moving Metrovale, which keeps its coast, quay and `CityConfig` untouched.
+6. **Hub look pass (Studio, `HubService` retrofit):** a consistent material/colour palette, better lighting (hub `LightingProfile`, bloom, colour correction), signposting toward the portals, hall and colosseum, more set dressing (banners, braziers, rock formations, lava flows), and fixes for anything that looks unfinished up close. Screenshot before/after.
+7. **Audio follow-ups (`AudioConfig`):** footsteps quieter (start at about half the current `Volume`: Ravager 0.60 → ~0.30, Brontara 0.80 → ~0.40, and a smaller sprint boost); a full listening pass on every library sound; replace the remaining engine stand-ins (progression `RewardEarned`/`LevelUp`/`Combo_*`, UI clicks, `CityComplete`, `ShopPurchase`/`ShopPowerSurge`, hub thunder) with licensed library or owned sounds; add sounds for the new debris (impacts, glass).
+8. **Ravager ChestPlate:** nudge the weld offset if the ~0.3 s brush against the right leg during the stomp is visible.
+9. **Wrap-up:** `rojo build`, `selene`, `stylua`, full play-test (time-to-destroy per tier, first 5 minutes of a fresh profile), CHANGELOG entry, PR.
+
+Still blocked on the owner: monetization `AssetId`s (see Before publishing).
 
 ### Done: Milestone 13 — Sound Design + Armor Check
 Every sound in `AudioConfig.luau` is still a stand-in built on 4 engine sounds (`rbxasset://sounds/...`), and the Milestone 10.4 armor is already welded onto the production titan models, so this milestone is mostly real audio plus checking the armor holds up in combat.

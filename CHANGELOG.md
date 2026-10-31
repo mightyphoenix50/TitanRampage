@@ -860,3 +860,36 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
 - **Verified:** play session shows no `MeshContentProvider` errors (previously nine per start); all three asset IDs preload with `AssetFetchStatus.Success`.
 - **Left as is:** seven `file://` meshes in `ServerStorage.PreHubRevamp_Backups.KaijuHub_PreRevamp` (old portals, pillars, pedestals); that backup is never loaded.
 - **Status:** Complete; the Studio changes need saving to Roblox from Studio.
+
+---
+
+### [2026-10-31 14:25 UTC] — Milestone 14: First-Session Feel — Faster, Juicier Destruction + World Cleanup
+- **Goal:** Make the first minutes fun: buildings that fall fast and satisfyingly, an awaken prompt that visibly works, and a cleaner world (no test geometry, no grass through streets, towns out of each other's sight, a better-looking hub, quieter footsteps).
+- **Actions Executed:**
+  - **0. Cleanup (Studio):** deleted `Workspace.Milestone10_1_TestCube` (the 200³ "giant cube" in SmallTown), `Workspace.Ravager_Prototype` and all old `ServerStorage` backup folders (`Milestone9D_Backups`, `PreMilestone10_3B_Backups`, `PreHub_Backups`, `PreHubRevamp_Backups`, `PreMilestone12_Backups`; ~2,900 instances, including the last seven `file://` meshes).
+  - **1. Faster destruction:**
+    - `DestructionConfig.TierHealthScale` (0.50 / 0.22 / 0.22 / 0.13 by tier) scales each building's authored `MaxHealth` when `CityService.RegisterCity` runs; the original value is kept in an `AuthoredMaxHealth` attribute so re-registering doesn't scale twice. Rewards and the upgrade ladder are unchanged.
+    - Melee range fix: `CityService.GetBuildingsInRadius` measured to each building's centre, so a titan pressed against a wide tower swung at "air" (a 40-stud Tier 3 took one hit, then 59 misses). It now measures to the MainBody footprint. Brontara's Neck Strike uses the same distance, and the `DestructionService` reach check subtracts the building's half-span so wide landmarks aren't rejected.
+    - Measured with real Ravager basic attacks (base upgrades): small 2 hits (1.6 s), medium 4 (3.2 s), large 7 (5.7 s), Metrovale Tower landmark 17 (13.8 s). Before: about 3–6, 14–24, 28–36 and 108–125 hits.
+  - **2. Juicier destruction** (`src/client/Controllers/DebrisController.client.luau` **[NEW]**, client-only, no new remotes): on collapse the building bursts into 10–24 tumbling chunks sized and coloured from its MainBody/Roof, thrown outward and up, fading after ~4 s (budget of 140 chunks per client). Hits near the local titan chip 3–6 small chunks off the face being hit. A render-step camera shake scales with tier and distance. Glass-break sound on collapse for buildings with windows. Play-test: up to 42 chunks live during a Tier 3 collapse, all cleaned up, no errors.
+  - **3. Awaken prompt:**
+    - It looked dead for three reasons: Brontara is locked on new profiles and the client ignored `TitanSelectRejected`; awakening the titan you already are silently respawned you; and the prompt shared **E** with Stomp, so pressing it also stomped.
+    - `MonsterService.SelectTitan` now rejects the active titan with "… is already awake." and gives the unlock requirement for locked ones ("Brontara is locked. Requires Level 5 and 2 City Clears.").
+    - `DestructionHUD` shows a toast for both and "THE RAVAGER AWAKENS!" with a roar on success.
+    - Every proximity prompt (hub and city return portals) now uses **F**; pedestal prompts reach 42 studs, since titans are ~20 studs wide and the statue fills the pedestal. Done in `HubService` and in the Studio place.
+  - **4. Grass clipping (Studio terrain):** SmallTown's terrain was `Grass` right up to street level, so blades poked through roads and sidewalks. Terrain under the 59 ground-level street, sidewalk and plot parts (plus a 4-stud margin) is now `Ground`; lawns keep their grass.
+  - **5. Towns out of sight (Studio terrain):** a 2.4k-stud grassy ridge with a rocky crown (~260 studs high where the sight line crosses) runs between SmallTown and Metrovale at x ≈ 600, ending in a headland in the sea. Blocks all 20 test sight lines between street and roof heights of both towns. Metrovale wasn't moved, so its coast, quay and config are unchanged.
+  - **6. Hub look (Studio):**
+    - The four stacked neon "MagmaRune" squares (the eye-searing orange/yellow plaza) are now basalt and slate with a single glowing `CrackedLava` channel, and the spawn pad is cracked lava.
+    - Portal fields are tinted glass with a particle swirl instead of flat neon slabs.
+    - The floating hub now sits on a craggy volcanic mountain (basalt core, rock flanks, crags and lava streaks), with every terrain top kept below the lowest hub floor.
+  - **7. Audio:**
+    - Footsteps halved (Ravager 0.60 → 0.30, Brontara 0.80 → 0.40), and the sprint volume boost reduced (0.45–1.0 → 0.55–0.9).
+    - Hub thunder now uses ProSoundEffects "Lightning Strike Sharp Hissing Crack 5" (`9116282875`) on its own emitter. It used to be parented to the bolt and cut off after 0.3 s.
+    - New `CollapseGlass` (ProSoundEffects "Glass Break 1", `9114590269`). Both preload successfully.
+- **Not done:**
+  - Progression, UI, cash-register and level-up sounds stay on engine stand-ins; the Creator Store had no licensed (ProSoundEffects/Roblox) equivalents, only community re-uploads, several ripped from other games.
+  - Ravager ChestPlate offset left as is (not re-checked).
+  - The listening pass needs a human ear.
+- **Verified:** `rojo build`, `selene` (0 errors, warning count unchanged at 34), `stylua --check`; play-test above with no console errors or warnings.
+- **Status:** Complete; the Studio changes need **File → Save to Roblox**.

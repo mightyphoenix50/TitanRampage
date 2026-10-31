@@ -273,6 +273,18 @@ local AudioConfig: AudioConfigType = {
             ThrottleTime = 0.25,
         },
 
+        CollapseGlass = {
+            SoundId = "rbxassetid://9114590269", -- ProSoundEffects: Glass Break 1 (crash, shatter, debris)
+            FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
+            Volume = 0.70,
+            BasePitch = 0.95,
+            PitchVariation = 0.08,
+            SoundGroup = "Destruction",
+            RollOffMinDistance = 20,
+            RollOffMaxDistance = 280,
+            RollOffMode = Enum.RollOffMode.InverseTapered,
+        },
+
         CollapseInitiate = {
             SoundId = "rbxassetid://9118585250", -- ProSoundEffects: Rock Cracks Big Boulder Hits 4
             FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
@@ -429,7 +441,7 @@ local AudioConfig: AudioConfigType = {
             SoundId = "rbxassetid://9125404769", -- ProSoundEffects: Boomy Footsteps Giant Thumpy Dinosaur 1
             FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
             MaxDuration = 0.9, -- Clip holds several steps; keep only the first
-            Volume = 0.60,
+            Volume = 0.30, -- Halved in M14: steps were too loud over combat
             BasePitch = 1.15, -- Lighter, quicker basalt stride
             PitchVariation = 0.05,
             SoundGroup = "Combat",
@@ -442,7 +454,7 @@ local AudioConfig: AudioConfigType = {
             SoundId = "rbxassetid://9125404774", -- ProSoundEffects: Boomy Footsteps Giant Thumpy Dinosaur 2
             FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
             MaxDuration = 1.1,
-            Volume = 0.80,
+            Volume = 0.40,
             BasePitch = 0.85, -- Heavier, slower quadruped stride
             PitchVariation = 0.04,
             SoundGroup = "Combat",

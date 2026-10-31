@@ -1078,8 +1078,56 @@ local function triggerAbilityCooldownUI(abilityName: string, duration: number)
     end
 end
 
+-- Short centred notice for titan awaken results (pedestal prompts and the selection panel)
+local activeToast: TextLabel? = nil
+local function showToast(message: string, color: Color3)
+    if activeToast then activeToast:Destroy() end
+
+    local toast = Instance.new("TextLabel")
+    toast.Name = "Toast"
+    toast.AnchorPoint = Vector2.new(0.5, 0)
+    toast.Position = UDim2.new(0.5, 0, 0.22, 0)
+    toast.Size = UDim2.new(0, 520, 0, 46)
+    toast.BackgroundColor3 = Color3.fromRGB(20, 18, 22)
+    toast.BackgroundTransparency = 0.25
+    toast.Text = message
+    toast.TextColor3 = color
+    toast.TextStrokeTransparency = 0.4
+    toast.Font = Enum.Font.GothamBlack
+    toast.TextSize = 22
+    toast.TextWrapped = true
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = toast
+    toast.Parent = MainUI
+    activeToast = toast
+
+    task.delay(2.4, function()
+        if not toast.Parent then return end
+        local fade = TweenService:Create(toast, TweenInfo.new(0.4), {
+            TextTransparency = 1,
+            TextStrokeTransparency = 1,
+            BackgroundTransparency = 1,
+        })
+        fade:Play()
+        fade.Completed:Connect(function()
+            toast:Destroy()
+        end)
+    end)
+end
+
 TitanFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
     if not data then return end
+    if eventType == "TitanSelected" and type(data.TitanId) == "string" then
+        local def = TitanRegistry.Get(data.TitanId)
+        showToast(string.format("%s AWAKENS!", string.upper(if def then def.DisplayName else data.TitanId)), Color3.fromRGB(255, 150, 40))
+        local character = LocalPlayer.Character
+        local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+        AudioController.PlayTitanRoar(data.TitanId, root)
+    elseif eventType == "TitanSelectRejected" and type(data.Reason) == "string" then
+        showToast(data.Reason, Color3.fromRGB(235, 200, 190))
+        AudioController.PlayUI("UpgradeError")
+    end
     if eventType == "TitanListSync" or eventType == "TitanSelected" then
         updateTitanSelectionView(data)
         local newSel = data.SelectedTitan or data.TitanId

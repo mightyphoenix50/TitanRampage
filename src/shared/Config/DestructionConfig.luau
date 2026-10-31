@@ -16,6 +16,8 @@ export type DestructionConfigType = {
     StompRadius: number,
     StompMinDamageFactor: number,
 
+    TierHealthScale: TierDamageMap,
+
     Combo: {
         Timeout: number,
         MaxMultiplier: number,
@@ -50,6 +52,15 @@ local DestructionConfig: DestructionConfigType = {
     },
     StompRadius = 30,
     StompMinDamageFactor = 0.35, -- Outer edge damage is 35% of epicenter max
+
+    -- Scales each building's authored MaxHealth when its city registers (CityService), so a
+    -- base-level Ravager (150 dmg x tier multiplier) drops buildings in about 2 / 4 / 7 / 15 hits
+    TierHealthScale = {
+        [1] = 0.50, -- Small: 450-800 authored -> 225-400
+        [2] = 0.22, -- Medium: 1400-2400 -> 308-528
+        [3] = 0.22, -- Large: 2100-2700 -> 462-594
+        [4] = 0.13, -- Landmark: 6500-7500 -> 845-975
+    },
 
     -- Combo mechanics
     Combo = {
