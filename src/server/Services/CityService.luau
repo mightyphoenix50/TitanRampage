@@ -53,6 +53,9 @@ export type BuildingVisualBackup = {
     RoofColor: Color3?,
     WindowParts: { BasePart },
     PropParts: { BasePart },
+    -- Window/prop parts' authored Transparency and CanCollide (shared map), restored on rebuild
+    PartTransparency: { [BasePart]: number },
+    PartCanCollide: { [BasePart]: boolean },
 }
 
 export type BuildingEntry = {
@@ -118,6 +121,12 @@ local CityService = {}
 local activeCityName = "SmallTown"
 local buildingsById: { [string]: BuildingEntry } = {}
 local buildingList: { BuildingEntry } = {}
+
+-- Authored Transparency/CanCollide of building window and prop parts, captured the first time
+-- a part is registered (cities are intact at server start). RegisterCity runs again on every
+-- LoadCity, possibly mid-destruction, so later registrations must not overwrite these.
+local authoredTransparency: { [BasePart]: number } = setmetatable({}, { __mode = "k" }) :: any
+local authoredCanCollide: { [BasePart]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
 -- Session unlock and completion tracking
 local playerCityCompletions: { [number]: { [string]: number } } = {}
@@ -354,6 +363,15 @@ function CityService.RegisterCity(cityName: string)
                 end
             end
 
+            for _, list in { windowParts, propParts } do
+                for _, part in ipairs(list) do
+                    if authoredTransparency[part] == nil then
+                        authoredTransparency[part] = part.Transparency
+                        authoredCanCollide[part] = part.CanCollide
+                    end
+                end
+            end
+
             local primaryPart = child.PrimaryPart or mainBody or child:FindFirstChildWhichIsA("BasePart")
             local pos = if primaryPart then primaryPart.Position else child:GetPivot().Position
 
@@ -368,6 +386,8 @@ function CityService.RegisterCity(cityName: string)
                 RoofColor = if roof then roof.Color else nil,
                 WindowParts = windowParts,
                 PropParts = propParts,
+                PartTransparency = authoredTransparency,
+                PartCanCollide = authoredCanCollide,
             }
 
             local entry: BuildingEntry = {
@@ -1057,19 +1077,13 @@ function CityService.ResetCity(requestingPlayer: Player?): (boolean, string)
             backup.Roof.CanCollide = true
         end
 
-        -- Restore Windows
-        for _, winPart in ipairs(backup.WindowParts) do
-            if winPart and winPart.Parent then
-                winPart.Transparency = 0.4
-                winPart.CanCollide = true
-            end
-        end
-
-        -- Restore Props
-        for _, propPart in ipairs(backup.PropParts) do
-            if propPart and propPart.Parent then
-                propPart.Transparency = 0
-                propPart.CanCollide = true
+        -- Restore Windows and Props to their authored look (cities differ: SmallTown glass is opaque)
+        for _, list in { backup.WindowParts, backup.PropParts } do
+            for _, part in ipairs(list) do
+                if part and part.Parent then
+                    part.Transparency = backup.PartTransparency[part] or 0
+                    part.CanCollide = if backup.PartCanCollide[part] ~= nil then backup.PartCanCollide[part] else true
+                end
             end
         end
 
