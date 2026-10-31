@@ -2,13 +2,17 @@
 --[[
     AudioConfig.luau
     Central sound definitions, spatial profiles, and volume parameters for Titan Rampage.
-    Organized by category: Combat, Destruction, Progression, UI, City.
-    Supports built-in engine fallbacks (rbxasset://sounds/...) and production asset IDs (rbxassetid://...).
+    Organized by category: Combat, Destruction, Progression, UI, City, Footsteps, Shop, Ambience.
+    Library sounds (rbxassetid://...) come from Roblox's free, licensed ProSoundEffects catalogue.
+    FallbackSoundId is a built-in engine sound (rbxasset://sounds/...) that AudioController uses
+    if the library sound fails to load. Entries with only an engine SoundId still need a real sound.
 --]]
 
 export type SoundDef = {
     SoundId: string,
-    PlaceholderAssetId: string?,
+    FallbackSoundId: string?,
+    MaxDuration: number?, -- Fades the sound out after this many seconds (for long library clips)
+    Looped: boolean?,
     Volume: number,
     BasePitch: number,
     PitchVariation: number?,
@@ -34,6 +38,7 @@ local AudioConfig: AudioConfigType = {
         Destruction = { Volume = 0.9, Parent = "Master" },
         UI = { Volume = 0.5, Parent = "Master" }, -- Quieter per specifications
         Music = { Volume = 0.6, Parent = "Master" },
+        Ambience = { Volume = 0.45, Parent = "Master" },
     },
 
     Sounds = {
@@ -41,10 +46,10 @@ local AudioConfig: AudioConfigType = {
         -- 1. COMBAT
         -- ====================================================================
         LeftSwipe = {
-            SoundId = "rbxasset://sounds/action_jump.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Heavy monster claw swipe left
+            SoundId = "rbxassetid://9120711836", -- ProSoundEffects: Whoosh Fast Swish By 4
+            FallbackSoundId = "rbxasset://sounds/action_jump.mp3",
             Volume = 0.85,
-            BasePitch = 1.25, -- Fast crisp whoosh
+            BasePitch = 1.00,
             PitchVariation = 0.06,
             SoundGroup = "Combat",
             RollOffMinDistance = 15,
@@ -53,10 +58,10 @@ local AudioConfig: AudioConfigType = {
         },
 
         RightSwipe = {
-            SoundId = "rbxasset://sounds/action_jump.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Heavy monster claw swipe right
+            SoundId = "rbxassetid://9120714219", -- ProSoundEffects: Whoosh Fast Swish By 3
+            FallbackSoundId = "rbxasset://sounds/action_jump.mp3",
             Volume = 0.85,
-            BasePitch = 1.45, -- Pitch-varied counter whoosh
+            BasePitch = 1.08,
             PitchVariation = 0.06,
             SoundGroup = "Combat",
             RollOffMinDistance = 15,
@@ -65,10 +70,10 @@ local AudioConfig: AudioConfigType = {
         },
 
         DownwardSmash = {
-            SoundId = "rbxasset://sounds/action_jump.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Deep overhead cleave whoosh
+            SoundId = "rbxassetid://9120716870", -- ProSoundEffects: Whoosh Fast Swish By 4 (light rumble)
+            FallbackSoundId = "rbxasset://sounds/action_jump.mp3",
             Volume = 1.05,
-            BasePitch = 0.80, -- Deep low-frequency resonance
+            BasePitch = 0.85,
             PitchVariation = 0.04,
             SoundGroup = "Combat",
             RollOffMinDistance = 20,
@@ -77,10 +82,10 @@ local AudioConfig: AudioConfigType = {
         },
 
         TailSweepWhoosh = {
-            SoundId = "rbxasset://sounds/action_jump.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Colossal tail whip whoosh
+            SoundId = "rbxassetid://9114373663", -- ProSoundEffects: Fast Pass By Airy Whooshes Windy 2
+            FallbackSoundId = "rbxasset://sounds/action_jump.mp3",
             Volume = 1.05,
-            BasePitch = 0.85, -- Heavy, deep low-frequency whoosh
+            BasePitch = 0.80,
             PitchVariation = 0.05,
             SoundGroup = "Combat",
             RollOffMinDistance = 20,
@@ -89,10 +94,10 @@ local AudioConfig: AudioConfigType = {
         },
 
         Impact_Small = {
-            SoundId = "rbxasset://sounds/action_jump_land.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Crisp concrete wall impact
+            SoundId = "rbxassetid://9125869505", -- ProSoundEffects: Rock Drops Smashes Impacts Hits 1
+            FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
             Volume = 0.85,
-            BasePitch = 1.30,
+            BasePitch = 1.15,
             PitchVariation = 0.08,
             SoundGroup = "Combat",
             RollOffMinDistance = 20,
@@ -102,10 +107,10 @@ local AudioConfig: AudioConfigType = {
         },
 
         Impact_Medium = {
-            SoundId = "rbxasset://sounds/action_jump_land.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Heavier concrete/brick thud
+            SoundId = "rbxassetid://9125869505", -- ProSoundEffects: Rock Drops Smashes Impacts Hits 1
+            FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
             Volume = 0.95,
-            BasePitch = 1.05,
+            BasePitch = 0.95,
             PitchVariation = 0.06,
             SoundGroup = "Combat",
             RollOffMinDistance = 25,
@@ -115,38 +120,36 @@ local AudioConfig: AudioConfigType = {
         },
 
         Impact_Large = {
-            SoundId = "rbxasset://sounds/action_jump_land.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Deep structural bass shock impact
+            SoundId = "rbxassetid://9118585250", -- ProSoundEffects: Rock Cracks Big Boulder Hits 4
+            FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
             Volume = 1.15,
-            BasePitch = 0.80,
+            BasePitch = 1.00,
             PitchVariation = 0.05,
             SoundGroup = "Combat",
             RollOffMinDistance = 30,
             RollOffMaxDistance = 380,
             RollOffMode = Enum.RollOffMode.InverseTapered,
             ThrottleTime = 0.08,
-            SecondarySoundId = "rbxasset://sounds/impact_explosion_03.mp3",
         },
 
         Impact_Landmark = {
-            SoundId = "rbxasset://sounds/impact_explosion_03.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Colossal reverberating landmark slam
+            SoundId = "rbxassetid://9125484526", -- ProSoundEffects: Deep Hits Big Reverberant Booms 1
+            FallbackSoundId = "rbxasset://sounds/impact_explosion_03.mp3",
             Volume = 1.35,
-            BasePitch = 0.85,
+            BasePitch = 0.90,
             PitchVariation = 0.03,
             SoundGroup = "Combat",
             RollOffMinDistance = 40,
             RollOffMaxDistance = 480,
             RollOffMode = Enum.RollOffMode.InverseTapered,
             ThrottleTime = 0.08,
-            SecondarySoundId = "rbxasset://sounds/action_jump_land.mp3",
         },
 
         StompAnticipation = {
-            SoundId = "rbxasset://sounds/action_falling.ogg",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Sub-bass seismic charging rumble
+            SoundId = "rbxassetid://9118667573", -- ProSoundEffects: Rock Scrape Deep Grinding Impacts 26
+            FallbackSoundId = "rbxasset://sounds/action_falling.ogg",
             Volume = 0.55,
-            BasePitch = 0.50,
+            BasePitch = 0.80,
             PitchVariation = 0.03,
             SoundGroup = "Combat",
             RollOffMinDistance = 25,
@@ -155,23 +158,22 @@ local AudioConfig: AudioConfigType = {
         },
 
         StompImpact = {
-            SoundId = "rbxasset://sounds/impact_explosion_03.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Massive seismic ground slam & shockwave
+            SoundId = "rbxassetid://9125484367", -- ProSoundEffects: Deep Hits Big Reverberant Booms 2
+            FallbackSoundId = "rbxasset://sounds/impact_explosion_03.mp3",
             Volume = 1.40,
-            BasePitch = 0.95,
+            BasePitch = 1.00,
             PitchVariation = 0.04,
             SoundGroup = "Combat",
             RollOffMinDistance = 35,
             RollOffMaxDistance = 450,
             RollOffMode = Enum.RollOffMode.InverseTapered,
-            SecondarySoundId = "rbxasset://sounds/action_jump_land.mp3",
         },
 
         StompDebris = {
-            SoundId = "rbxasset://sounds/action_jump_land.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Ground rubble & rock settling rumble
+            SoundId = "rbxassetid://9125883906", -- ProSoundEffects: Rocks Tumble Falling Down Cliff 1
+            FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
             Volume = 0.75,
-            BasePitch = 0.70,
+            BasePitch = 1.00,
             PitchVariation = 0.08,
             SoundGroup = "Combat",
             RollOffMinDistance = 25,
@@ -180,36 +182,34 @@ local AudioConfig: AudioConfigType = {
         },
 
         HeavyStompImpact = {
-            SoundId = "rbxasset://sounds/impact_explosion_03.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Massive seismic ground slam & shockwave
+            SoundId = "rbxassetid://9125484743", -- ProSoundEffects: Deep Hits Big Reverberant Booms 3
+            FallbackSoundId = "rbxasset://sounds/impact_explosion_03.mp3",
             Volume = 1.55,
-            BasePitch = 0.75, -- Deeper, massive seismic impact
+            BasePitch = 0.85,
             PitchVariation = 0.04,
             SoundGroup = "Combat",
             RollOffMinDistance = 45,
             RollOffMaxDistance = 550,
             RollOffMode = Enum.RollOffMode.InverseTapered,
-            SecondarySoundId = "rbxasset://sounds/action_jump_land.mp3",
         },
 
         NeckStrikeImpact = {
-            SoundId = "rbxasset://sounds/action_jump_land.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Deep hammer plunge structural thud
+            SoundId = "rbxassetid://9118585250", -- ProSoundEffects: Rock Cracks Big Boulder Hits 4
+            FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
             Volume = 1.25,
-            BasePitch = 0.70,
+            BasePitch = 0.85,
             PitchVariation = 0.05,
             SoundGroup = "Combat",
             RollOffMinDistance = 25,
             RollOffMaxDistance = 380,
             RollOffMode = Enum.RollOffMode.InverseTapered,
-            SecondarySoundId = "rbxasset://sounds/impact_explosion_03.mp3",
         },
 
         Roar = {
-            SoundId = "rbxasset://sounds/impact_explosion_03.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Original colossal ancient beast roar
+            SoundId = "rbxassetid://9113980319", -- ProSoundEffects: Creature Mix Giant Crab Monster Roar Growl 1
+            FallbackSoundId = "rbxasset://sounds/impact_explosion_03.mp3",
             Volume = 1.45,
-            BasePitch = 0.45, -- Sub-bass monstrous rumble
+            BasePitch = 0.90,
             PitchVariation = 0.04,
             SoundGroup = "Combat",
             RollOffMinDistance = 40,
@@ -217,14 +217,27 @@ local AudioConfig: AudioConfigType = {
             RollOffMode = Enum.RollOffMode.InverseTapered,
         },
 
+        BrontaraRoar = {
+            SoundId = "rbxassetid://9113980319", -- ProSoundEffects: same roar, pitched down for the bigger titan
+            FallbackSoundId = "rbxasset://sounds/impact_explosion_03.mp3",
+            Volume = 1.55,
+            BasePitch = 0.70,
+            PitchVariation = 0.03,
+            SoundGroup = "Combat",
+            RollOffMinDistance = 45,
+            RollOffMaxDistance = 600,
+            RollOffMode = Enum.RollOffMode.InverseTapered,
+        },
+
         -- ====================================================================
         -- 2. DESTRUCTION
         -- ====================================================================
         WindowBreak = {
-            SoundId = "rbxasset://sounds/action_jump.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Cascading glass shatter & falling shards
+            SoundId = "rbxassetid://9118763694", -- ProSoundEffects: Safety Glass 2
+            FallbackSoundId = "rbxasset://sounds/action_jump.mp3",
+            MaxDuration = 2.5,
             Volume = 0.70,
-            BasePitch = 2.00,
+            BasePitch = 1.00,
             PitchVariation = 0.12,
             SoundGroup = "Destruction",
             RollOffMinDistance = 15,
@@ -234,10 +247,11 @@ local AudioConfig: AudioConfigType = {
         },
 
         StructuralGroan = {
-            SoundId = "rbxasset://sounds/action_jump_land.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Heavy concrete rebar creak & groaning
+            SoundId = "rbxassetid://9120826020", -- ProSoundEffects: Wood Crack Slow Splintering Crackling 6
+            FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
+            MaxDuration = 3.0,
             Volume = 0.70,
-            BasePitch = 0.55,
+            BasePitch = 0.80,
             PitchVariation = 0.05,
             SoundGroup = "Destruction",
             RollOffMinDistance = 20,
@@ -247,10 +261,10 @@ local AudioConfig: AudioConfigType = {
         },
 
         CriticalStrain = {
-            SoundId = "rbxasset://sounds/impact_explosion_03.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Severe structural fracture & groan
+            SoundId = "rbxassetid://9118667573", -- ProSoundEffects: Rock Scrape Deep Grinding Impacts 26
+            FallbackSoundId = "rbxasset://sounds/impact_explosion_03.mp3",
             Volume = 0.85,
-            BasePitch = 0.40,
+            BasePitch = 0.70,
             PitchVariation = 0.04,
             SoundGroup = "Destruction",
             RollOffMinDistance = 25,
@@ -260,10 +274,10 @@ local AudioConfig: AudioConfigType = {
         },
 
         CollapseInitiate = {
-            SoundId = "rbxasset://sounds/action_jump_land.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Primary foundation shear & loud crack
+            SoundId = "rbxassetid://9118585250", -- ProSoundEffects: Rock Cracks Big Boulder Hits 4
+            FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
             Volume = 1.10,
-            BasePitch = 0.75,
+            BasePitch = 0.90,
             PitchVariation = 0.05,
             SoundGroup = "Destruction",
             RollOffMinDistance = 25,
@@ -272,10 +286,10 @@ local AudioConfig: AudioConfigType = {
         },
 
         CollapseRumble = {
-            SoundId = "rbxasset://sounds/impact_explosion_03.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Heavy building descent & collapsing masonry
+            SoundId = "rbxassetid://9125883906", -- ProSoundEffects: Rocks Tumble Falling Down Cliff 1
+            FallbackSoundId = "rbxasset://sounds/impact_explosion_03.mp3",
             Volume = 1.25,
-            BasePitch = 0.65,
+            BasePitch = 0.90,
             PitchVariation = 0.05,
             SoundGroup = "Destruction",
             RollOffMinDistance = 30,
@@ -284,10 +298,10 @@ local AudioConfig: AudioConfigType = {
         },
 
         RubbleImpact = {
-            SoundId = "rbxasset://sounds/action_jump_land.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Rubble settling onto foundation
+            SoundId = "rbxassetid://9125869505", -- ProSoundEffects: Rock Drops Smashes Impacts Hits 1
+            FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
             Volume = 0.80,
-            BasePitch = 0.85,
+            BasePitch = 0.90,
             PitchVariation = 0.08,
             SoundGroup = "Destruction",
             RollOffMinDistance = 20,
@@ -300,7 +314,6 @@ local AudioConfig: AudioConfigType = {
         -- ====================================================================
         RewardEarned = {
             SoundId = "rbxasset://sounds/volume_slider.ogg",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Crisp arcade collection ping
             Volume = 0.50,
             BasePitch = 1.40,
             PitchVariation = 0.04,
@@ -310,7 +323,6 @@ local AudioConfig: AudioConfigType = {
 
         LevelUp = {
             SoundId = "rbxasset://sounds/action_jump.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Triumphant brass fanfare & level chime
             Volume = 0.90,
             BasePitch = 1.80,
             PitchVariation = 0.00,
@@ -319,7 +331,6 @@ local AudioConfig: AudioConfigType = {
 
         Combo_2 = {
             SoundId = "rbxasset://sounds/volume_slider.ogg",
-            PlaceholderAssetId = "rbxassetid://0",
             Volume = 0.55,
             BasePitch = 1.20,
             SoundGroup = "UI",
@@ -327,7 +338,6 @@ local AudioConfig: AudioConfigType = {
 
         Combo_3 = {
             SoundId = "rbxasset://sounds/volume_slider.ogg",
-            PlaceholderAssetId = "rbxassetid://0",
             Volume = 0.65,
             BasePitch = 1.40,
             SoundGroup = "UI",
@@ -335,7 +345,6 @@ local AudioConfig: AudioConfigType = {
 
         Combo_4 = {
             SoundId = "rbxasset://sounds/volume_slider.ogg",
-            PlaceholderAssetId = "rbxassetid://0",
             Volume = 0.75,
             BasePitch = 1.65,
             SoundGroup = "UI",
@@ -343,7 +352,6 @@ local AudioConfig: AudioConfigType = {
 
         Combo_5 = {
             SoundId = "rbxasset://sounds/impact_explosion_03.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: MAX INFERNO celebratory blazing cue
             Volume = 0.95,
             BasePitch = 1.50,
             SoundGroup = "UI",
@@ -355,7 +363,6 @@ local AudioConfig: AudioConfigType = {
         -- ====================================================================
         ButtonClick = {
             SoundId = "rbxasset://sounds/volume_slider.ogg",
-            PlaceholderAssetId = "rbxassetid://0",
             Volume = 0.40,
             BasePitch = 1.00,
             PitchVariation = 0.04,
@@ -364,7 +371,6 @@ local AudioConfig: AudioConfigType = {
 
         CitySelect = {
             SoundId = "rbxasset://sounds/volume_slider.ogg",
-            PlaceholderAssetId = "rbxassetid://0",
             Volume = 0.45,
             BasePitch = 1.15,
             SoundGroup = "UI",
@@ -372,7 +378,6 @@ local AudioConfig: AudioConfigType = {
 
         CityPlay = {
             SoundId = "rbxasset://sounds/action_jump.mp3",
-            PlaceholderAssetId = "rbxassetid://0",
             Volume = 0.60,
             BasePitch = 1.10,
             SoundGroup = "UI",
@@ -380,7 +385,6 @@ local AudioConfig: AudioConfigType = {
 
         Rebuild = {
             SoundId = "rbxasset://sounds/action_jump_land.mp3",
-            PlaceholderAssetId = "rbxassetid://0",
             Volume = 0.70,
             BasePitch = 1.20,
             SoundGroup = "UI",
@@ -388,7 +392,6 @@ local AudioConfig: AudioConfigType = {
 
         UpgradeSuccess = {
             SoundId = "rbxasset://sounds/volume_slider.ogg",
-            PlaceholderAssetId = "rbxassetid://0",
             Volume = 0.60,
             BasePitch = 1.50,
             SoundGroup = "UI",
@@ -396,7 +399,6 @@ local AudioConfig: AudioConfigType = {
 
         UpgradeError = {
             SoundId = "rbxasset://sounds/action_jump_land.mp3",
-            PlaceholderAssetId = "rbxassetid://0",
             Volume = 0.40,
             BasePitch = 0.50,
             SoundGroup = "UI",
@@ -404,7 +406,6 @@ local AudioConfig: AudioConfigType = {
 
         PanelToggle = {
             SoundId = "rbxasset://sounds/volume_slider.ogg",
-            PlaceholderAssetId = "rbxassetid://0",
             Volume = 0.35,
             BasePitch = 0.90,
             SoundGroup = "UI",
@@ -415,11 +416,85 @@ local AudioConfig: AudioConfigType = {
         -- ====================================================================
         CityComplete = {
             SoundId = "rbxasset://sounds/impact_explosion_03.mp3",
-            PlaceholderAssetId = "rbxassetid://0", -- Production: Orchestral victory fanfare
             Volume = 1.00,
             BasePitch = 1.20,
             SoundGroup = "UI",
             SecondarySoundId = "rbxasset://sounds/volume_slider.ogg",
+        },
+
+        -- ====================================================================
+        -- 6. FOOTSTEPS (sprint strides, see AudioController.PlayFootstep)
+        -- ====================================================================
+        Footstep_Ravager = {
+            SoundId = "rbxassetid://9125404769", -- ProSoundEffects: Boomy Footsteps Giant Thumpy Dinosaur 1
+            FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
+            MaxDuration = 0.9, -- Clip holds several steps; keep only the first
+            Volume = 0.60,
+            BasePitch = 1.15, -- Lighter, quicker basalt stride
+            PitchVariation = 0.05,
+            SoundGroup = "Combat",
+            RollOffMinDistance = 20,
+            RollOffMaxDistance = 260,
+            RollOffMode = Enum.RollOffMode.InverseTapered,
+        },
+
+        Footstep_Brontara = {
+            SoundId = "rbxassetid://9125404774", -- ProSoundEffects: Boomy Footsteps Giant Thumpy Dinosaur 2
+            FallbackSoundId = "rbxasset://sounds/action_jump_land.mp3",
+            MaxDuration = 1.1,
+            Volume = 0.80,
+            BasePitch = 0.85, -- Heavier, slower quadruped stride
+            PitchVariation = 0.04,
+            SoundGroup = "Combat",
+            RollOffMinDistance = 25,
+            RollOffMaxDistance = 320,
+            RollOffMode = Enum.RollOffMode.InverseTapered,
+        },
+
+        -- ====================================================================
+        -- 7. SHOP (engine stand-ins: no licensed cash/power sounds found yet)
+        -- ====================================================================
+        ShopPurchase = {
+            SoundId = "rbxasset://sounds/electronicpingshort.wav", -- Stand-in for a cash-register chime
+            Volume = 0.65,
+            BasePitch = 1.10,
+            SoundGroup = "UI",
+            SecondarySoundId = "rbxasset://sounds/snap.mp3",
+        },
+
+        ShopPowerSurge = {
+            SoundId = "rbxasset://sounds/bass.mp3", -- Stand-in for a power-surge hum (gamepass unlock)
+            Volume = 0.80,
+            BasePitch = 0.60,
+            SoundGroup = "UI",
+            SecondarySoundId = "rbxasset://sounds/electronicpingshort.wav",
+        },
+
+        -- ====================================================================
+        -- 8. AMBIENCE (looped beds, keyed by CityConfig LightingProfile.AmbientLoop)
+        -- ====================================================================
+        Ambience_KaijuHub = {
+            SoundId = "rbxassetid://9112775624", -- ProSoundEffects: Eerie Presence 3 (rumble loop)
+            Looped = true,
+            Volume = 0.50,
+            BasePitch = 0.80, -- Deeper volcanic rumble
+            SoundGroup = "Ambience",
+        },
+
+        Ambience_SmallTown = {
+            SoundId = "rbxassetid://9119679596", -- ProSoundEffects: Surf Waves Crash On Shore 4
+            Looped = true,
+            Volume = 0.55,
+            BasePitch = 1.00,
+            SoundGroup = "Ambience",
+        },
+
+        Ambience_Metrovale = {
+            SoundId = "rbxassetid://9112772296", -- ProSoundEffects: Distant Traffic 3 (loop)
+            Looped = true,
+            Volume = 0.60,
+            BasePitch = 1.00,
+            SoundGroup = "Ambience",
         },
     },
 

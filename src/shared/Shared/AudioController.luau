@@ -15,6 +15,8 @@ local SoundService = game:GetService("SoundService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 local Workspace = game:GetService("Workspace")
+local ContentProvider = game:GetService("ContentProvider")
+local TweenService = game:GetService("TweenService")
 
 local ConfigFolder = ReplicatedStorage:WaitForChild("Config")
 local AudioConfig = require(ConfigFolder:WaitForChild("AudioConfig") :: ModuleScript)
@@ -28,6 +30,47 @@ local soundGroups: { [string]: SoundGroup } = {}
 local lastPlayTimes: { [string]: number } = {}
 local recentImpactCount = 0
 local lastImpactResetTime = 0
+
+-- Library SoundIds that failed to preload; playback switches to the def's FallbackSoundId
+local failedSoundIds: { [string]: boolean } = {}
+
+local MAX_DURATION_FADE = 0.15
+
+--[=[
+    Preloads every library sound that has a fallback and records the ones that fail,
+    so a moderated or unavailable asset degrades to its engine sound instead of silence.
+]=]
+local function preloadLibrarySounds()
+    local probes: { Instance } = {}
+    local seen: { [string]: boolean } = {}
+    for _, def in pairs(AudioConfig.Sounds) do
+        if def.FallbackSoundId and not seen[def.SoundId] then
+            seen[def.SoundId] = true
+            local probe = Instance.new("Sound")
+            probe.SoundId = def.SoundId
+            table.insert(probes, probe)
+        end
+    end
+
+    local ok, err = pcall(function()
+        ContentProvider:PreloadAsync(probes, function(contentId: string, status: Enum.AssetFetchStatus)
+            if status == Enum.AssetFetchStatus.Failure then
+                failedSoundIds[contentId] = true
+                warn(string.format("[AudioController] Library sound failed to load, using fallback: %s", contentId))
+            end
+        end)
+    end)
+    if not ok then warn("[AudioController] Sound preload failed: " .. tostring(err)) end
+
+    for _, probe in ipairs(probes) do
+        probe:Destroy()
+    end
+end
+
+local function resolveSoundId(soundDef: { SoundId: string, FallbackSoundId: string? }): string
+    if soundDef.FallbackSoundId and failedSoundIds[soundDef.SoundId] then return soundDef.FallbackSoundId end
+    return soundDef.SoundId
+end
 
 --[=[
     Initializes SoundGroups in SoundService and pre-caches group references.
@@ -56,6 +99,8 @@ function AudioController.Init()
             soundGroups[groupName] = grp
         end
     end
+
+    task.spawn(preloadLibrarySounds)
 end
 
 --[=[
@@ -91,7 +136,7 @@ local function playSoundInstance(soundKey: string, parentInstance: Instance, vol
 
     local sound = Instance.new("Sound")
     sound.Name = soundKey
-    sound.SoundId = soundDef.SoundId
+    sound.SoundId = resolveSoundId(soundDef)
     sound.Volume = vol
     sound.PlaybackSpeed = finalPitch
     sound.SoundGroup = soundGroups[soundDef.SoundGroup] or soundGroups["Master"]
@@ -111,6 +156,19 @@ local function playSoundInstance(soundKey: string, parentInstance: Instance, vol
         sound:Destroy()
     end)
     Debris:AddItem(sound, 8.0) -- Fallback safety cleanup
+
+    -- Trim long library clips: fade out and stop at MaxDuration (scaled by playback speed)
+    if soundDef.MaxDuration then
+        local cutAt = math.max(soundDef.MaxDuration / finalPitch - MAX_DURATION_FADE, 0)
+        task.delay(cutAt, function()
+            if sound.Parent == nil then return end
+            local fade = TweenService:Create(sound, TweenInfo.new(MAX_DURATION_FADE), { Volume = 0 })
+            fade.Completed:Once(function()
+                sound:Destroy()
+            end)
+            fade:Play()
+        end)
+    end
 
     -- Play secondary layered sound if configured
     if soundDef.SecondarySoundId then
@@ -274,6 +332,39 @@ function AudioController.PlayTitanRoar(titanId: string?, sourcePart: BasePart?):
     local soundKey = AudioController.GetTitanSoundKey(titanId, "Roar", nil)
     local target = sourcePart or Workspace.CurrentCamera
     return AudioController.PlaySpatial(soundKey, target)
+end
+
+--[=[
+    Plays one stride for a Titan. speedRatio (0..1) is how far the titan is between walk
+    and sprint speed; walking strides are quiet, sprint strides land louder and slightly higher.
+]=]
+function AudioController.PlayFootstep(titanId: string?, sourcePart: BasePart, speedRatio: number): Sound?
+    local soundKey = AudioController.GetTitanSoundKey(titanId, "Footstep", nil)
+    local ratio = math.clamp(speedRatio, 0, 1)
+    return playSoundInstance(soundKey, sourcePart, 0.45 + 0.55 * ratio, 0.94 + 0.12 * ratio)
+end
+
+--[=[
+    Creates a looped, silent Sound for an ambience bed, routed to its SoundGroup.
+    Returns the sound and the volume it should be faded up to; the caller plays and fades it.
+]=]
+function AudioController.CreateLoopedSound(soundKey: string): (Sound?, number)
+    local soundDef = AudioConfig.Sounds[soundKey]
+    if not soundDef then
+        warn(string.format("[AudioController] Unknown looped sound definition: '%s'", tostring(soundKey)))
+        return nil, 0
+    end
+
+    local group = soundGroups[soundDef.SoundGroup] or soundGroups["Master"]
+    local sound = Instance.new("Sound")
+    sound.Name = soundKey
+    sound.SoundId = resolveSoundId(soundDef)
+    sound.Looped = true
+    sound.Volume = 0
+    sound.PlaybackSpeed = soundDef.BasePitch
+    sound.SoundGroup = group
+    sound.Parent = group or SoundService
+    return sound, soundDef.Volume
 end
 
 --[=[

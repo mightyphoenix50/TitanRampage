@@ -346,9 +346,9 @@ local function renderTabItems()
                 buyBtn.AutoButtonColor = true
 
                 buyBtn.MouseButton1Click:Connect(function()
+                    -- Success audio plays on ShopFeedback "PurchaseSuccess", once the purchase completes
                     AudioController.PlayUI("ButtonClick")
-                    local res = ShopActionRemote:InvokeServer("PromptPurchase", { Type = "Gamepass", Id = pass.Id })
-                    if res and res.Success then AudioController.PlayUI("UpgradeSuccess") end
+                    ShopActionRemote:InvokeServer("PromptPurchase", { Type = "Gamepass", Id = pass.Id })
                 end)
             end
 
@@ -437,8 +437,7 @@ local function renderTabItems()
 
                 buyBtn.MouseButton1Click:Connect(function()
                     AudioController.PlayUI("ButtonClick")
-                    local res = ShopActionRemote:InvokeServer("PromptPurchase", { Type = "Product", Id = prod.Id })
-                    if res and res.Success then AudioController.PlayUI("UpgradeSuccess") end
+                    ShopActionRemote:InvokeServer("PromptPurchase", { Type = "Product", Id = prod.Id })
                 end)
 
                 totalHeight += 72
@@ -518,7 +517,9 @@ end)
 -- ShopFeedback listener
 ShopFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
     if eventType == "PurchaseSuccess" then
-        AudioController.PlayReward(3)
+        -- Gamepasses are permanent unlocks: layer a power surge under the purchase chime
+        AudioController.PlayUI("ShopPurchase")
+        if type(data) == "table" and data.ItemType == "Gamepass" then AudioController.PlayUI("ShopPowerSurge") end
         refreshShopData()
     elseif eventType == "CooldownsReset" then
         AudioController.PlayReward(4)

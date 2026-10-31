@@ -52,6 +52,7 @@ export type LightingProfile = {
     Atmosphere: AtmosphereSettings,
     Bloom: BloomSettings,
     ColorCorrection: ColorCorrectionSettings,
+    AmbientLoop: string?, -- AudioConfig.Sounds key of the looped ambience bed for this zone
 }
 
 export type CityDefinition = {
@@ -102,6 +103,7 @@ local HubLightingProfile: LightingProfile = {
         Saturation = 0.20,
         TintColor = Color3.fromRGB(255, 245, 238),
     },
+    AmbientLoop = "Ambience_KaijuHub",
 }
 
 local Cities: { [string]: CityDefinition } = {
@@ -153,6 +155,7 @@ local Cities: { [string]: CityDefinition } = {
                 Saturation = 0.12,
                 TintColor = Color3.fromRGB(255, 255, 255),
             },
+            AmbientLoop = "Ambience_SmallTown",
         },
     },
 
@@ -204,6 +207,7 @@ local Cities: { [string]: CityDefinition } = {
                 Saturation = 0.15,
                 TintColor = Color3.fromRGB(255, 245, 240),
             },
+            AmbientLoop = "Ambience_Metrovale",
         },
     },
 }

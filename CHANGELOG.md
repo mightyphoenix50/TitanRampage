@@ -791,6 +791,50 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
 
 ---
 
+### [2026-10-25 19:00 UTC] — Milestone 12.2: Proving Grounds Lighting, Cinematic Lightning, Physical Cash Drops & Combat VFX
+- **Goal:** Light the Colosseum Proving Grounds, rework the hub lightning storm's look and sound, replace instant cash payouts with physical cash drops, and add particle effects to attacks and building hits.
+- **Actions Executed:**
+  - `src/server/Services/HubService.luau`: 8 floodlight towers, 40 floor runes, monolith uplights and Bastion dummy spotlights (118 lighting instances). Lightning bolts gained a glowing sheath, white core, forked branches and a ground shockwave ring; thunder volume lowered from 1.6 to 0.28 with 50–500 stud roll-off.
+  - `src/server/Services/DropService.luau` **[NEW]**: server-authoritative cash stacks that burst from destroyed buildings and bob above the rubble. Pickup radius 38 studs; `AutoCollect` pass owners get a 180-stud vacuum pull. Cash is credited to the player profile on pickup.
+  - `src/client/Controllers/TitanController.client.luau`: claw slash streaks, tail-sweep fire arcs, stomp shockwave plumes and neck-strike crater dust.
+  - `src/client/UI/DestructionHUD.client.luau`: concrete dust and sparks on building hits, dust rings on collapse, client-side cash stack bobbing and suction.
+- **Status:** Complete (commit `8d30184`). Logged retroactively on 2026-10-29.
+
+---
+
+### [2026-10-28 12:00 UTC] — Maintenance: Free-Gamepass Exploit Fix, Titan Bug Fixes, Toolchain & CI
+- **Goal:** Close a live exploit, fix two titan bugs, and add a lint/format/CI toolchain. Merged to `main` as PR #1.
+- **Actions Executed:**
+  - `src/server/Services/MonetizationService.luau`: `HandleSandboxBuy` now refuses outside Studio. Before this, any client could send `ShopAction("SandboxBuy")`, or hit the `AssetId = 0` fallback, and unlock every gamepass and product for free on live servers.
+  - `src/client/Controllers/TitanController.client.luau`: `clientCooldowns` is declared before `updateActiveTitan`, which was calling `table.clear` on a nil global and aborting the titan switch.
+  - `src/shared/Shared/TitanAnimationController.luau`: `animState` hoisted out of the Brontara block so `self.AnimState` is the table the walk loop reads.
+  - Toolchain: `rokit.toml` (Rojo 7.7.1, selene, StyLua, luau-lsp), `selene.toml`, `stylua.toml`, `.luaurc`, `.gitattributes` (LF), `CLAUDE.md`. All of `src/` formatted with StyLua (`.git-blame-ignore-revs` skips that commit in blame).
+  - CI: `.github/workflows/ci.yml` runs `rojo build`, `selene` and `stylua --check` on pushes to `main` and on PRs.
+- **Status:** Complete (merge commit `6b4621d`).
+
+---
+
+### [2026-10-29 16:00 UTC] — Milestone 13: Sound Design + Armor Check
+- **Goal:** Replace the stand-in engine sounds with real ones, add titan footsteps, shop purchase sounds and per-zone ambience, and check that the Milestone 10.4 armor holds up in combat.
+- **Actions Executed:**
+  - **1. Real sound effects** (`src/shared/Config/AudioConfig.luau`):
+    - 20 of the stand-in sounds (all combat and destruction sounds) now use free, Roblox-licensed **ProSoundEffects** library sounds. Every ID was preloaded in Studio and loads for this game.
+    - The previous engine sound is kept as `FallbackSoundId`; the dead `PlaceholderAssetId = "rbxassetid://0"` fields are gone. Pitches were retuned near 1.0 (the stand-ins were stretched, e.g. the roar was an explosion at 0.45×) and engine-sound layers removed from the swapped entries.
+    - New entries: `BrontaraRoar` (deeper), `Footstep_Ravager`, `Footstep_Brontara`, `ShopPurchase`, `ShopPowerSurge`, and `Ambience_KaijuHub` / `Ambience_SmallTown` / `Ambience_Metrovale` in a new `Ambience` sound group.
+    - Progression, UI and shop sounds are still engine sounds: no licensed equivalents were found in the library.
+  - **2. AudioController** (`src/shared/Shared/AudioController.luau`): preloads library sounds and switches to the fallback if one fails to load; `MaxDuration` fades out long clips; new `PlayFootstep` and `CreateLoopedSound` helpers.
+  - **3. Footsteps** (`src/client/Controllers/FootstepController.client.luau` **[NEW]**): strides paced by distance travelled (`AudioProfile.FootstepStride`: Ravager 13, Brontara 15 studs) for every grounded, moving titan within 400 studs, including other players'. Quiet when walking, louder and slightly higher when sprinting, with a light camera dip on the local player's sprint strides. Driven by replicated velocity, no remotes. Play-test: 17 strides over 3 s walking + 3 s sprinting (44 studs/s).
+  - **4. Shop sounds** (`src/client/UI/ShopHUD.client.luau`): purchase chime on `PurchaseSuccess`, plus a power surge for gamepasses. Buy buttons no longer play a success sound when the purchase prompt merely opens. Verified with a Studio sandbox gamepass purchase.
+  - **5. City ambience** (`src/client/Controllers/AmbienceController.client.luau` **[NEW]**, `CityConfig.LightingProfile.AmbientLoop`): 2 s crossfade on `CityLightingChanged`; defaults to the hub bed 3 s after join in case `LightingController` consumed the join-time event first. Verified hub → SmallTown → Metrovale.
+  - **6. Armor check** (Studio play-test with a per-frame weld-drift and overlap probe):
+    - Ravager claw combo, stomp and roar: welds held (≤ 0.001 studs drift), pauldrons clean; the ChestPlate brushes the right leg for about 0.3 s, most likely during the stomp leg lift. Left as is.
+    - Brontara heavy stomp, tail sweep, neck strike and roar: zero drift, no new overlaps.
+    - Armor parts on both production models set to `Massless` (Studio edit to `ReplicatedStorage.Assets.Models`), matching the 10.4 spec; they had been left with mass.
+- **Found, not fixed:** Brontara's `TailClub`, `BrowCrest` and `CervicalSpine` meshes (production model and hall statue) point to `file:///C:/Tools/TitanRampage-BlenderMCP/...` paths, which Roblox cannot load, so those parts don't render. The `.fbx`/`.obj` files exist locally and need importing as Roblox mesh assets.
+- **Status:** Complete; the Studio armor edit needs saving to Roblox from Studio.
+
+---
+
 ### [2026-10-29 19:30 UTC] — City Visuals Pass: SmallTown & Metrovale
 - **Goal:** Make both cities look like places rather than slabs on the default baseplate, without breaking building destruction or rebuild.
 - **Actions Executed (Studio, `Workspace` terrain and `Workspace.Cities`):**
