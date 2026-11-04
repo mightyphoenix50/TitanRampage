@@ -17,7 +17,7 @@ Multiplayer Roblox kaiju destruction game. Place ID `131002954769216`. Player-fa
 | `src/shared/Config/*.luau` | ReplicatedStorage.Config | Pure data tables (titans, cities, upgrades, monetization, audio) |
 | `src/shared/Shared/*.luau` | ReplicatedStorage.Shared | Code used by both sides (animation, audio, titan registry) |
 | `src/client/Controllers/*.client.luau` | StarterPlayerScripts | Input, camera, lighting |
-| `src/client/UI/*.client.luau` | StarterGui.MainUI | HUDs built in code |
+| `src/client/UI/*.client.luau` | StarterGui.MainUI | HUDs built in code; each file is listed by name in `default.project.json`, so add new ones there |
 
 New service: add the module under `Services/` and register it in the `services` list in `ServerBootstrap`, respecting dependency order (PlayerDataService first).
 

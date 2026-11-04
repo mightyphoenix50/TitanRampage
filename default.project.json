@@ -26,6 +26,9 @@
         },
         "ShopHUD": {
           "$path": "src/client/UI/ShopHUD.client.luau"
+        },
+        "BossHUD": {
+          "$path": "src/client/UI/BossHUD.client.luau"
         }
       }
     },

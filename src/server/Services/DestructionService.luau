@@ -17,8 +17,10 @@ local Workspace = game:GetService("Workspace")
 
 local ConfigFolder = ReplicatedStorage:WaitForChild("Config")
 local RemotesFolder = ReplicatedStorage:WaitForChild("Remotes")
+local SharedFolder = ReplicatedStorage:WaitForChild("Shared")
 
 local DestructionConfig = require(ConfigFolder:WaitForChild("DestructionConfig") :: ModuleScript)
+local TitanRegistry = require(SharedFolder:WaitForChild("TitanRegistry") :: ModuleScript)
 local DestructionFeedbackRemote = RemotesFolder:WaitForChild("DestructionFeedback") :: RemoteEvent
 
 -- Services
@@ -26,6 +28,26 @@ local ProgressionService = require(script.Parent:WaitForChild("ProgressionServic
 local CityService = require(script.Parent:WaitForChild("CityService") :: ModuleScript)
 local HubService = nil
 local DropService = nil
+local BossService = nil
+local TrainingService = nil
+
+local function getTrainingService()
+    if not TrainingService then
+        pcall(function()
+            TrainingService = require(script.Parent:WaitForChild("TrainingService") :: ModuleScript)
+        end)
+    end
+    return TrainingService
+end
+
+local function getBossService()
+    if not BossService then
+        pcall(function()
+            BossService = require(script.Parent:WaitForChild("BossService") :: ModuleScript)
+        end)
+    end
+    return BossService
+end
 
 local function getHubService()
     if not HubService then
@@ -57,6 +79,12 @@ local DestructionService = {}
 local playerCombos: { [number]: ComboData } = {}
 local collapsingBuildings: { [Instance]: boolean } = {}
 
+-- Damage each player has dealt to each standing building, for splitting its reward on collapse
+local damageLedger: { [Instance]: { [Player]: number } } = {}
+local MIN_REWARD_SHARE = 0.10 -- Players below this share of a building's damage get no cut
+
+export type Payout = { Player: Player, Cash: number, XP: number, Combo: number }
+
 --[=[
     Initializes service state and connects player lifecycle.
 ]=]
@@ -73,6 +101,9 @@ function DestructionService.Init()
 
     Players.PlayerRemoving:Connect(function(player)
         playerCombos[player.UserId] = nil
+        for _, contributions in pairs(damageLedger) do
+            contributions[player] = nil
+        end
     end)
 end
 
@@ -89,9 +120,25 @@ end
 --[=[
     Clears collapsing buildings table upon city rebuild.
 ]=]
-function DestructionService.ClearCollapsingBuildings()
-    table.clear(collapsingBuildings)
+function DestructionService.ClearCollapsingBuildings(buildings: { Model }?)
+    if buildings then
+        for _, building in ipairs(buildings) do
+            collapsingBuildings[building] = nil
+            damageLedger[building] = nil
+        end
+    else
+        table.clear(collapsingBuildings)
+        table.clear(damageLedger)
+    end
     print("[DestructionService] Cleared collapsing buildings cache for city rebuild.")
+end
+
+--[=[
+    Scales raw ability damage by the player's Training Power (+0.25% per point).
+]=]
+function DestructionService.ApplyTrainingBonus(player: Player, damage: number): number
+    local trainingPower = tonumber(player:GetAttribute("TrainingPower")) or 0
+    return math.floor(damage * (1 + math.max(0, trainingPower) * TitanRegistry.TRAINING_DAMAGE_BONUS_PER_POINT))
 end
 
 --[=[
@@ -241,7 +288,8 @@ end
 local function executeControlledCollapse(
     building: Model,
     player: Player?,
-    rewards: { Cash: number, Points: number, XP: number, Combo: number }
+    rewards: { Cash: number, XP: number, Combo: number },
+    payouts: { Payout }
 )
     if collapsingBuildings[building] then return end
     collapsingBuildings[building] = true
@@ -344,9 +392,9 @@ local function executeControlledCollapse(
         Rewards = rewards,
     })
 
-    -- Spawn physical floating & bobbing green cash stacks
+    -- Spawn physical floating & bobbing green cash stacks, one set per rewarded player
     local dropService = getDropService()
-    if dropService and rewards.Cash > 0 then
+    if dropService then
         local bTier = tonumber(building:GetAttribute("DestructionTier")) or 1
         local dropCount = 3
         if bTier == 2 then
@@ -356,7 +404,14 @@ local function executeControlledCollapse(
         elseif bTier >= 4 then
             dropCount = 8
         end
-        dropService.SpawnCashDrops(collapsePos, rewards.Cash, dropCount, player)
+        for _, payout in ipairs(payouts) do
+            if payout.Cash > 0 then
+                -- Smaller shares drop fewer stacks so a 10% cut isn't eight $3 bills
+                local share = payout.Cash / math.max(rewards.Cash, 1)
+                local count = math.max(2, math.ceil(dropCount * share))
+                dropService.SpawnCashDrops(collapsePos, payout.Cash, count, payout.Player)
+            end
+        end
     end
 
     print(string.format("[DestructionService] Building '%s' completely collapsed. Remains converted to rubble.", building.Name))
@@ -426,6 +481,31 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
         end
     end
 
+    -- Training Power bonus (server-set attribute, see ProgressionService.RefreshTitanPower)
+    if player then damage = DestructionService.ApplyTrainingBonus(player, damage) end
+
+    -- Bosses take ability damage through BossService (party, shield and phase rules live there)
+    if building:GetAttribute("IsBoss") == true then
+        local bosses = getBossService()
+        if not player or not bosses then return false, 0 end
+        local hit, applied = bosses.DamageBoss(player, building, damage, source)
+        local training = getTrainingService()
+        if training then training.NoteOtherHit(player) end
+        if hit then
+            DestructionFeedbackRemote:FireAllClients("BuildingDamaged", {
+                Building = building,
+                Damage = applied,
+                CurrentHealth = building:GetAttribute("CurrentHealth"),
+                MaxHealth = building:GetAttribute("MaxHealth"),
+                Position = building:GetPivot().Position,
+                Source = source,
+                Combo = DestructionService.GetPlayerCombo(player),
+                IsBoss = true,
+            })
+        end
+        return hit, applied
+    end
+
     -- Apply damage single-sourced through CityService
     local success, actualDamage = CityService.ApplyDamage(building, damage, player)
     if not success then return false, 0 end
@@ -441,6 +521,35 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
         if hub and type(hub.RecordDummyDamage) == "function" then
             hub.RecordDummyDamage(building, actualDamage, newHp, maxHp, playerCombo)
         end
+        if player and building.Name == "Bastion_Titan_Dummy" then
+            local bosses = getBossService()
+            if bosses then bosses.RecordReadinessDamage(player, actualDamage) end
+        end
+        if player and building:GetAttribute("BagId") ~= nil then
+            local training = getTrainingService()
+            if training then training.RecordBagHit(player, building) end
+        end
+
+        -- Practice monoliths break with a debris burst and rebuild themselves 10 seconds later
+        if newHp <= 0 and building:IsA("BasePart") then
+            local pillar = building :: any
+            local authoredTransparency = pillar.Transparency
+            building:SetAttribute("IsDestroyed", true)
+            pillar.Transparency = 1
+            pillar.CanCollide = false
+            DestructionFeedbackRemote:FireAllClients("BuildingDestroyed", {
+                Building = building,
+                Position = pillar.Position,
+                Rewards = { Cash = 0, XP = 0, Combo = playerCombo },
+            })
+            task.delay(10, function()
+                if not building.Parent then return end
+                pillar.Transparency = authoredTransparency
+                pillar.CanCollide = true
+                building:SetAttribute("CurrentHealth", maxHp)
+                building:SetAttribute("IsDestroyed", false)
+            end)
+        end
 
         DestructionFeedbackRemote:FireAllClients("BuildingDamaged", {
             Building = building,
@@ -455,9 +564,18 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
         return true, actualDamage
     end
 
-    -- Record damage in run statistics
-    local bId = building:GetAttribute("BuildingId") or building.Name
-    CityService.RecordDamage(actualDamage, tostring(bId))
+    -- Record damage in run statistics and in this building's per-player ledger
+    CityService.RecordDamage(building, actualDamage, player)
+    if player and actualDamage > 0 then
+        local training = getTrainingService()
+        if training then training.NoteOtherHit(player) end
+        local contributions = damageLedger[building]
+        if not contributions then
+            contributions = {}
+            damageLedger[building] = contributions
+        end
+        contributions[player] = (contributions[player] or 0) + actualDamage
+    end
 
     local newHp = tonumber(building:GetAttribute("CurrentHealth")) or 0
     local buildingPos = building:GetPivot().Position
@@ -471,46 +589,74 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
         local baseReward = tonumber(building:GetAttribute("DestructionReward"))
             or tonumber(building:GetAttribute("DestructonReward"))
             or 100
-        local basePoints = tonumber(building:GetAttribute("DestructionPoints")) or 50
         local tier = tonumber(building:GetAttribute("DestructionTier")) or 1
         local baseXP = tonumber(building:GetAttribute("DestructionXP"))
             or (DestructionConfig.Tiers[tier] and DestructionConfig.Tiers[tier].BaseXP)
             or 50
 
-        local finalCash = math.floor(baseReward * comboMult)
-        local finalPoints = math.floor(basePoints * comboMult)
-        local finalXP = math.floor(baseXP * comboMult)
+        -- Split the building's reward by damage share among everyone who dealt at least 10%;
+        -- each player's own combo multiplier applies to their cut
+        local contributions = damageLedger[building] or {}
+        damageLedger[building] = nil
+        local totalDamage = 0
+        for contributor, dealt in pairs(contributions) do
+            if contributor.Parent then
+                totalDamage += dealt
+            end
+        end
+        local eligible: { [Player]: number } = {}
+        local eligibleDamage = 0
+        for contributor, dealt in pairs(contributions) do
+            if contributor.Parent and totalDamage > 0 and dealt / totalDamage >= MIN_REWARD_SHARE then
+                eligible[contributor] = dealt
+                eligibleDamage += dealt
+            end
+        end
+        if player and next(eligible) == nil then
+            eligible[player] = 1
+            eligibleDamage = 1
+        end
+
+        local payouts: { Payout } = {}
+        local totalCash, totalXP = 0, 0
+        for contributor, dealt in pairs(eligible) do
+            local share = dealt / eligibleDamage
+            local combo = if contributor == player then comboMult else DestructionService.GetPlayerCombo(contributor)
+            local cash = math.floor(baseReward * share * combo)
+            local xp = math.floor(baseXP * share * combo)
+            totalCash += cash
+            totalXP += xp
+            table.insert(payouts, { Player = contributor, Cash = cash, XP = xp, Combo = combo })
+            -- XP lands immediately; cash is collected via the floating physical cash stacks
+            ProgressionService.AddRewards(contributor, 0, xp)
+        end
 
         local rewards = {
-            Cash = finalCash,
-            Points = finalPoints,
-            XP = finalXP,
+            Cash = totalCash,
+            XP = totalXP,
             Combo = comboMult,
         }
 
         if player then
-            -- Award Points and XP immediately; Cash is collected via floating physical cash stacks
-            ProgressionService.AddRewards(player, 0, finalPoints, finalXP)
-
             print(
                 string.format(
-                    "[DestructionService] %s destroyed '%s' (%s, Tier %d)! Awarded +%d Pts, +%d XP [Combo %dx], spawned $%d in cash drops!",
+                    "[DestructionService] %s destroyed '%s' (%s, Tier %d)! %d player(s) rewarded: $%d, +%d XP [destroyer combo %dx]",
                     player.Name,
                     building.Name,
                     tostring(building:GetAttribute("BuildingName")),
                     tier,
-                    finalPoints,
-                    finalXP,
-                    comboMult,
-                    finalCash
+                    #payouts,
+                    totalCash,
+                    totalXP,
+                    comboMult
                 )
             )
         end
 
         -- Record destruction in CityService for live city completion tracking
-        CityService.RecordDestruction(player, building, finalCash, finalPoints, finalXP, comboMult)
+        CityService.RecordDestruction(player, building, totalCash, totalXP, comboMult)
 
-        executeControlledCollapse(building, player, rewards)
+        executeControlledCollapse(building, player, rewards, payouts)
     else
         -- Building Damaged (Survives)
         updateBuildingVisualDamage(building, newHp, maxHp)

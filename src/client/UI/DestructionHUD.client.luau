@@ -3,7 +3,7 @@
     DestructionHUD.client.luau
     Client UI controller for Titan Rampage.
     Responsibility:
-    - Real-time HUD updates for Level, XP progress bar, Cash, Points, and Combo.
+    - Real-time HUD updates for Level, XP progress bar, Cash, Titan Power, and Combo.
     - Full Ravager Upgrade Matrix UI panel with live affordability tracking.
     - Floating damage numbers, destruction billboards, and level-up banners.
     - City Progress HUD tracker (Buildings count, percentage, progress bar, live timer).
@@ -40,7 +40,7 @@ local TitanEffectRemote = RemotesFolder:WaitForChild("TitanEffect") :: RemoteEve
 local StatsFrame = MainUI:WaitForChild("StatsFrame") :: Frame
 local LevelLabel = StatsFrame:WaitForChild("LevelLabel") :: TextLabel
 local CashLabel = StatsFrame:WaitForChild("CashLabel") :: TextLabel
-local PointsLabel = StatsFrame:WaitForChild("PointsLabel") :: TextLabel
+local PowerLabel = StatsFrame:WaitForChild("PointsLabel") :: TextLabel -- Shows Titan Power since points were removed (M15)
 local ComboLabel = StatsFrame:WaitForChild("ComboLabel") :: TextLabel
 local ComboBarBg = StatsFrame:WaitForChild("ComboBarBg") :: Frame
 local ComboBarFill = ComboBarBg:WaitForChild("ComboBarFill") :: Frame
@@ -125,7 +125,6 @@ local localProgression = {
     CurrentXP = 0,
     NextLevelXP = 500,
     Cash = 0,
-    DestructionPoints = 0,
     Upgrades = {} :: { [string]: number },
 }
 
@@ -271,8 +270,7 @@ local function updateUpgradeButtonVisualState(
     widgets: { Row: Frame, LevelText: TextLabel, ValueText: TextLabel, BuyButton: TextButton },
     currentLevel: number,
     catConfig: any,
-    playerCash: number,
-    playerPoints: number
+    playerCash: number
 )
     local curValue = UpgradeConfig.GetTierValue(catId, currentLevel)
     widgets.LevelText.Text = string.format("%s (Lvl %d/%d)", catConfig.DisplayName, currentLevel, catConfig.MaxLevel)
@@ -297,7 +295,8 @@ local function updateUpgradeButtonVisualState(
         if not nextTier then return end
 
         widgets.ValueText.Text = string.format("%s ➔ %s", formatValue(catId, curValue), formatValue(catId, nextTier.Value))
-        widgets.BuyButton.Text = string.format("UPGRADE\n$%d • %dP", nextTier.CashCost, nextTier.PointCost)
+        widgets.BuyButton.Text =
+            string.format("UPGRADE\n$%s • +%d⚡", formatCommas(nextTier.CashCost), TitanRegistry.POWER_PER_UPGRADE_LEVEL)
         widgets.BuyButton.BackgroundTransparency = 0
         widgets.BuyButton.TextTransparency = 0
         widgets.BuyButton.Active = true
@@ -306,7 +305,7 @@ local function updateUpgradeButtonVisualState(
             (widgets.BuyButton :: any).Interactable = true
         end)
 
-        local canAfford = (playerCash >= nextTier.CashCost) and (playerPoints >= nextTier.PointCost)
+        local canAfford = playerCash >= nextTier.CashCost
         if canAfford then
             -- STATE A: AFFORDABLE (Visibly enabled & clickable)
             widgets.ValueText.TextColor3 = Color3.fromRGB(180, 205, 230)
@@ -405,8 +404,7 @@ local function buildUpgradeMatrix()
                 local currentLevel = localProgression.Upgrades[catId] or 1
                 local nextTier = UpgradeConfig.GetNextTier(catId, currentLevel)
                 if nextTier then
-                    local canAfford = (localProgression.Cash >= nextTier.CashCost)
-                        and (localProgression.DestructionPoints >= nextTier.PointCost)
+                    local canAfford = localProgression.Cash >= nextTier.CashCost
                     if canAfford then
                         AudioController.PlayUI("ButtonClick")
                     else
@@ -435,19 +433,30 @@ end
 ]=]
 local function updateUpgradeMatrixView()
     local cash = localProgression.Cash or 0
-    local points = localProgression.DestructionPoints or 0
 
     for catId, widgets in pairs(upgradeRows) do
         local cat = UpgradeConfig.Categories[catId]
         if cat then
             local currentLevel = localProgression.Upgrades[catId] or 1
-            updateUpgradeButtonVisualState(catId, widgets, currentLevel, cat, cash, points)
+            updateUpgradeButtonVisualState(catId, widgets, currentLevel, cat, cash)
         end
     end
 end
 
+-- Titan Power is computed by the server and replicated as a player attribute
+local function refreshPowerLabel()
+    local power = tonumber(LocalPlayer:GetAttribute("TitanPower")) or 0
+    local training = tonumber(LocalPlayer:GetAttribute("TrainingPower")) or 0
+    PowerLabel.Text = if training > 0
+        then string.format("⚡ Power: %s (+%d trained)", formatCommas(power), training)
+        else string.format("⚡ Power: %s", formatCommas(power))
+end
+refreshPowerLabel()
+LocalPlayer:GetAttributeChangedSignal("TitanPower"):Connect(refreshPowerLabel)
+LocalPlayer:GetAttributeChangedSignal("TrainingPower"):Connect(refreshPowerLabel)
+
 --[=[
-    Updates HUD with progression data (Level, XP bar, Cash, Points).
+    Updates HUD with progression data (Level, XP bar, Cash).
 ]=]
 local function updateHUD(data: any)
     if not data then return end
@@ -456,13 +465,11 @@ local function updateHUD(data: any)
     if data.CurrentXP ~= nil then localProgression.CurrentXP = data.CurrentXP end
     if data.NextLevelXP ~= nil then localProgression.NextLevelXP = data.NextLevelXP end
     if data.Cash ~= nil then localProgression.Cash = data.Cash end
-    if data.DestructionPoints ~= nil then localProgression.DestructionPoints = data.DestructionPoints end
     if data.Upgrades ~= nil then localProgression.Upgrades = data.Upgrades end
 
     -- Update UI
     LevelLabel.Text = string.format("LVL %d", localProgression.Level)
     CashLabel.Text = string.format("💵 Cash: $%d", localProgression.Cash)
-    PointsLabel.Text = string.format("💥 Points: %d", localProgression.DestructionPoints)
 
     local targetRatio = math.clamp(localProgression.CurrentXP / math.max(1, localProgression.NextLevelXP), 0, 1)
     TweenService:Create(XPFill, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -513,6 +520,16 @@ TitanSelectRequestRemote:FireServer("RequestSync")
 -- Remote Event: ProgressionUpdate
 ProgressionUpdateRemote.OnClientEvent:Connect(function(data: any)
     if not data then return end
+
+    -- Altar of Ascension prompt: open the upgrade panel (its prompt used to do nothing)
+    if data == "OpenAscensionAltar" then
+        UpgradePanel.Visible = true
+        AudioController.PlayUI("PanelToggle")
+        ProgressionUpdateRemote:FireServer("RequestSync")
+        updateUpgradeMatrixView()
+        return
+    end
+    if type(data) ~= "table" then return end
 
     updateHUD(data)
 
@@ -1405,24 +1422,11 @@ CityFeedbackRemote.OnClientEvent:Connect(function(eventType: string, data: any)
         CardAbilities.Text = string.format("⚔️ Abilities: %d Strikes | %d Stomps | %d Roars", attacks, stomps, roars)
 
         -- 3. Rewards Card
-        RewBuildings.Text = string.format(
-            "Buildings: +$%s Cash | +%s Pts | +%s XP",
-            formatCommas(data.BuildingsCash or 0),
-            formatCommas(data.BuildingsPoints or 0),
-            formatCommas(data.BuildingsXP or 0)
-        )
-        RewBonus.Text = string.format(
-            "City Bonus: +$%s Cash | +%s Pts | +%s XP",
-            formatCommas(data.CompletionCash or 5000),
-            formatCommas(data.CompletionPoints or 2500),
-            formatCommas(data.CompletionXP or 2000)
-        )
-        RewTotal.Text = string.format(
-            "TOTAL RUN: +$%s Cash | +%s Pts | +%s XP",
-            formatCommas(data.TotalCash or 0),
-            formatCommas(data.TotalPoints or 0),
-            formatCommas(data.TotalXP or 0)
-        )
+        RewBuildings.Text =
+            string.format("Buildings: +$%s Cash | +%s XP", formatCommas(data.BuildingsCash or 0), formatCommas(data.BuildingsXP or 0))
+        RewBonus.Text =
+            string.format("City Bonus: +$%s Cash | +%s XP", formatCommas(data.CompletionCash or 0), formatCommas(data.CompletionXP or 0))
+        RewTotal.Text = string.format("TOTAL RUN: +$%s Cash | +%s XP", formatCommas(data.TotalCash or 0), formatCommas(data.TotalXP or 0))
 
         -- Animate completion screen into view
         CompletionScreen.Position = UDim2.new(0.5, 0, 0.45, 0)

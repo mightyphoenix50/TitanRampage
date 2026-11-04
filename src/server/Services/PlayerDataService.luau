@@ -3,7 +3,7 @@
     PlayerDataService.luau
     Responsibility:
     - Production-ready persistent player progression management using Roblox DataStoreService.
-    - Versioned data schema (SchemaVersion = 1) and safe migration pipeline.
+    - Versioned data schema (see CURRENT_SCHEMA_VERSION) and safe migration pipeline.
     - Multi-attempt retry logic with exponential backoff for LoadAsync and SaveAsync.
     - Authoritative in-memory session caching during gameplay.
     - Critical safety rules: NEVER wipe player progress on DataStore failure; lock saving if load failed.
@@ -36,7 +36,6 @@ export type LifetimeStatistics = {
     TotalCitiesCompleted: number,
     TotalRunsCompleted: number,
     TotalCashEarned: number,
-    TotalPointsEarned: number,
     TotalXPEarned: number,
     HighestCombo: number,
     TotalPlayTime: number,
@@ -47,7 +46,6 @@ export type PlayerProfile = {
     Level: number,
     XP: number,
     Cash: number,
-    DestructionPoints: number,
     Upgrades: { [string]: number },
     Cities: { [string]: CityProgress },
     Titans: { [string]: { Unlocked: boolean } },
@@ -55,12 +53,20 @@ export type PlayerProfile = {
     Gamepasses: { [string]: boolean },
     ProcessedReceipts: { [string]: boolean },
     Statistics: LifetimeStatistics,
+    TrainingPower: number,
+    BossClears: { [string]: BossProgress },
+    Titles: { [string]: boolean },
+}
+
+export type BossProgress = {
+    Clears: number,
+    LastClearAt: number, -- os.time() of the last rewarded clear, drives the repeat-reward cooldown
 }
 
 local PlayerDataService = {}
 
 local DATASTORE_NAME = "TitanRampage_PlayerData_v1"
-local CURRENT_SCHEMA_VERSION = 4
+local CURRENT_SCHEMA_VERSION = 5
 local AUTOSAVE_INTERVAL = 300 -- 5 minutes
 local MAX_RETRIES = 3
 local RETRY_BASE_DELAY = 1.0
@@ -156,7 +162,6 @@ function PlayerDataService.CreateDefaultProfile(): PlayerProfile
         Level = 1,
         XP = 0,
         Cash = 0,
-        DestructionPoints = 0,
         Upgrades = defaultUpgrades,
         Cities = {
             SmallTown = {
@@ -189,11 +194,13 @@ function PlayerDataService.CreateDefaultProfile(): PlayerProfile
             TotalCitiesCompleted = 0,
             TotalRunsCompleted = 0,
             TotalCashEarned = 0,
-            TotalPointsEarned = 0,
             TotalXPEarned = 0,
             HighestCombo = 0,
             TotalPlayTime = 0,
         },
+        TrainingPower = 0,
+        BossClears = {},
+        Titles = {},
     }
 end
 
@@ -226,7 +233,6 @@ function PlayerDataService.MigrateProfile(data: any): any
                 TotalCitiesCompleted = 0,
                 TotalRunsCompleted = 0,
                 TotalCashEarned = math.max(0, tonumber(data.Cash) or 0),
-                TotalPointsEarned = math.max(0, tonumber(data.DestructionPoints) or 0),
                 TotalXPEarned = math.max(0, tonumber(data.XP) or 0),
                 HighestCombo = 0,
                 TotalPlayTime = 0,
@@ -281,6 +287,19 @@ function PlayerDataService.MigrateProfile(data: any): any
         data.SchemaVersion = 4
     end
 
+    if version < 5 then
+        print(string.format("[PlayerDataService] 🔄 Migrating player profile from Schema %d to Schema 5...", version))
+        -- Cash is now the only currency: leftover Destruction Points convert 1:1
+        local leftoverPoints = math.max(0, math.floor(tonumber(data.DestructionPoints) or 0))
+        data.Cash = math.max(0, math.floor(tonumber(data.Cash) or 0)) + leftoverPoints
+        data.DestructionPoints = nil
+        if type(data.Statistics) == "table" then data.Statistics.TotalPointsEarned = nil end
+        if type(data.TrainingPower) ~= "number" then data.TrainingPower = 0 end
+        if type(data.BossClears) ~= "table" then data.BossClears = {} end
+        if type(data.Titles) ~= "table" then data.Titles = {} end
+        data.SchemaVersion = 5
+    end
+
     data.SchemaVersion = CURRENT_SCHEMA_VERSION
     return data
 end
@@ -297,7 +316,6 @@ function PlayerDataService.ValidateProfile(raw: any): PlayerProfile
         Level = math.clamp(math.floor(tonumber(data.Level) or defaults.Level), 1, 100),
         XP = math.max(0, math.floor(tonumber(data.XP) or defaults.XP)),
         Cash = math.max(0, math.floor(tonumber(data.Cash) or defaults.Cash)),
-        DestructionPoints = math.max(0, math.floor(tonumber(data.DestructionPoints) or defaults.DestructionPoints)),
         Upgrades = {},
         Cities = {},
         Titans = {
@@ -308,6 +326,9 @@ function PlayerDataService.ValidateProfile(raw: any): PlayerProfile
         Gamepasses = {},
         ProcessedReceipts = {},
         Statistics = defaults.Statistics,
+        TrainingPower = math.max(0, tonumber(data.TrainingPower) or 0),
+        BossClears = {},
+        Titles = {},
     }
 
     -- Validate Lifetime Statistics
@@ -321,7 +342,6 @@ function PlayerDataService.ValidateProfile(raw: any): PlayerProfile
         TotalCitiesCompleted = math.max(0, math.floor(tonumber(rawStats.TotalCitiesCompleted) or defaults.Statistics.TotalCitiesCompleted)),
         TotalRunsCompleted = math.max(0, math.floor(tonumber(rawStats.TotalRunsCompleted) or defaults.Statistics.TotalRunsCompleted)),
         TotalCashEarned = math.max(0, math.floor(tonumber(rawStats.TotalCashEarned) or defaults.Statistics.TotalCashEarned)),
-        TotalPointsEarned = math.max(0, math.floor(tonumber(rawStats.TotalPointsEarned) or defaults.Statistics.TotalPointsEarned)),
         TotalXPEarned = math.max(0, math.floor(tonumber(rawStats.TotalXPEarned) or defaults.Statistics.TotalXPEarned)),
         HighestCombo = math.max(0, math.floor(tonumber(rawStats.HighestCombo) or defaults.Statistics.HighestCombo)),
         TotalPlayTime = math.max(0, math.floor(tonumber(rawStats.TotalPlayTime) or defaults.Statistics.TotalPlayTime)),
@@ -401,6 +421,22 @@ function PlayerDataService.ValidateProfile(raw: any): PlayerProfile
     local rawReceipts = if type(data.ProcessedReceipts) == "table" then data.ProcessedReceipts else {}
     for recId, processed in pairs(rawReceipts) do
         if type(recId) == "string" and processed == true then profile.ProcessedReceipts[recId] = true end
+    end
+
+    -- Validate Boss Clears & Titles
+    local rawBossClears = if type(data.BossClears) == "table" then data.BossClears else {}
+    for bossId, rec in pairs(rawBossClears) do
+        if type(bossId) == "string" and type(rec) == "table" then
+            profile.BossClears[bossId] = {
+                Clears = math.max(0, math.floor(tonumber(rec.Clears) or 0)),
+                LastClearAt = math.max(0, math.floor(tonumber(rec.LastClearAt) or 0)),
+            }
+        end
+    end
+
+    local rawTitles = if type(data.Titles) == "table" then data.Titles else {}
+    for titleId, owns in pairs(rawTitles) do
+        if type(titleId) == "string" and owns == true then profile.Titles[titleId] = true end
     end
 
     return profile
@@ -638,11 +674,10 @@ function PlayerDataService.LoadProfile(player: Player): (boolean, PlayerProfile)
         finalProfile = PlayerDataService.ValidateProfile(loadedData)
         print(
             string.format(
-                "[PlayerDataService] ✅ Successfully loaded profile for %s (Level %d, $%d Cash, %d Pts)",
+                "[PlayerDataService] ✅ Successfully loaded profile for %s (Level %d, $%d Cash)",
                 player.Name,
                 finalProfile.Level,
-                finalProfile.Cash,
-                finalProfile.DestructionPoints
+                finalProfile.Cash
             )
         )
     end
@@ -724,11 +759,10 @@ function PlayerDataService.SaveProfile(player: Player): boolean
             saveSuccess = true
             print(
                 string.format(
-                    "[PlayerDataService] ✅ Save successful for %s (Level %d, $%d Cash, %d Pts)",
+                    "[PlayerDataService] ✅ Save successful for %s (Level %d, $%d Cash)",
                     player.Name,
                     profile.Level,
-                    profile.Cash,
-                    profile.DestructionPoints
+                    profile.Cash
                 )
             )
             break

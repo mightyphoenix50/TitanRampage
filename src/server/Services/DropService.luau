@@ -212,7 +212,7 @@ local function collectDrop(model: Model, player: Player)
 
     -- 1. Server-authoritative reward
     local ok, err = pcall(function()
-        ProgressionService.AddRewards(player, cashAmount, 0, 0)
+        ProgressionService.AddRewards(player, cashAmount, 0)
     end)
     if not ok then
         warn(string.format("[DropService] Error awarding cash to %s: %s", player.Name, tostring(err)))

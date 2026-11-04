@@ -192,7 +192,7 @@ local function awardProduct(player: Player, productDef: MonetizationConfig.Produ
 
     if productDef.RewardType == "Cash" then
         if progService then
-            progService.AddRewards(player, productDef.RewardAmount, 0, 0)
+            progService.AddRewards(player, productDef.RewardAmount, 0)
         else
             PlayerDataService.UpdateProfile(player, function(profile)
                 profile.Cash += productDef.RewardAmount
@@ -202,7 +202,7 @@ local function awardProduct(player: Player, productDef: MonetizationConfig.Produ
         return true
     elseif productDef.RewardType == "XP" then
         if progService then
-            progService.AddRewards(player, 0, 0, productDef.RewardAmount)
+            progService.AddRewards(player, 0, productDef.RewardAmount)
         else
             PlayerDataService.UpdateProfile(player, function(profile)
                 profile.XP += productDef.RewardAmount

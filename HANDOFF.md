@@ -85,6 +85,108 @@
 
 ## 4. Immediate Next Steps / Roadmap
 
+### Open follow-ups from Milestone 15
+- **Boss audio:** roars, telegraph warning tones, victory sting, punching-bag thuds and chain rattles (licensed ProSoundEffects only).
+- **Untested in a full fight:** the Obsidian Colossus shield phase; a two-client test of the shared rewards and the boss party.
+- **Hall of Titans trophies** for first clears (titles only for now).
+
+### Done: Milestone 15 — Boss Fights, Titan Power & Training, Cash-Only Economy
+Destroying cities currently has no goal beyond upgrades. This milestone adds one: bosses in the Colosseum that only a titan built up by destroying cities can beat. It also adds hub **Titan Punching Bags** for light training power, tuned so city destruction always wins, and drops Destruction Points so cash is the only currency.
+
+Findings behind the plan (2026-11-04):
+- Points are a second upgrade currency: every `UpgradeConfig` tier has a `PointCost` (about half its `CashCost`). They are also awarded on building destruction (`DestructionService`), city completion (`CityConfig.CompletionReward.DestructionPoints` 500 / 1250), and hub dummies (`HubService`). They show in `PointsLabel` and are stored as `DestructionPoints` plus `Statistics.TotalPointsEarned` (`PlayerDataService`, schema v4).
+- Nothing ever damages a titan: `Humanoid.Health` is only set on spawn. Bosses need a titan combat-health system.
+- The Colosseum Proving Grounds is a DPS dummy (`Bastion_Titan_Dummy`, 50k HP) and five 10k-HP practice monoliths, with no goal or reward.
+- The Altar of Ascension prompt fires `ProgressionUpdate("OpenAscensionAltar")`, but no client script handles it, so it's another dead prompt.
+- Brontara unlocks at Level 5 + 2 city clears (`TitanRegistry.UnlockRequirement`).
+
+**Design rules**
+- **Titan Power** is one server-computed number per titan, shown in the HUD and on boss gates:
+  - Titan base (Ravager 100, Brontara 140)
+  - \+ 12 per upgrade level bought (max +336 from 7 categories × 4)
+  - \+ 8 per player level above 1
+  - \+ Training Power
+  - It's derived from saved data and never stored, so it can't drift.
+- **City destruction is the main path to Power.** Punching-bag output is capped by city progress, and the cap and rate are checked by a simulation in step 9.
+- **Server authority:** boss HP, boss attacks, titan damage, training progress and all rewards are decided on the server. Clients only render and ask.
+
+**Steps**
+0. **Cash-only economy (do first; touches everything else):**
+   - Remove `DestructionPoints` from rewards, `ProgressionService` costs, `UpgradeConfig` (`PointCost` fields), `CityConfig.CompletionReward`, hub dummy attributes, the HUD `PointsLabel`, and the upgrade and city cards.
+   - Keep upgrade `CashCost` as is; points were a parallel half-price gate, so cash alone is the same pace.
+   - Bump `CURRENT_SCHEMA_VERSION` 4 → 5 with a migration that converts leftover `DestructionPoints` to cash 1:1 and drops `TotalPointsEarned`. Respect the `isLoadFailed` lock.
+0b. **Multiplayer cities (`CityService`, `DestructionService`):**
+   - **Shared building rewards:** track damage per player on each building, and on collapse split its cash and XP by damage share among everyone who dealt at least 10%. The combo multiplier is applied per player. This replaces last-hit-takes-all.
+   - **Both cities active at once:** replace the single `activeCityName` with per-city state (building lists, run stats, completion), so a portal trip only moves that player. Each player's run is tracked in the city they're in. Rebuilding a city resets only that city and requires the players there to agree (or the city to be fully cleared).
+   - Verify with a 2-player Studio test server (Test → Clients and Servers): both players hitting one building, and players in different cities at the same time.
+1. **Titan Power (`TitanPowerService` [NEW] or a `ProgressionService` helper, shared formula in `TitanRegistry`):**
+   - Computes Power on demand and replicates it via a `TitanPower` player attribute.
+   - HUD shows "⚡ Power 340" under the level.
+   - The upgrade panel shows "+12 Power" per purchase.
+2. **Titan health in combat (`MonsterService`):**
+   - Boss attacks damage the titan's Humanoid (titan `BaseHealth` 3000 / 4500, scaled +5% per upgrade level).
+   - At 0 HP the titan is knocked out: brief ragdoll/dust, then respawns at the hub with no cash loss.
+   - Health only drops inside a boss arena; cities and the hub stay safe.
+   - Health bar in the HUD while in a fight.
+3. **Boss framework (`BossService` [NEW], `BossConfig` [NEW], `BossHUD` client [NEW]):**
+   - One fight at a time per server in the Colosseum. Players inside the arena ring when it starts join the party.
+   - Boss HP = base × (1 + 0.6 × (party size − 1)).
+   - Telegraphed attacks: red ground decals with a 1.2 s wind-up, then server overlap checks for damage.
+   - Phases at 66% and 33% HP, and a 3-minute enrage timer (fight fails).
+   - Bosses take damage from the existing ability code through a `BossTarget` entry in `CityService.GetBuildingsInRadius`-style lookups, with no tier multiplier and per-ability caps validated like buildings.
+   - Damage to the boss reuses `DebrisController`-style hit chips and camera shake.
+4. **Three original bosses (`BossConfig`):**
+
+   | Boss | Requires | HP (solo) | Signature attacks | First clear | Repeat (10-min cooldown) |
+   | --- | --- | --- | --- | --- | --- |
+   | **Cinder Warden** (lava golem) | Power 300 + 1 SmallTown clear | 25,000 | Slam rings, magma pools | $5,000 | $1,250 |
+   | **Stormcoil Serpent** (lightning eel) | Power 550 + 1 Metrovale clear | 60,000 | Lightning lanes, coil sweep, adds | $12,000 | $3,000 |
+   | **Obsidian Colossus** (armoured giant) | Power 850 + 5 total city clears | 140,000 | Shield phase (stomps only), quake waves, enrage | $25,000 | $6,000 |
+
+   - Models built from parts or meshes in Studio under `ReplicatedStorage.Assets.Bosses`, matching the titans' blocky style.
+   - Rewards are cash only. First clears also add a trophy to the Hall of Titans and a "Boss Slayer" title.
+   - Defeating the Cinder Warden is an alternate Brontara unlock (alongside Level 5 + 2 clears).
+   - Rewards are split evenly among party members who dealt at least 5% of the damage, so leechers get nothing.
+5. **Proving Grounds overhaul (Studio + `HubService` retrofit):**
+   - A boss gate in the Colosseum with a readiness board: each boss's Power and clear requirements, ticked or crossed for the viewing player, with a "Challenge" prompt (F) enabled only when the player qualifies.
+   - An arena ring that marks who's in the party, and spectator terraces on the rim.
+   - The Bastion dummy becomes a "Boss Readiness Test": a 20-second DPS run whose result is compared to each boss's recommended DPS.
+   - Practice monoliths rebuild themselves 10 s after breaking.
+   - Fix the dead Altar of Ascension: it opens the upgrade panel and shows Power.
+6. **Titan Punching Bags (hub, `TrainingService` [NEW], `TrainingConfig` [NEW]):**
+   - Three titan-sized punching bags hanging from chains next to the Hall of Titans: Basic / Reinforced / Magma.
+   - Hitting one with your normal abilities grows **Training Power**. Each ability hit on a bag counts once, validated through the existing ability cooldowns and reach checks, so macro-spamming can't beat the cooldown.
+   - The bag swings on its chain (client-side), flashes and shows "+0.4 TP" numbers.
+   - Each Training Power point also gives +0.25% ability damage, so it's real strength, not just a gate.
+   - **Anti-AFK and balance:**
+     - Rate drops as Training Power nears the cap: rate × (1 − TP / cap).
+     - **Cap** = 40 + 15 per total city clear (max 160), so only destroying cities raises it.
+     - Bags need real hits, so standing still earns nothing. Hits on the same bag earn less after 60 s of continuous hitting until the titan hits something else (anti-macro).
+     - It never gives cash or XP.
+     - Better bags need Power 250 / 500 (from upgrades) and only raise TP per hit, not the cap.
+   - Targets: Basic bag ≈ 4 Power/min of steady hitting at 0 TP; a full SmallTown clear (~2.5 min) ≈ 2–4 upgrades ≈ +24–48 Power + 15 cap.
+   - Bag swing and dent animation, a heavy punch thud, and a progress meter toward the cap.
+7. **Rewards wiring and data:**
+   - `PlayerDataService` profile gains `TrainingPower`, `BossClears = { [bossId]: { Clears, LastClearAt } }` and `Titles`.
+   - These go in the same v5 migration as step 0 (one bump, not two).
+   - Boss cash goes through `ProgressionService.AddRewards`, so the `DoubleCash` gamepass applies.
+7b. **Better assets (Blender first, Fab where the licence is clear):**
+   - **Blender (via the Blender MCP)** for the three bosses and the punching bags. These are hero assets that should match the titans' style.
+     - Budget: ≤ 10k triangles per mesh (Roblox's hard cap is ~20k), 1024² PBR maps in a `SurfaceAppearance`, PNG textures (TGA has a loading bug).
+     - Export FBX/OBJ in metres, import through Studio's 3D Importer (scripts can't upload meshes), and keep `.blend` sources under `C:\Tools\TitanRampage-BlenderMCP\`.
+   - **Fab.com** only for environment dressing (rocks, lava, ruins, city props), and only after checking each item's licence:
+     - Read the current Fab Standard License EULA for non-Unreal engines.
+     - Skip anything marked Unreal-only.
+     - Check whether uploading to Roblox, where asset IDs can be reused by others, counts as distributing the raw files.
+     - Record the source and licence of every imported asset in a `docs/ASSET_CREDITS.md`.
+8. **Audio and VFX:** licensed ProSoundEffects only:
+   - Boss roars, impacts, telegraph warning tones, a victory sting and punching-bag thuds and chain rattles.
+   - Engine stand-ins where nothing licensed exists, noted in the changelog.
+9. **Balance check + wrap-up:**
+   - A Studio simulation script compares 10 minutes of SmallTown destruction against 10 minutes of steady hitting on the Basic punching bag, from a fresh profile and a mid profile (Power ~300).
+   - Destruction must give at least 3× more Power per minute, and the bags can't reach any boss requirement on their own.
+   - Play-test each boss solo at its required Power, check rewards, cooldown and data migration on an old v4 profile, then `rojo build`, `selene`, `stylua`, CHANGELOG entry and PR.
+
 ### Open follow-ups from Milestone 14
 - **Sounds still on engine stand-ins:** progression (`RewardEarned`, `LevelUp`, `Combo_*`), UI clicks, `CityComplete`, `ShopPurchase`, `ShopPowerSurge`. The Creator Store search found no ProSoundEffects/Roblox-licensed matches; upload owned sounds or license some.
 - **Listening pass** on every library sound (needs a human ear).

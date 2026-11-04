@@ -2,7 +2,7 @@
 --[[
     ProgressionService.luau
     Responsibility:
-    - Server-authoritative player progression (Level, XP curve, Cash, Destruction Points).
+    - Server-authoritative player progression (Level, XP curve, Cash).
     - Server-authoritative Ravager stat upgrades & transaction verification.
     - Powered by PlayerDataService persistent DataStore profiles.
     - Broadcasts progression events and stat updates to clients.
@@ -13,8 +13,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ConfigFolder = ReplicatedStorage:WaitForChild("Config")
 local RemotesFolder = ReplicatedStorage:WaitForChild("Remotes")
+local SharedFolder = ReplicatedStorage:WaitForChild("Shared")
 
 local UpgradeConfig = require(ConfigFolder:WaitForChild("UpgradeConfig") :: ModuleScript)
+local TitanRegistry = require(SharedFolder:WaitForChild("TitanRegistry") :: ModuleScript)
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService") :: ModuleScript)
 local ProgressionUpdateRemote = RemotesFolder:WaitForChild("ProgressionUpdate") :: RemoteEvent
 local UpgradeRequestRemote = RemotesFolder:WaitForChild("UpgradeRequest") :: RemoteEvent
@@ -45,7 +47,6 @@ export type PlayerProgression = {
     CurrentXP: number,
     NextLevelXP: number,
     Cash: number,
-    DestructionPoints: number,
     Upgrades: { [string]: number },
 }
 
@@ -79,9 +80,30 @@ local function createDefaultProgression(): PlayerProgression
         CurrentXP = 0,
         NextLevelXP = ProgressionService.GetXPRequiredForLevel(1),
         Cash = 0,
-        DestructionPoints = 0,
         Upgrades = defaultUpgrades,
     }
+end
+
+--[=[
+    Server-authoritative Titan Power for the player's selected titan (see TitanRegistry.CalculatePower).
+]=]
+function ProgressionService.GetTitanPower(player: Player, titanId: string?): number
+    local profile = PlayerDataService.GetProfile(player)
+    if not profile then return 0 end
+    local id = titanId or profile.SelectedTitan or "Ravager"
+    return TitanRegistry.CalculatePower(id, profile.Upgrades, profile.Level, profile.TrainingPower or 0)
+end
+
+--[=[
+    Recomputes Titan Power and replicates it as the `TitanPower` player attribute.
+    Call after anything that changes upgrades, level, training or the selected titan.
+]=]
+function ProgressionService.RefreshTitanPower(player: Player): number
+    local power = ProgressionService.GetTitanPower(player)
+    player:SetAttribute("TitanPower", power)
+    local profile = PlayerDataService.GetProfile(player)
+    if profile then player:SetAttribute("TrainingPower", math.floor(profile.TrainingPower or 0)) end
+    return power
 end
 
 --[=[
@@ -93,7 +115,7 @@ function ProgressionService.SyncToClient(player: Player)
     player:SetAttribute("CurrentXP", prog.CurrentXP)
     player:SetAttribute("NextLevelXP", prog.NextLevelXP)
     player:SetAttribute("Cash", prog.Cash)
-    player:SetAttribute("DestructionPoints", prog.DestructionPoints)
+    ProgressionService.RefreshTitanPower(player)
 
     ProgressionUpdateRemote:FireClient(player, {
         Type = "InitialSync",
@@ -101,7 +123,6 @@ function ProgressionService.SyncToClient(player: Player)
         CurrentXP = prog.CurrentXP,
         NextLevelXP = prog.NextLevelXP,
         Cash = prog.Cash,
-        DestructionPoints = prog.DestructionPoints,
         Upgrades = prog.Upgrades,
     })
 end
@@ -166,7 +187,6 @@ function ProgressionService.GetPlayerProgression(player: Player): PlayerProgress
             CurrentXP = profile.XP,
             NextLevelXP = ProgressionService.GetXPRequiredForLevel(profile.Level),
             Cash = profile.Cash,
-            DestructionPoints = profile.DestructionPoints,
             Upgrades = profile.Upgrades,
         }
     end
@@ -174,13 +194,12 @@ function ProgressionService.GetPlayerProgression(player: Player): PlayerProgress
 end
 
 --[=[
-    Compatibility method for services querying Cash/Points/XP.
+    Compatibility method for services querying Cash/XP.
 ]=]
 function ProgressionService.GetPlayerStats(player: Player)
     local prog = ProgressionService.GetPlayerProgression(player)
     return {
         Cash = prog.Cash,
-        DestructionPoints = prog.DestructionPoints,
         XP = prog.CurrentXP,
         Level = prog.Level,
         NextLevelXP = prog.NextLevelXP,
@@ -205,17 +224,16 @@ function ProgressionService.GetUpgradeLevel(player: Player, upgradeId: string): 
 end
 
 --[=[
-    Awards currency, points, and XP from building destruction or events.
+    Awards cash and XP from building destruction or events.
     Mutates player profile persistently via PlayerDataService.
     Applies scalable XP curve and carries over excess XP upon leveling up.
 ]=]
-function ProgressionService.AddRewards(player: Player, cash: number, points: number, xp: number)
+function ProgressionService.AddRewards(player: Player, cash: number, xp: number)
     local monService = getMonetizationService()
     local cashMult = if monService then monService.GetCashMultiplier(player) else 1.0
     local xpMult = if monService then monService.GetXPMultiplier(player) else 1.0
 
     local addedCash = math.max(0, math.floor(cash * cashMult))
-    local addedPoints = math.max(0, math.floor(points))
     local addedXP = math.max(0, math.floor(xp * xpMult))
 
     local leveledUp = false
@@ -224,13 +242,11 @@ function ProgressionService.AddRewards(player: Player, cash: number, points: num
     local newXP = 0
     local nextLevelXP = 500
     local newCash = 0
-    local newPoints = 0
     local upgrades: { [string]: number } = {}
 
     -- Safely mutate persistent profile
     local success = PlayerDataService.UpdateProfile(player, function(profile)
         profile.Cash += addedCash
-        profile.DestructionPoints += addedPoints
         profile.XP += addedXP
 
         previousLevel = profile.Level
@@ -246,7 +262,6 @@ function ProgressionService.AddRewards(player: Player, cash: number, points: num
         newLevel = profile.Level
         newXP = profile.XP
         newCash = profile.Cash
-        newPoints = profile.DestructionPoints
         upgrades = profile.Upgrades
     end)
 
@@ -281,7 +296,7 @@ function ProgressionService.AddRewards(player: Player, cash: number, points: num
     player:SetAttribute("CurrentXP", newXP)
     player:SetAttribute("NextLevelXP", nextLevelXP)
     player:SetAttribute("Cash", newCash)
-    player:SetAttribute("DestructionPoints", newPoints)
+    if leveledUp then ProgressionService.RefreshTitanPower(player) end
 
     -- Broadcast update to player
     ProgressionUpdateRemote:FireClient(player, {
@@ -290,12 +305,10 @@ function ProgressionService.AddRewards(player: Player, cash: number, points: num
         CurrentXP = newXP,
         NextLevelXP = nextLevelXP,
         Cash = newCash,
-        DestructionPoints = newPoints,
         Upgrades = upgrades,
         LeveledUp = leveledUp,
         PreviousLevel = if leveledUp then previousLevel else nil,
         AddedCash = addedCash,
-        AddedPoints = addedPoints,
         AddedXP = addedXP,
     })
 end
@@ -341,7 +354,6 @@ function ProgressionService.HandleUpgradeRequest(player: Player, upgradeId: stri
             CurrentXP = profile.XP,
             NextLevelXP = ProgressionService.GetXPRequiredForLevel(profile.Level),
             Cash = profile.Cash,
-            DestructionPoints = profile.DestructionPoints,
             Upgrades = profile.Upgrades,
         })
         return false
@@ -351,17 +363,15 @@ function ProgressionService.HandleUpgradeRequest(player: Player, upgradeId: stri
     if not nextTier then return false end
 
     -- Check affordability
-    if profile.Cash < nextTier.CashCost or profile.DestructionPoints < nextTier.PointCost then
+    if profile.Cash < nextTier.CashCost then
         print(
             string.format(
-                "[ProgressionService] %s cannot afford '%s' Lvl %d (Requires $%d & %d Pts; Has $%d & %d Pts)",
+                "[ProgressionService] %s cannot afford '%s' Lvl %d (Requires $%d; Has $%d)",
                 player.Name,
                 upgradeId,
                 nextTier.Level,
                 nextTier.CashCost,
-                nextTier.PointCost,
-                profile.Cash,
-                profile.DestructionPoints
+                profile.Cash
             )
         )
         ProgressionUpdateRemote:FireClient(player, {
@@ -372,7 +382,6 @@ function ProgressionService.HandleUpgradeRequest(player: Player, upgradeId: stri
             CurrentXP = profile.XP,
             NextLevelXP = ProgressionService.GetXPRequiredForLevel(profile.Level),
             Cash = profile.Cash,
-            DestructionPoints = profile.DestructionPoints,
             Upgrades = profile.Upgrades,
         })
         return false
@@ -381,7 +390,6 @@ function ProgressionService.HandleUpgradeRequest(player: Player, upgradeId: stri
     -- Process transaction persistently
     local success = PlayerDataService.UpdateProfile(player, function(prof)
         prof.Cash -= nextTier.CashCost
-        prof.DestructionPoints -= nextTier.PointCost
         prof.Upgrades[upgradeId] = nextTier.Level
     end)
 
@@ -389,13 +397,12 @@ function ProgressionService.HandleUpgradeRequest(player: Player, upgradeId: stri
 
     print(
         string.format(
-            "[ProgressionService] ✅ %s upgraded '%s' to Level %d (%s) for $%d Cash & %d Points!",
+            "[ProgressionService] ✅ %s upgraded '%s' to Level %d (%s) for $%d Cash!",
             player.Name,
             cat.DisplayName,
             nextTier.Level,
             tostring(nextTier.Value),
-            nextTier.CashCost,
-            nextTier.PointCost
+            nextTier.CashCost
         )
     )
 
@@ -408,7 +415,7 @@ function ProgressionService.HandleUpgradeRequest(player: Player, upgradeId: stri
     local updatedProfile = PlayerDataService.GetProfile(player) :: any
     if updatedProfile then
         player:SetAttribute("Cash", updatedProfile.Cash)
-        player:SetAttribute("DestructionPoints", updatedProfile.DestructionPoints)
+        ProgressionService.RefreshTitanPower(player)
     end
 
     -- Send confirmation & state update to client
@@ -421,7 +428,6 @@ function ProgressionService.HandleUpgradeRequest(player: Player, upgradeId: stri
         CurrentXP = updatedProfile.XP,
         NextLevelXP = ProgressionService.GetXPRequiredForLevel(updatedProfile.Level),
         Cash = updatedProfile.Cash,
-        DestructionPoints = updatedProfile.DestructionPoints,
         Upgrades = updatedProfile.Upgrades,
     })
 

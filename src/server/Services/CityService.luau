@@ -3,13 +3,16 @@
     CityService.luau
     Responsibility:
     - Server-authoritative management of cities, zones, and destructible building infrastructure.
-    - Registers active cities (SmallTown) and indexes all destructible buildings and their original states.
-    - Live tracking of city completion: TotalBuildings, DestroyedBuildings, ActiveBuildings, HP, and percentages.
-    - Server-authoritative Run Statistics (Timer, Cash/Points/XP accounting, Highest Combo, Damage).
-    - Detects 100% city completion, triggers CityCompleted event, and awards completion rewards via ProgressionService.
+    - Registers every city once at startup and indexes all destructible buildings and their original states.
+    - Each city keeps its own state (buildings, run statistics, completion), so players can destroy
+      SmallTown and Metrovale at the same time; a portal trip only moves the player who took it.
+    - Server-authoritative Run Statistics per city (Timer, Cash/XP accounting, Highest Combo, Damage).
+    - Detects 100% city completion, triggers CityCompleted event, and awards completion rewards to the
+      city's participants via ProgressionService.
     - Full city rebuild engine (CityService.ResetCity) restoring all original building instances without duplication.
 --]]
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -61,13 +64,13 @@ export type BuildingVisualBackup = {
 
 export type BuildingEntry = {
     Model: Model,
+    CityId: string,
     Id: string,
     Name: string,
     Type: string,
     MaxHealth: number,
     CurrentHealth: number,
     Reward: number,
-    Points: number,
     Tier: number,
     Position: Vector3,
     PrimaryPart: BasePart?,
@@ -103,13 +106,10 @@ export type CityRunStats = {
     Roars: number,
     HighestCombo: number,
     BuildingsCash: number,
-    BuildingsPoints: number,
     BuildingsXP: number,
     CompletionCash: number,
-    CompletionPoints: number,
     CompletionXP: number,
     TotalCash: number,
-    TotalPoints: number,
     TotalXP: number,
     DestructionScore: number,
     BuildingsPerMinute: number,
@@ -117,15 +117,28 @@ export type CityRunStats = {
     CompletionAwarded: boolean,
 }
 
+type CityState = {
+    Id: string,
+    BuildingsById: { [string]: BuildingEntry },
+    BuildingList: { BuildingEntry },
+    Run: CityRunStats,
+    DamagedBuildingIds: { [string]: boolean },
+    -- Players who damaged this city during the current run; they share its completion reward
+    Participants: { [Player]: boolean },
+}
+
+local DEFAULT_CITY = "SmallTown"
+
 local CityService = {}
 
-local activeCityName = "SmallTown"
-local buildingsById: { [string]: BuildingEntry } = {}
-local buildingList: { BuildingEntry } = {}
+local cityStates: { [string]: CityState } = {}
+local entriesByModel: { [Instance]: BuildingEntry } = {}
+
+-- Which city each player is standing in (nil = Kaiju Hub)
+local playerCity: { [Player]: string } = {}
 
 -- Authored Transparency/CanCollide of building window and prop parts, captured the first time
--- a part is registered (cities are intact at server start). RegisterCity runs again on every
--- LoadCity, possibly mid-destruction, so later registrations must not overwrite these.
+-- a part is registered (cities are intact at server start).
 local authoredTransparency: { [BasePart]: number } = setmetatable({}, { __mode = "k" }) :: any
 local authoredCanCollide: { [BasePart]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
@@ -136,81 +149,84 @@ local cityBestRecords: { [string]: { BestTime: number, BestCombo: number, BestSc
     Metrovale = { BestTime = 0, BestCombo = 1, BestScore = 0, BestBPM = 0 },
 }
 
-local runDamagedBuildingIds: { [string]: boolean } = {}
-
--- Run statistics for current session
-local currentRun: CityRunStats = {
-    CityId = "SmallTown",
-    RunStartTime = os.clock(),
-    RunEndTime = 0,
-    Duration = 0,
-    BuildingsDestroyed = 0,
-    BuildingsDamaged = 0,
-    TotalDamage = 0,
-    BasicAttacks = 0,
-    Stomps = 0,
-    Roars = 0,
-    HighestCombo = 1,
-    BuildingsCash = 0,
-    BuildingsPoints = 0,
-    BuildingsXP = 0,
-    CompletionCash = 0,
-    CompletionPoints = 0,
-    CompletionXP = 0,
-    TotalCash = 0,
-    TotalPoints = 0,
-    TotalXP = 0,
-    DestructionScore = 0,
-    BuildingsPerMinute = 0,
-    CityCompleted = false,
-    CompletionAwarded = false,
-}
-
-local function resetRun(cityId: string)
-    table.clear(runDamagedBuildingIds)
-    currentRun.CityId = cityId
-    currentRun.RunStartTime = os.clock()
-    currentRun.RunEndTime = 0
-    currentRun.Duration = 0
-    currentRun.BuildingsDestroyed = 0
-    currentRun.BuildingsDamaged = 0
-    currentRun.TotalDamage = 0
-    currentRun.BasicAttacks = 0
-    currentRun.Stomps = 0
-    currentRun.Roars = 0
-    currentRun.HighestCombo = 1
-    currentRun.BuildingsCash = 0
-    currentRun.BuildingsPoints = 0
-    currentRun.BuildingsXP = 0
-    currentRun.CompletionCash = 0
-    currentRun.CompletionPoints = 0
-    currentRun.CompletionXP = 0
-    currentRun.TotalCash = 0
-    currentRun.TotalPoints = 0
-    currentRun.TotalXP = 0
-    currentRun.DestructionScore = 0
-    currentRun.BuildingsPerMinute = 0
-    currentRun.CityCompleted = false
-    currentRun.CompletionAwarded = false
+local function newRun(cityId: string): CityRunStats
+    return {
+        CityId = cityId,
+        RunStartTime = 0, -- Set on the run's first damage
+        RunEndTime = 0,
+        Duration = 0,
+        BuildingsDestroyed = 0,
+        BuildingsDamaged = 0,
+        TotalDamage = 0,
+        BasicAttacks = 0,
+        Stomps = 0,
+        Roars = 0,
+        HighestCombo = 1,
+        BuildingsCash = 0,
+        BuildingsXP = 0,
+        CompletionCash = 0,
+        CompletionXP = 0,
+        TotalCash = 0,
+        TotalXP = 0,
+        DestructionScore = 0,
+        BuildingsPerMinute = 0,
+        CityCompleted = false,
+        CompletionAwarded = false,
+    }
 end
 
+local function resetRun(state: CityState)
+    state.Run = newRun(state.Id)
+    table.clear(state.DamagedBuildingIds)
+    table.clear(state.Participants)
+end
+
+-- Registers every city on first use if Init hasn't (e.g. a module required before Init)
 local function ensureInitialized()
-    if #buildingList == 0 then CityService.RegisterCity(activeCityName) end
+    if next(cityStates) == nil then
+        for _, def in ipairs(CityConfig.GetCityList()) do
+            CityService.RegisterCity(def.CityId)
+        end
+    end
+end
+
+local function getState(cityId: string?): CityState?
+    ensureInitialized()
+    if not cityId then return nil end
+    return cityStates[cityId]
+end
+
+-- Players currently standing in a city
+local function playersInCity(cityId: string): { Player }
+    local list = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if playerCity[p] == cityId then table.insert(list, p) end
+    end
+    return list
+end
+
+local function fireCity(cityId: string, eventType: string, payload: any)
+    for _, p in ipairs(playersInCity(cityId)) do
+        CityFeedbackRemote:FireClient(p, eventType, payload)
+    end
 end
 
 --[=[
-    Initializes CityService, binds rebuild and city selection events, and registers SmallTown.
+    Initializes CityService, binds rebuild and city selection events, and registers every city.
 ]=]
 function CityService.Init()
-    print("[CityService] Initializing CityService with multi-city support...")
+    print("[CityService] Initializing CityService with simultaneous multi-city support...")
     getDestructionService()
-    CityService.RegisterCity(activeCityName)
-    currentRun.RunStartTime = os.clock()
+    for _, def in ipairs(CityConfig.GetCityList()) do
+        CityService.RegisterCity(def.CityId)
+    end
 
-    -- Bind client rebuild requests
+    -- Bind client rebuild requests (rebuilds the city the player is in, or the one they name)
     RebuildCityRequestRemote.OnServerEvent:Connect(function(player: Player, requestedCity: any)
         print(string.format("[CityService] Rebuild request received from %s for '%s'", player.Name, tostring(requestedCity)))
-        CityService.ResetCity(player)
+        local cityId = playerCity[player]
+        if type(requestedCity) == "string" and cityStates[requestedCity] then cityId = requestedCity end
+        CityService.ResetCity(player, cityId)
     end)
 
     -- Bind client city selection requests
@@ -247,7 +263,7 @@ function CityService.Init()
             return
         end
 
-        print(string.format("[CityService] ✅ %s successfully switched active city to '%s'!", player.Name, requestedCity))
+        print(string.format("[CityService] ✅ %s travelled to '%s'!", player.Name, requestedCity))
     end)
 
     -- Player lifecycle
@@ -258,13 +274,16 @@ function CityService.Init()
         }
 
         player.CharacterAdded:Connect(function(character)
+            -- A respawn always lands in the Kaiju Hub lobby, so the player is no longer in a city
+            playerCity[player] = nil
             local hub = Workspace:FindFirstChild("KaijuHub")
             if hub then
                 -- KaijuHub is the master lobby spawn. Do not override spawn location.
                 return
             end
-            local cityDef = CityConfig.GetCity(activeCityName)
+            local cityDef = CityConfig.GetCity(DEFAULT_CITY)
             if cityDef then
+                playerCity[player] = DEFAULT_CITY
                 task.wait(0.1)
                 if character and character.Parent and character.PrimaryPart then
                     character:PivotTo(CFrame.new(cityDef.SpawnPosition + Vector3.new(0, 4, 0)))
@@ -274,7 +293,7 @@ function CityService.Init()
 
         task.defer(function()
             if player.Parent then
-                CityFeedbackRemote:FireClient(player, "CityProgressUpdate", CityService.GetCityStats())
+                CityFeedbackRemote:FireClient(player, "CityProgressUpdate", CityService.GetCityStats(DEFAULT_CITY))
                 CityFeedbackRemote:FireClient(player, "CityListSync", CityService.GetAvailableCities(player))
                 local hubLighting = CityConfig.GetLightingProfile("KaijuHub")
                 if hubLighting then CityFeedbackRemote:FireClient(player, "CityLightingChanged", hubLighting) end
@@ -284,6 +303,10 @@ function CityService.Init()
 
     Players.PlayerRemoving:Connect(function(player)
         playerCityCompletions[player.UserId] = nil
+        playerCity[player] = nil
+        for _, state in pairs(cityStates) do
+            state.Participants[player] = nil
+        end
     end)
 end
 
@@ -292,19 +315,21 @@ end
 ]=]
 function CityService.Start()
     print("[CityService] CityService started.")
-    local stats = CityService.GetCityStats()
-    print(
-        string.format(
-            "[CityService] City '%s' active: %d buildings (Total HP: %d)",
-            stats.CityName,
-            stats.TotalBuildings,
-            stats.TotalHealth
+    for cityId in pairs(cityStates) do
+        local stats = CityService.GetCityStats(cityId)
+        print(
+            string.format(
+                "[CityService] City '%s' ready: %d buildings (Total HP: %d)",
+                stats.CityName,
+                stats.TotalBuildings,
+                stats.TotalHealth
+            )
         )
-    )
+    end
 end
 
 --[=[
-    Indexes all buildings and backs up their initial visual states for instant rebuild restoration.
+    Indexes all buildings of a city once and backs up their initial visual states for rebuild restoration.
 ]=]
 function CityService.RegisterCity(cityName: string)
     local citiesFolder = Workspace:FindFirstChild("Cities")
@@ -319,15 +344,20 @@ function CityService.RegisterCity(cityName: string)
         return
     end
 
-    activeCityName = cityName
-    buildingsById = {}
-    buildingList = {}
-
     local buildingsFolder = cityFolder:FindFirstChild("Buildings")
     if not buildingsFolder then
         warn(string.format("[CityService] Buildings folder in '%s' not found!", cityName))
         return
     end
+
+    local state: CityState = {
+        Id = cityName,
+        BuildingsById = {},
+        BuildingList = {},
+        Run = newRun(cityName),
+        DamagedBuildingIds = {},
+        Participants = {},
+    }
 
     local totalHP = 0
 
@@ -350,7 +380,6 @@ function CityService.RegisterCity(cityName: string)
             child:SetAttribute("MaxHealth", maxHp)
             child:SetAttribute("CurrentHealth", curHp)
             local reward = child:GetAttribute("DestructionReward") or child:GetAttribute("DestructonReward") or 100
-            local points = child:GetAttribute("DestructionPoints") or 50
             local attrDestroyed = child:GetAttribute("IsDestroyed")
             local isDestroyed = if attrDestroyed ~= nil then (attrDestroyed == true) else false
 
@@ -403,13 +432,13 @@ function CityService.RegisterCity(cityName: string)
 
             local entry: BuildingEntry = {
                 Model = child,
+                CityId = cityName,
                 Id = tostring(bId),
                 Name = tostring(bName),
                 Type = tostring(bType),
                 MaxHealth = tonumber(maxHp) or 500,
                 CurrentHealth = tonumber(curHp) or 500,
                 Reward = tonumber(reward) or 100,
-                Points = tonumber(points) or 50,
                 Tier = tonumber(tier) or 1,
                 Position = pos,
                 PrimaryPart = primaryPart,
@@ -417,28 +446,39 @@ function CityService.RegisterCity(cityName: string)
                 VisualBackup = visualBackup,
             }
 
-            buildingsById[entry.Id] = entry
-            table.insert(buildingList, entry)
+            state.BuildingsById[entry.Id] = entry
+            table.insert(state.BuildingList, entry)
+            entriesByModel[child] = entry
             totalHP += entry.MaxHealth
         end
     end
+
+    cityStates[cityName] = state
 
     print(
         string.format(
             "[CityService] Successfully registered city '%s' with %d destructible buildings. Total HP: %d",
             cityName,
-            #buildingList,
+            #state.BuildingList,
             totalHP
         )
     )
 end
 
-function CityService.GetCityName(): string
-    return activeCityName
+--[=[
+    Returns the city a player is standing in, or nil when they are in the Kaiju Hub.
+]=]
+function CityService.GetPlayerCity(player: Player): string?
+    return playerCity[player]
 end
 
-function CityService.GetActiveCity(): string
-    return activeCityName
+-- Compatibility: the city a player is in, defaulting to SmallTown
+function CityService.GetActiveCity(player: Player?): string
+    return (player and playerCity[player]) or DEFAULT_CITY
+end
+
+function CityService.GetCityName(player: Player?): string
+    return CityService.GetActiveCity(player)
 end
 
 function CityService.GetCityConfig(cityId: string)
@@ -524,69 +564,54 @@ function CityService.GetAvailableCities(player: Player): { any }
             BestScore = bestScore,
             BestBuildingsPerMinute = bestBpm,
             Completions = clears,
-            IsActive = (def.CityId == activeCityName),
+            IsActive = (def.CityId == playerCity[player]),
         })
     end
     return result
 end
 
+--[=[
+    Sends a player (or, with no player, everyone) to a city. Other cities keep running untouched.
+]=]
 function CityService.LoadCity(cityId: string, player: Player?): (boolean, string)
     local cityDef = CityConfig.GetCity(cityId)
     if not cityDef then return false, "Invalid city ID: " .. tostring(cityId) end
+    local state = getState(cityId)
+    if not state then return false, "City is not available: " .. cityId end
 
     if player then
         local unlocked, reason = CityService.IsCityUnlocked(player, cityId)
         if not unlocked then return false, reason or "City is locked!" end
     end
 
-    -- Security check: do not switch if current city has active incomplete run with damage
-    if cityId ~= activeCityName and not currentRun.CityCompleted and currentRun.TotalDamage > 0 then
-        return false, "Cannot switch cities during an active destruction run! Rebuild or finish first."
-    end
-
-    activeCityName = cityId
-    CityService.RegisterCity(cityId)
-
-    -- Reset DestructionService state
-    local dest = getDestructionService()
-    if dest and type(dest.ClearCollapsingBuildings) == "function" then dest.ClearCollapsingBuildings() end
-
-    -- Reset run statistics
-    resetRun(cityId)
-
-    -- Teleport player(s) to new city spawn
+    local travellers = if player then { player } else Players:GetPlayers()
     local spawnPos = cityDef.SpawnPosition
-    if player and player.Character and player.Character.PrimaryPart then
-        player.Character:PivotTo(CFrame.new(spawnPos + Vector3.new(0, 4, 0)))
-    else
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p.Character and p.Character.PrimaryPart then p.Character:PivotTo(CFrame.new(spawnPos + Vector3.new(0, 4, 0))) end
-        end
-    end
+    local stats = CityService.GetCityStats(cityId)
 
-    local stats = CityService.GetCityStats()
-    print(
-        string.format(
-            "[CityService] ✅ Successfully loaded city '%s' (%d buildings, Total HP: %d)",
-            cityId,
-            stats.TotalBuildings,
-            stats.TotalHealth
-        )
-    )
+    for _, p in ipairs(travellers) do
+        playerCity[p] = cityId
+        if p.Character and p.Character.PrimaryPart then p.Character:PivotTo(CFrame.new(spawnPos + Vector3.new(0, 4, 0))) end
 
-    -- Broadcast to clients
-    CityFeedbackRemote:FireAllClients("CityLoaded", {
-        CityId = cityId,
-        CityName = cityDef.DisplayName,
-        SpawnPosition = spawnPos,
-        Stats = stats,
-    })
-    CityFeedbackRemote:FireAllClients("CityProgressUpdate", stats)
-    if cityDef.LightingProfile then CityFeedbackRemote:FireAllClients("CityLightingChanged", cityDef.LightingProfile) end
-
-    for _, p in ipairs(Players:GetPlayers()) do
+        CityFeedbackRemote:FireClient(p, "CityLoaded", {
+            CityId = cityId,
+            CityName = cityDef.DisplayName,
+            SpawnPosition = spawnPos,
+            Stats = stats,
+        })
+        CityFeedbackRemote:FireClient(p, "CityProgressUpdate", stats)
+        if cityDef.LightingProfile then CityFeedbackRemote:FireClient(p, "CityLightingChanged", cityDef.LightingProfile) end
         CityFeedbackRemote:FireClient(p, "CityListSync", CityService.GetAvailableCities(p))
     end
+
+    print(
+        string.format(
+            "[CityService] ✅ %d player(s) entered '%s' (%d/%d buildings standing)",
+            #travellers,
+            cityId,
+            stats.ActiveBuildings,
+            stats.TotalBuildings
+        )
+    )
 
     return true, "City Loaded"
 end
@@ -597,33 +622,41 @@ function CityService.ReturnToHub(player: Player): (boolean, string)
     if not hubSpawn or not hubSpawn:IsA("BasePart") then return false, "Kaiju Hub spawn not found!" end
 
     if player.Character and player.Character.PrimaryPart then
+        playerCity[player] = nil
         player.Character:PivotTo(hubSpawn.CFrame + Vector3.new(0, 8, 0))
         local hubLighting = CityConfig.GetLightingProfile("KaijuHub")
         if hubLighting then CityFeedbackRemote:FireClient(player, "CityLightingChanged", hubLighting) end
+        CityFeedbackRemote:FireClient(player, "CityListSync", CityService.GetAvailableCities(player))
         return true, "Returned to Kaiju Hub"
     end
     return false, "Player character not found"
 end
 
-function CityService.GetAllBuildings(): { Model }
-    ensureInitialized()
+function CityService.GetAllBuildings(cityId: string?): { Model }
     local models: { Model } = {}
-    for _, entry in ipairs(buildingList) do
-        table.insert(models, entry.Model)
+    for id, state in pairs(cityStates) do
+        if cityId == nil or id == cityId then
+            for _, entry in ipairs(state.BuildingList) do
+                table.insert(models, entry.Model)
+            end
+        end
     end
     return models
 end
 
-function CityService.GetBuildingById(buildingId: string): Model?
-    ensureInitialized()
-    local entry = buildingsById[buildingId]
-    return if entry then entry.Model else nil
+function CityService.GetBuildingById(buildingId: string, cityId: string?): Model?
+    for id, state in pairs(cityStates) do
+        if cityId == nil or id == cityId then
+            local entry = state.BuildingsById[buildingId]
+            if entry then return entry.Model end
+        end
+    end
+    return nil
 end
 
 function CityService.GetBuildingEntry(building: Model): BuildingEntry?
     ensureInitialized()
-    local bId = building:GetAttribute("BuildingId") or building.Name
-    return buildingsById[tostring(bId)]
+    return entriesByModel[building]
 end
 
 -- Horizontal distance from `origin` to the building's footprint (its authored MainBody box), so a
@@ -645,16 +678,46 @@ function CityService.GetBuildingsInRadius(origin: Vector3, radius: number): { { 
     local results = {}
     local rSq = radius * radius
 
-    for _, entry in ipairs(buildingList) do
-        if not entry.IsDestroyed and entry.PrimaryPart then
-            local distSq = footprintDistanceSq(entry, origin)
-            if distSq <= rSq then
-                local actualDist = math.sqrt(distSq)
-                table.insert(results, {
-                    Building = entry.Model,
-                    Entry = entry,
-                    Distance = actualDist,
-                })
+    -- Cities are far apart, so scanning every city's buildings only ever matches the one the titan is in
+    for _, state in pairs(cityStates) do
+        for _, entry in ipairs(state.BuildingList) do
+            if not entry.IsDestroyed and entry.PrimaryPart then
+                local distSq = footprintDistanceSq(entry, origin)
+                if distSq <= rSq then
+                    local actualDist = math.sqrt(distSq)
+                    table.insert(results, {
+                        Building = entry.Model,
+                        Entry = entry,
+                        Distance = actualDist,
+                    })
+                end
+            end
+        end
+    end
+
+    -- Include active bosses (BossService tags them), measured to their body's edge
+    for _, boss in ipairs(CollectionService:GetTagged("BossTarget")) do
+        if boss:IsA("Model") and boss.PrimaryPart then
+            local part = boss.PrimaryPart
+            local hitRadius = tonumber(boss:GetAttribute("HitRadius")) or 10
+            local dist = math.max(0, Vector3.new(part.Position.X - origin.X, 0, part.Position.Z - origin.Z).Magnitude - hitRadius)
+            if dist <= radius then
+                local bossEntry: BuildingEntry = {
+                    Model = boss,
+                    CityId = "KaijuHub",
+                    Id = boss.Name,
+                    Name = tostring(boss:GetAttribute("BuildingName") or boss.Name),
+                    Type = "Boss",
+                    MaxHealth = 1,
+                    CurrentHealth = 1,
+                    Reward = 0,
+                    Tier = 1,
+                    Position = part.Position,
+                    PrimaryPart = part,
+                    IsDestroyed = false,
+                    VisualBackup = nil :: any,
+                }
+                table.insert(results, { Building = boss, Entry = bossEntry, Distance = dist })
             end
         end
     end
@@ -663,7 +726,7 @@ function CityService.GetBuildingsInRadius(origin: Vector3, radius: number): { { 
     local hub = Workspace:FindFirstChild("KaijuHub")
     if hub then
         for _, child in ipairs(hub:GetDescendants()) do
-            if child:GetAttribute("IsTrainingDummy") == true then
+            if child:GetAttribute("IsTrainingDummy") == true and child:GetAttribute("IsDestroyed") ~= true then
                 local part = if child:IsA("BasePart") then child else child.PrimaryPart or child:FindFirstChildWhichIsA("BasePart")
                 if part then
                     local distSq = (part.Position.X - origin.X) ^ 2 + (part.Position.Z - origin.Z) ^ 2
@@ -672,21 +735,16 @@ function CityService.GetBuildingsInRadius(origin: Vector3, radius: number): { { 
                         local maxHp = child:GetAttribute("MaxHealth") or 10000
                         local dummyEntry: BuildingEntry = {
                             Model = child :: any,
+                            CityId = "KaijuHub",
                             Id = child.Name,
                             Name = tostring(child:GetAttribute("BuildingName") or child.Name),
                             Type = "TrainingPillar",
                             MaxHealth = maxHp,
                             CurrentHealth = curHp,
                             Reward = 0,
-                            Points = 10,
                             Tier = 1,
                             Position = part.Position,
                             PrimaryPart = part,
-                            Structure = nil,
-                            MainBody = part,
-                            Roof = nil,
-                            WindowParts = {},
-                            PropParts = {},
                             IsDestroyed = false,
                             VisualBackup = nil :: any,
                         }
@@ -709,16 +767,18 @@ function CityService.GetBuildingsInRadius(origin: Vector3, radius: number): { { 
 end
 
 --[=[
-    Returns live statistics computed directly from the active building state.
+    Returns live statistics for a city (default SmallTown), computed directly from its building state.
 ]=]
-function CityService.GetCityStats(): CityStats
-    ensureInitialized()
+function CityService.GetCityStats(cityId: string?): CityStats
+    local id = cityId or DEFAULT_CITY
+    local state = getState(id)
     local totalHP = 0
     local curHP = 0
     local activeCount = 0
     local destroyedCount = 0
+    local list = if state then state.BuildingList else {}
 
-    for _, entry in ipairs(buildingList) do
+    for _, entry in ipairs(list) do
         local maxHp = entry.Model:GetAttribute("MaxHealth")
         if maxHp == nil then maxHp = entry.MaxHealth end
 
@@ -742,12 +802,13 @@ function CityService.GetCityStats(): CityStats
         end
     end
 
-    local totalBuildings = #buildingList
+    local totalBuildings = #list
     local destructionPct = if totalHP > 0 then math.clamp(math.floor((1 - (curHP / totalHP)) * 100), 0, 100) else 0
     local completionPct = if totalBuildings > 0 then math.clamp(math.floor((destroyedCount / totalBuildings) * 100), 0, 100) else 0
+    local run = if state then state.Run else newRun(id)
 
     return {
-        CityName = activeCityName,
+        CityName = id,
         TotalBuildings = totalBuildings,
         ActiveBuildings = activeCount,
         DestroyedBuildings = destroyedCount,
@@ -755,51 +816,60 @@ function CityService.GetCityStats(): CityStats
         CurrentHealth = curHP,
         DestructionPercentage = destructionPct,
         CityCompletionPercentage = completionPct,
-        RunStartTime = currentRun.RunStartTime,
-        RunEndTime = currentRun.RunEndTime,
-        HighestCombo = currentRun.HighestCombo,
-        CityCompleted = currentRun.CityCompleted,
+        RunStartTime = if run.RunStartTime > 0 then run.RunStartTime else os.clock(),
+        RunEndTime = run.RunEndTime,
+        HighestCombo = run.HighestCombo,
+        CityCompleted = run.CityCompleted,
     }
 end
 
-function CityService.GetRunStats(): CityRunStats
-    return currentRun
+function CityService.GetRunStats(cityId: string?): CityRunStats
+    local state = getState(cityId or DEFAULT_CITY)
+    return if state then state.Run else newRun(cityId or DEFAULT_CITY)
 end
 
 --[=[
-    Records incoming structural damage during the active run.
+    Records incoming structural damage to a city building during its run.
 ]=]
-function CityService.RecordDamage(amount: number, buildingId: string?)
-    currentRun.TotalDamage += math.max(0, amount)
-    if buildingId and not runDamagedBuildingIds[buildingId] then
-        runDamagedBuildingIds[buildingId] = true
-        currentRun.BuildingsDamaged += 1
+function CityService.RecordDamage(building: Model, amount: number, player: Player?)
+    local entry = entriesByModel[building]
+    local state = entry and getState(entry.CityId)
+    if not entry or not state then return end
+    local run = state.Run
+    if run.RunStartTime == 0 then run.RunStartTime = os.clock() end
+    run.TotalDamage += math.max(0, amount)
+    if not state.DamagedBuildingIds[entry.Id] then
+        state.DamagedBuildingIds[entry.Id] = true
+        run.BuildingsDamaged += 1
     end
+    if player then state.Participants[player] = true end
 end
 
 --[=[
-    Records ability usage during the active run.
+    Records ability usage in the run of the city the player is in.
 ]=]
 function CityService.RecordAbilityUsed(player: Player?, abilityName: string)
-    if currentRun.CityCompleted then return end
+    local state = player and getState(playerCity[player])
+    if not state or state.Run.CityCompleted then return end
+    local run = state.Run
     if abilityName == "BasicAttack" or abilityName == "TailSweep" or abilityName == "NeckStrike" then
-        currentRun.BasicAttacks += 1
+        run.BasicAttacks += 1
     elseif abilityName == "Stomp" or abilityName == "HeavyStomp" then
-        currentRun.Stomps += 1
+        run.Stomps += 1
     elseif abilityName == "Roar" then
-        currentRun.Roars += 1
+        run.Roars += 1
     end
 end
 
 --[=[
     Calculates destruction run score using the formal scoring model:
-    Base (Points + 10% Damage) + Combo Bonus + Speed Bonus + Completion Bonus.
+    Base (Cash + 10% Damage) + Combo Bonus + Speed Bonus + Completion Bonus.
 ]=]
 function CityService.CalculateDestructionScore(cityId: string, run: CityRunStats): (number, number, number, number, number)
     local targetTime = if cityId == "Metrovale" then 240 else 120
     local completionBonus = if cityId == "Metrovale" then 15000 else 5000
 
-    local baseScore = run.BuildingsPoints + math.floor(run.TotalDamage * 0.1)
+    local baseScore = run.BuildingsCash + math.floor(run.TotalDamage * 0.1)
     local comboBonus = math.floor(run.HighestCombo * 1500)
     local speedBonus = math.max(0, math.floor((targetTime - run.Duration) * 50))
     local totalScore = math.max(0, math.floor(baseScore + comboBonus + speedBonus + completionBonus))
@@ -808,82 +878,102 @@ function CityService.CalculateDestructionScore(cityId: string, run: CityRunStats
 end
 
 --[=[
-    Records a building destruction event, updates run statistics, and checks completion.
+    Records a building destruction event, updates its city's run statistics, and checks completion.
 ]=]
-function CityService.RecordDestruction(player: Player?, building: Model, cash: number, points: number, xp: number, combo: number)
-    currentRun.BuildingsDestroyed += 1
-    currentRun.BuildingsCash += math.max(0, cash)
-    currentRun.BuildingsPoints += math.max(0, points)
-    currentRun.BuildingsXP += math.max(0, xp)
+function CityService.RecordDestruction(player: Player?, building: Model, cash: number, xp: number, combo: number)
+    local entry = entriesByModel[building]
+    local state = entry and getState(entry.CityId)
+    if not entry or not state then return end
+    local run = state.Run
+    run.BuildingsDestroyed += 1
+    run.BuildingsCash += math.max(0, cash)
+    run.BuildingsXP += math.max(0, xp)
 
-    if combo > currentRun.HighestCombo then currentRun.HighestCombo = combo end
+    if combo > run.HighestCombo then run.HighestCombo = combo end
 
-    local stats = CityService.GetCityStats()
+    local stats = CityService.GetCityStats(state.Id)
 
-    -- Broadcast live city progress update to all clients
-    CityFeedbackRemote:FireAllClients("CityProgressUpdate", stats)
+    -- Broadcast live city progress to everyone in this city
+    fireCity(state.Id, "CityProgressUpdate", stats)
 
     -- Check for city completion transition
-    if stats.DestroyedBuildings >= stats.TotalBuildings and not currentRun.CityCompleted then CityService.TriggerCityCompletion(player) end
+    if stats.DestroyedBuildings >= stats.TotalBuildings and not run.CityCompleted then
+        CityService.TriggerCityCompletion(state.Id, player)
+    end
 end
 
 --[=[
-    Triggers server-authoritative city completion when all buildings are destroyed.
+    Triggers server-authoritative city completion when all of a city's buildings are destroyed.
+    The completion reward goes to the run's participants (players who damaged the city) and anyone
+    standing in the city at the moment it falls.
 ]=]
-function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
-    if currentRun.CityCompleted then return end
-    currentRun.CityCompleted = true
-    currentRun.RunEndTime = os.clock()
+function CityService.TriggerCityCompletion(cityId: string, triggeringPlayer: Player?)
+    local state = getState(cityId)
+    if not state then return end
+    local run = state.Run
+    if run.CityCompleted then return end
+    run.CityCompleted = true
+    run.RunEndTime = os.clock()
+    if run.RunStartTime == 0 then run.RunStartTime = run.RunEndTime end
 
-    local cityDef = CityConfig[activeCityName]
-    local completionReward = if cityDef then cityDef.CompletionReward else { Cash = 5000, DestructionPoints = 2500, XP = 2000 }
+    local cityDef = CityConfig.GetCity(cityId)
+    local completionReward = if cityDef then cityDef.CompletionReward else { Cash = 5000, XP = 2000 }
+
+    local recipients: { Player } = {}
+    local seen: { [Player]: boolean } = {}
+    for p in pairs(state.Participants) do
+        if p.Parent and not seen[p] then
+            seen[p] = true
+            table.insert(recipients, p)
+        end
+    end
+    for _, p in ipairs(playersInCity(cityId)) do
+        if not seen[p] then
+            seen[p] = true
+            table.insert(recipients, p)
+        end
+    end
 
     print(
         string.format(
-            "[CityService] 🏆 CITY DESTROYED! All %d buildings in '%s' flattened! Awarding completion bonuses...",
-            #buildingList,
-            activeCityName
+            "[CityService] 🏆 CITY DESTROYED! All %d buildings in '%s' flattened! Rewarding %d player(s)...",
+            #state.BuildingList,
+            cityId,
+            #recipients
         )
     )
 
     -- Award completion reward exactly once via ProgressionService
-    if not currentRun.CompletionAwarded then
-        currentRun.CompletionAwarded = true
-        if ProgressionService then
-            for _, player in ipairs(Players:GetPlayers()) do
-                ProgressionService.AddRewards(player, completionReward.Cash, completionReward.DestructionPoints, completionReward.XP)
-                print(
-                    string.format(
-                        "[CityService] Awarded City Completion Bonus to %s: +$%d Cash, +%d Pts, +%d XP",
-                        player.Name,
-                        completionReward.Cash,
-                        completionReward.DestructionPoints,
-                        completionReward.XP
-                    )
+    if not run.CompletionAwarded then
+        run.CompletionAwarded = true
+        for _, player in ipairs(recipients) do
+            ProgressionService.AddRewards(player, completionReward.Cash, completionReward.XP)
+            print(
+                string.format(
+                    "[CityService] Awarded City Completion Bonus to %s: +$%d Cash, +%d XP",
+                    player.Name,
+                    completionReward.Cash,
+                    completionReward.XP
                 )
-            end
+            )
         end
     end
 
-    local duration = math.max(1, math.floor(currentRun.RunEndTime - currentRun.RunStartTime))
-    currentRun.Duration = duration
-    local bpm = math.floor((currentRun.BuildingsDestroyed / (duration / 60)) * 10) / 10
-    currentRun.BuildingsPerMinute = bpm
+    local duration = math.max(1, math.floor(run.RunEndTime - run.RunStartTime))
+    run.Duration = duration
+    local bpm = math.floor((run.BuildingsDestroyed / (duration / 60)) * 10) / 10
+    run.BuildingsPerMinute = bpm
 
-    local totalScore, baseScore, comboBonus, speedBonus, completionScoreBonus =
-        CityService.CalculateDestructionScore(activeCityName, currentRun)
-    currentRun.DestructionScore = totalScore
+    local totalScore, baseScore, comboBonus, speedBonus, completionScoreBonus = CityService.CalculateDestructionScore(cityId, run)
+    run.DestructionScore = totalScore
 
-    local totalCash = currentRun.BuildingsCash + completionReward.Cash
-    local totalPoints = currentRun.BuildingsPoints + completionReward.DestructionPoints
-    local totalXP = currentRun.BuildingsXP + completionReward.XP
+    local totalCash = run.BuildingsCash + completionReward.Cash
+    local totalXP = run.BuildingsXP + completionReward.XP
 
-    currentRun.CompletionCash = completionReward.Cash
-    currentRun.CompletionPoints = completionReward.DestructionPoints
-    currentRun.CompletionXP = completionReward.XP
-    currentRun.TotalCash = totalCash
-    currentRun.TotalPoints = totalPoints
-    currentRun.TotalXP = totalXP
+    run.CompletionCash = completionReward.Cash
+    run.CompletionXP = completionReward.XP
+    run.TotalCash = totalCash
+    run.TotalXP = totalXP
 
     -- Record completion count per player & update persistent profile
     local isNewBestTimeMap: { [number]: boolean } = {}
@@ -891,17 +981,17 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
     local isNewBestScoreMap: { [number]: boolean } = {}
     local isNewBestBpmMap: { [number]: boolean } = {}
 
-    for _, p in ipairs(Players:GetPlayers()) do
+    for _, p in ipairs(recipients) do
         local comps = playerCityCompletions[p.UserId]
         if not comps then
             comps = { SmallTown = 0, Metrovale = 0 }
             playerCityCompletions[p.UserId] = comps
         end
-        comps[activeCityName] = (comps[activeCityName] or 0) + 1
+        comps[cityId] = (comps[cityId] or 0) + 1
 
         PlayerDataService.UpdateProfile(p, function(prof)
-            if not prof.Cities[activeCityName] then
-                prof.Cities[activeCityName] = {
+            if not prof.Cities[cityId] then
+                prof.Cities[cityId] = {
                     Unlocked = true,
                     Clears = 0,
                     BestTime = nil,
@@ -910,11 +1000,11 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
                     BestBuildingsPerMinute = 0,
                 }
             end
-            local cityData = prof.Cities[activeCityName]
+            local cityData = prof.Cities[cityId]
             cityData.Clears += 1
 
             local isNewTime = not cityData.BestTime or duration < cityData.BestTime
-            local isNewCombo = currentRun.HighestCombo > (cityData.BestCombo or 0)
+            local isNewCombo = run.HighestCombo > (cityData.BestCombo or 0)
             local isNewScore = totalScore > (cityData.BestScore or 0)
             local isNewBpm = bpm > (cityData.BestBuildingsPerMinute or 0)
 
@@ -924,21 +1014,20 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
             isNewBestBpmMap[p.UserId] = isNewBpm
 
             if isNewTime then cityData.BestTime = duration end
-            if isNewCombo then cityData.BestCombo = currentRun.HighestCombo end
+            if isNewCombo then cityData.BestCombo = run.HighestCombo end
             if isNewScore then cityData.BestScore = totalScore end
             if isNewBpm then cityData.BestBuildingsPerMinute = bpm end
 
             -- Update persistent lifetime statistics
             if prof.Statistics then
                 local stats = prof.Statistics
-                stats.TotalBuildingsDestroyed += currentRun.BuildingsDestroyed
-                stats.TotalDamageDealt += currentRun.TotalDamage
+                stats.TotalBuildingsDestroyed += run.BuildingsDestroyed
+                stats.TotalDamageDealt += run.TotalDamage
                 stats.TotalCitiesCompleted += 1
                 stats.TotalRunsCompleted += 1
                 stats.TotalCashEarned += totalCash
-                stats.TotalPointsEarned += totalPoints
                 stats.TotalXPEarned += totalXP
-                if currentRun.HighestCombo > stats.HighestCombo then stats.HighestCombo = currentRun.HighestCombo end
+                if run.HighestCombo > stats.HighestCombo then stats.HighestCombo = run.HighestCombo end
                 stats.TotalPlayTime += duration
             end
 
@@ -952,40 +1041,35 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
     if triggeringPlayer then
         local comps = playerCityCompletions[triggeringPlayer.UserId]
         print(
-            string.format(
-                "[CityService] %s now has %d completions for '%s'",
-                triggeringPlayer.Name,
-                comps and comps[activeCityName] or 1,
-                activeCityName
-            )
+            string.format("[CityService] %s now has %d completions for '%s'", triggeringPlayer.Name, comps and comps[cityId] or 1, cityId)
         )
     end
 
     -- Update session best records
-    local rec = cityBestRecords[activeCityName]
+    local rec = cityBestRecords[cityId]
     if not rec then
         rec = { BestTime = 0, BestCombo = 1, BestScore = 0, BestBPM = 0 }
-        cityBestRecords[activeCityName] = rec
+        cityBestRecords[cityId] = rec
     end
     if rec.BestTime == 0 or duration < rec.BestTime then
         rec.BestTime = duration
-        print(string.format("[CityService] ⏱️ New Best Time for '%s': %ds!", activeCityName, duration))
+        print(string.format("[CityService] ⏱️ New Best Time for '%s': %ds!", cityId, duration))
     end
-    if currentRun.HighestCombo > rec.BestCombo then
-        rec.BestCombo = currentRun.HighestCombo
-        print(string.format("[CityService] 🔥 New Best Combo for '%s': %dx!", activeCityName, rec.BestCombo))
+    if run.HighestCombo > rec.BestCombo then
+        rec.BestCombo = run.HighestCombo
+        print(string.format("[CityService] 🔥 New Best Combo for '%s': %dx!", cityId, rec.BestCombo))
     end
     if totalScore > rec.BestScore then
         rec.BestScore = totalScore
-        print(string.format("[CityService] 🌟 New Best Destruction Score for '%s': %d pts!", activeCityName, totalScore))
+        print(string.format("[CityService] 🌟 New Best Destruction Score for '%s': %d!", cityId, totalScore))
     end
     if bpm > rec.BestBPM then
         rec.BestBPM = bpm
-        print(string.format("[CityService] ⚡ New Best BPM for '%s': %.1f!", activeCityName, bpm))
+        print(string.format("[CityService] ⚡ New Best BPM for '%s': %.1f!", cityId, bpm))
     end
 
-    -- Check if Metrovale unlocked for any player
-    for _, p in ipairs(Players:GetPlayers()) do
+    -- Check if Metrovale unlocked, and titan unlocks, for each rewarded player
+    for _, p in ipairs(recipients) do
         local unlocked, _ = CityService.IsCityUnlocked(p, "Metrovale")
         if unlocked then
             CityFeedbackRemote:FireClient(p, "CityUnlocked", {
@@ -1007,24 +1091,24 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
         end
     end
 
-    -- Construct and broadcast personalized completion payload per client
-    for _, p in ipairs(Players:GetPlayers()) do
+    -- Construct and broadcast personalized completion payload per rewarded player
+    for _, p in ipairs(recipients) do
         local prof = PlayerDataService.GetProfile(p)
-        local cityData = if prof and prof.Cities then prof.Cities[activeCityName] else nil
+        local cityData = if prof and prof.Cities then prof.Cities[cityId] else nil
 
         local completionPayload = {
-            CityName = activeCityName,
-            TotalBuildings = #buildingList,
-            DestroyedBuildings = #buildingList,
+            CityName = cityId,
+            TotalBuildings = #state.BuildingList,
+            DestroyedBuildings = #state.BuildingList,
             CityCompletionPercentage = 100,
             Duration = duration,
-            HighestCombo = currentRun.HighestCombo,
-            TotalDamage = currentRun.TotalDamage,
-            BuildingsDestroyed = currentRun.BuildingsDestroyed,
-            BuildingsDamaged = currentRun.BuildingsDamaged,
-            BasicAttacks = currentRun.BasicAttacks,
-            Stomps = currentRun.Stomps,
-            Roars = currentRun.Roars,
+            HighestCombo = run.HighestCombo,
+            TotalDamage = run.TotalDamage,
+            BuildingsDestroyed = run.BuildingsDestroyed,
+            BuildingsDamaged = run.BuildingsDamaged,
+            BasicAttacks = run.BasicAttacks,
+            Stomps = run.Stomps,
+            Roars = run.Roars,
             BuildingsPerMinute = bpm,
             DestructionScore = totalScore,
             ScoreBreakdown = {
@@ -1041,14 +1125,11 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
             IsNewBestCombo = isNewBestComboMap[p.UserId] == true,
             IsNewBestScore = isNewBestScoreMap[p.UserId] == true,
             IsNewBestBpm = isNewBestBpmMap[p.UserId] == true,
-            BuildingsCash = currentRun.BuildingsCash,
-            BuildingsPoints = currentRun.BuildingsPoints,
-            BuildingsXP = currentRun.BuildingsXP,
+            BuildingsCash = run.BuildingsCash,
+            BuildingsXP = run.BuildingsXP,
             CompletionCash = completionReward.Cash,
-            CompletionPoints = completionReward.DestructionPoints,
             CompletionXP = completionReward.XP,
             TotalCash = totalCash,
-            TotalPoints = totalPoints,
             TotalXP = totalXP,
         }
 
@@ -1057,28 +1138,47 @@ function CityService.TriggerCityCompletion(triggeringPlayer: Player?)
 end
 
 --[=[
-    Restores all original 15 buildings to full health and pristine visual state, resets run statistics, and starts a new run.
+    Restores a city's buildings to full health and pristine visual state, resets its run statistics,
+    and starts a new run. A player may rebuild a city once it is fully cleared; the InstantRebuild
+    gamepass skips that wait only when nobody else is mid-run there.
 ]=]
-function CityService.ResetCity(requestingPlayer: Player?): (boolean, string)
-    ensureInitialized()
+function CityService.ResetCity(requestingPlayer: Player?, cityId: string?): (boolean, string)
+    local id = cityId or (requestingPlayer and playerCity[requestingPlayer]) or DEFAULT_CITY
+    local state = getState(id)
+    if not state then return false, "Unknown city" end
 
-    local stats = CityService.GetCityStats()
-    local isCompleted = currentRun.CityCompleted or (stats.DestroyedBuildings >= stats.TotalBuildings and stats.TotalBuildings > 0)
+    local stats = CityService.GetCityStats(id)
+    local isCompleted = state.Run.CityCompleted or (stats.DestroyedBuildings >= stats.TotalBuildings and stats.TotalBuildings > 0)
     local monService = getMonetizationService()
     local hasInstantRebuild = if requestingPlayer and monService then monService.HasInstantRebuild(requestingPlayer) else false
 
-    -- Security validation: only allow rebuilding if city is completed (or player has InstantRebuild gamepass)
-    if requestingPlayer and not isCompleted and not hasInstantRebuild then
-        warn(string.format("[CityService] Rejected rebuild request from %s: City is not yet completed!", requestingPlayer.Name))
-        return false, "City is not completed"
+    if requestingPlayer and not isCompleted then
+        -- Don't let one player's instant rebuild wipe someone else's progress in a shared city
+        local othersMidRun = false
+        for p in pairs(state.Participants) do
+            if p ~= requestingPlayer and p.Parent then othersMidRun = true end
+        end
+        if not hasInstantRebuild then
+            warn(string.format("[CityService] Rejected rebuild request from %s: '%s' is not yet completed!", requestingPlayer.Name, id))
+            return false, "City is not completed"
+        elseif othersMidRun then
+            warn(string.format("[CityService] Rejected instant rebuild from %s: others are mid-run in '%s'", requestingPlayer.Name, id))
+            CityFeedbackRemote:FireClient(requestingPlayer, "CitySelectRejected", {
+                CityId = id,
+                Reason = "Other titans are still destroying this city!",
+            })
+            return false, "Other players are mid-run"
+        end
     end
 
-    print(string.format("[CityService] Rebuilding '%s'... Restoring %d buildings.", activeCityName, #buildingList))
+    print(string.format("[CityService] Rebuilding '%s'... Restoring %d buildings.", id, #state.BuildingList))
 
     -- 1. Restore all buildings
-    for _, entry in ipairs(buildingList) do
+    local models: { Model } = {}
+    for _, entry in ipairs(state.BuildingList) do
         local bld = entry.Model
         local backup = entry.VisualBackup
+        table.insert(models, bld)
 
         -- Remove any rubble parts
         local rubble = bld:FindFirstChild("Rubble")
@@ -1119,24 +1219,25 @@ function CityService.ResetCity(requestingPlayer: Player?): (boolean, string)
         bld:SetAttribute("IsDestroyed", false)
     end
 
-    -- 2. Reset DestructionService state
+    -- 2. Reset DestructionService state for this city's buildings only
     local dest = getDestructionService()
-    if dest and type(dest.ClearCollapsingBuildings) == "function" then dest.ClearCollapsingBuildings() end
+    if dest and type(dest.ClearCollapsingBuildings) == "function" then dest.ClearCollapsingBuildings(models) end
 
     -- 3. Reset run statistics
-    resetRun(activeCityName)
+    resetRun(state)
 
-    local newStats = CityService.GetCityStats()
+    local newStats = CityService.GetCityStats(id)
 
-    -- 4. Broadcast city reset to all clients
-    CityFeedbackRemote:FireAllClients("CityReset", newStats)
+    -- 4. Broadcast city reset to everyone in this city
+    fireCity(id, "CityReset", newStats)
 
-    local cityDef = CityConfig.GetCity(activeCityName)
+    local cityDef = CityConfig.GetCity(id)
     if requestingPlayer and requestingPlayer.Character and requestingPlayer.Character.PrimaryPart and cityDef then
+        playerCity[requestingPlayer] = id
         requestingPlayer.Character:PivotTo(CFrame.new(cityDef.SpawnPosition + Vector3.new(0, 4, 0)))
     end
 
-    print(string.format("[CityService] ✅ City '%s' completely reconstructed! New run timer started.", activeCityName))
+    print(string.format("[CityService] ✅ City '%s' completely reconstructed! New run timer starts on first hit.", id))
 
     return true, "City Rebuilt"
 end
@@ -1145,18 +1246,17 @@ end
     Applies health reduction to the indexed building entry and updates building attributes.
 ]=]
 function CityService.ApplyDamage(buildingModel: Model, damage: number, attacker: Player?): (boolean, number)
-    ensureInitialized()
-
     -- Special handling for KaijuHub Training Pillars
     if buildingModel:GetAttribute("IsTrainingDummy") == true then
         local maxHp = tonumber(buildingModel:GetAttribute("MaxHealth")) or 10000
         local curHp = tonumber(buildingModel:GetAttribute("CurrentHealth")) or maxHp
         local actualDamage = math.min(curHp, math.max(1, damage))
         local newHp = curHp - actualDamage
-        if newHp <= 1000 then
-            newHp = maxHp -- Instantly refresh practice pillar health
+        local unbreakable = buildingModel.Name == "Bastion_Titan_Dummy" or buildingModel:GetAttribute("BagId") ~= nil
+        if unbreakable and newHp <= 1000 then
+            newHp = maxHp -- The Bastion (readiness test) and punching bags never break
         end
-        buildingModel:SetAttribute("CurrentHealth", newHp)
+        buildingModel:SetAttribute("CurrentHealth", math.max(0, newHp))
         return true, actualDamage
     end
 
@@ -1184,8 +1284,8 @@ function CityService.ApplyDamage(buildingModel: Model, damage: number, attacker:
     return true, actualDamage
 end
 
-function CityService.RepairCity()
-    CityService.ResetCity(nil)
+function CityService.RepairCity(cityId: string?)
+    CityService.ResetCity(nil, cityId)
 end
 
 return CityService
