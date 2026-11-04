@@ -224,6 +224,7 @@ function MonsterService.SelectTitan(player: Player, titanId: string)
 
     PlayerDataService.SetSelectedTitan(player, titanId)
     activeTitans[player.UserId] = titanId
+    ProgressionService.RefreshTitanPower(player)
     MonsterService.SpawnPlayerTitan(player, titanId)
     TitanFeedbackRemote:FireClient(player, "TitanSelected", {
         TitanId = titanId,

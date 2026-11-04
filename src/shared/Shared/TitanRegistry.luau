@@ -73,6 +73,7 @@ export type TitanDef = {
     CreatureType: string,
     ModelName: string,
     BaseHealth: number,
+    BasePower: number, -- Starting Titan Power before upgrades, levels and training
     WalkSpeed: number,
     SprintSpeed: number?,
     SprintDrain: number?,
@@ -99,6 +100,7 @@ local Registry: { [string]: TitanDef } = {
         CreatureType = "Bipedal Basalt Titan",
         ModelName = "Ravager",
         BaseHealth = 3000,
+        BasePower = 100,
         WalkSpeed = 28,
         SprintSpeed = 44,
         SprintDrain = 20,
@@ -245,6 +247,7 @@ local Registry: { [string]: TitanDef } = {
         CreatureType = "Quadrupedal Colossal Behemoth",
         ModelName = "Brontara",
         BaseHealth = 4500,
+        BasePower = 140,
         WalkSpeed = 18,
         SprintSpeed = 28,
         SprintDrain = 20,
@@ -548,6 +551,34 @@ function TitanRegistry.CalculateWalkSpeed(titanId: string, upgradeSpeed: number?
     -- For future Titans: maintain speed delta relative to standard upgrade curve
     local bonus = math.max(0, upgradeSpeed - 28)
     return baseSpeed + bonus
+end
+
+-- ====================================================================
+-- TITAN POWER (M15): one number that gates bosses and training bags.
+-- Derived from saved data on demand and never stored, so it can't drift.
+-- ====================================================================
+TitanRegistry.POWER_PER_UPGRADE_LEVEL = 12
+TitanRegistry.POWER_PER_PLAYER_LEVEL = 8
+TitanRegistry.TRAINING_DAMAGE_BONUS_PER_POINT = 0.0025 -- +0.25% ability damage per Training Power point
+
+--[=[
+    Titan Power = titan base + 12 per upgrade level bought + 8 per player level above 1 + Training Power.
+    `upgrades` maps upgrade category -> level (1 = not upgraded).
+]=]
+function TitanRegistry.CalculatePower(titanId: string, upgrades: { [string]: number }?, level: number, trainingPower: number): number
+    local def = Registry[titanId] or Registry.Ravager
+    local upgradeLevels = 0
+    if upgrades then
+        for _, lvl in pairs(upgrades) do
+            upgradeLevels += math.max(0, math.floor(lvl) - 1)
+        end
+    end
+    return math.floor(
+        def.BasePower
+            + upgradeLevels * TitanRegistry.POWER_PER_UPGRADE_LEVEL
+            + math.max(0, math.floor(level) - 1) * TitanRegistry.POWER_PER_PLAYER_LEVEL
+            + math.max(0, math.floor(trainingPower))
+    )
 end
 
 --[=[

@@ -6,7 +6,6 @@
 
 export type CityReward = {
     Cash: number,
-    DestructionPoints: number,
     XP: number,
 }
 
@@ -119,8 +118,7 @@ local Cities: { [string]: CityDefinition } = {
             RequiredSmallTownClears = 0,
         },
         CompletionReward = {
-            Cash = 1000,
-            DestructionPoints = 500,
+            Cash = 1500, -- M15: absorbed the old 500 Destruction Points
             XP = 500,
         },
         TotalBuildings = 15,
@@ -171,8 +169,7 @@ local Cities: { [string]: CityDefinition } = {
             RequiredSmallTownClears = 2,
         },
         CompletionReward = {
-            Cash = 2500,
-            DestructionPoints = 1250,
+            Cash = 3750, -- M15: absorbed the old 1250 Destruction Points
             XP = 1500,
         },
         TotalBuildings = 27,
