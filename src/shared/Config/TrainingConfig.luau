@@ -33,21 +33,21 @@ TrainingConfig.Bags = {
         Id = "Basic",
         DisplayName = "Basic Punching Bag",
         RequiredPower = 0,
-        TPPerGrant = 0.04, -- ~2.4 TP/min at 0 TP
+        TPPerGrant = 0.02, -- ~1.2 TP/min at 0 TP
         Color = Color3.fromRGB(150, 110, 80),
     },
     Reinforced = {
         Id = "Reinforced",
         DisplayName = "Reinforced Punching Bag",
         RequiredPower = 250,
-        TPPerGrant = 0.05, -- ~3 TP/min at 0 TP
+        TPPerGrant = 0.022, -- ~1.3 TP/min at 0 TP
         Color = Color3.fromRGB(110, 120, 140),
     },
     Magma = {
         Id = "Magma",
         DisplayName = "Magma Punching Bag",
-        RequiredPower = 500,
-        TPPerGrant = 0.06, -- ~3.6 TP/min at 0 TP
+        RequiredPower = 400,
+        TPPerGrant = 0.025, -- ~1.5 TP/min at 0 TP
         Color = Color3.fromRGB(255, 96, 24),
     },
 } :: { [string]: BagDef }
