@@ -1252,8 +1252,9 @@ function CityService.ApplyDamage(buildingModel: Model, damage: number, attacker:
         local curHp = tonumber(buildingModel:GetAttribute("CurrentHealth")) or maxHp
         local actualDamage = math.min(curHp, math.max(1, damage))
         local newHp = curHp - actualDamage
-        if buildingModel.Name == "Bastion_Titan_Dummy" and newHp <= 1000 then
-            newHp = maxHp -- The Bastion never breaks: it hosts the readiness DPS test
+        local unbreakable = buildingModel.Name == "Bastion_Titan_Dummy" or buildingModel:GetAttribute("BagId") ~= nil
+        if unbreakable and newHp <= 1000 then
+            newHp = maxHp -- The Bastion (readiness test) and punching bags never break
         end
         buildingModel:SetAttribute("CurrentHealth", math.max(0, newHp))
         return true, actualDamage

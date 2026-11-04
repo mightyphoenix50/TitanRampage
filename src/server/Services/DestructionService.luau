@@ -29,6 +29,16 @@ local CityService = require(script.Parent:WaitForChild("CityService") :: ModuleS
 local HubService = nil
 local DropService = nil
 local BossService = nil
+local TrainingService = nil
+
+local function getTrainingService()
+    if not TrainingService then
+        pcall(function()
+            TrainingService = require(script.Parent:WaitForChild("TrainingService") :: ModuleScript)
+        end)
+    end
+    return TrainingService
+end
 
 local function getBossService()
     if not BossService then
@@ -479,6 +489,8 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
         local bosses = getBossService()
         if not player or not bosses then return false, 0 end
         local hit, applied = bosses.DamageBoss(player, building, damage, source)
+        local training = getTrainingService()
+        if training then training.NoteOtherHit(player) end
         if hit then
             DestructionFeedbackRemote:FireAllClients("BuildingDamaged", {
                 Building = building,
@@ -512,6 +524,10 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
         if player and building.Name == "Bastion_Titan_Dummy" then
             local bosses = getBossService()
             if bosses then bosses.RecordReadinessDamage(player, actualDamage) end
+        end
+        if player and building:GetAttribute("BagId") ~= nil then
+            local training = getTrainingService()
+            if training then training.RecordBagHit(player, building) end
         end
 
         -- Practice monoliths break with a debris burst and rebuild themselves 10 seconds later
@@ -551,6 +567,8 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
     -- Record damage in run statistics and in this building's per-player ledger
     CityService.RecordDamage(building, actualDamage, player)
     if player and actualDamage > 0 then
+        local training = getTrainingService()
+        if training then training.NoteOtherHit(player) end
         local contributions = damageLedger[building]
         if not contributions then
             contributions = {}
