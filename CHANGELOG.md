@@ -923,6 +923,8 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
     - Repeat rewards have a 10-minute per-player cooldown, and first clears grant a title.
     - Every party member with at least 5% of the damage gets their own full reward (not divided).
     - Play-tested the Cinder Warden solo at Power 352 through the real remotes: 54 s, three phases, 13 telegraphs, 9 hits taken, $5,000 first-clear reward. Also checked the Obsidian Colossus slam telegraph and the HUD bars.
+    - Stormcoil Serpent with its mesh model at Power 424: won in 65 s with lanes, static strikes and coil sweep across three phases, taking 14 hits on a 7,050 HP titan.
+    - A party member's max health is now recomputed from upgrades when the fight starts.
   - **5. Proving Grounds:**
     - New **Boss Gate** (Studio, south wall of the arena) whose F prompt opens a board. Each boss shows its requirements ticked or crossed, its reward or cooldown, and a Challenge button.
     - The Bastion dummy runs a 20-second **readiness DPS test**, compared with each boss's recommended DPS.
@@ -934,7 +936,7 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
     - Gains are at most one grant a second, with diminishing returns toward a cap of 40 + 15 per city clear (max 160). Fatigue (×0.25) kicks in after 60 s on one bag without other hits. No cash or XP.
     - Client: the bag swings on its chain, "+TP" numbers float up, and a meter shows progress toward the cap.
     - Play-test: 40 s on the Basic bag gave 24 grants, and the locked Magma bag was refused.
-  - **7. Models (Blender 5.2, headless):** `C:\Tools\TitanRampage-BlenderMCP\tests\Milestone15\build_bosses.py` builds the three bosses and the punching bag as low-poly role-split meshes (Body / Armor / Glow; 160–1,600 tris each). FBX and `.blend` files are written next to it. Until they are imported, `BossService` uses a part-built stand-in.
+  - **7. Models (Blender 5.2, headless):** `C:\Tools\TitanRampage-BlenderMCP\tests\Milestone15\build_bosses.py` builds the three bosses and the punching bag as low-poly role-split meshes (Body / Armor / Glow; 160–1,600 tris each). FBX and `.blend` files are written next to it. The owner imported them with Studio's 3D Importer (studs scale was correct this time). They were turned into `ReplicatedStorage.Assets.Bosses.<BossId>` templates: Body/Armor/Glow coloured per boss, the importer's rotated `PivotOffset` reset, pivot at the centre and front facing −Z. The punching-bag mesh replaced the part-built bag in all three stands. `BossService` still falls back to a part-built stand-in if a template is missing.
   - **8. Balance check** (Studio simulation over 10 minutes, conservative for destruction):
     - Fresh profile: destruction +188 Power vs Basic bag +8.9 TP (21×).
     - Early-mid: 16×.
@@ -945,9 +947,8 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
   - **Tooling:** `default.project.json` lists each MainUI script by name (now noted in `CLAUDE.md`). `BossHUD` was missing until it was added there.
   - **QA:** `BossRequest("DevPrepare", bossId)` grants the upgrades, level and clears a boss needs, **Studio only** (`RunService:IsStudio()`).
 - **Not done / follow-ups:**
-  - Boss and bag meshes need importing through Studio's 3D Importer (scripts can't upload meshes) and wiring as `ReplicatedStorage.Assets.Bosses` templates.
   - Boss audio (roars, telegraph tones, victory sting, bag thuds) still uses existing sounds.
-  - The Stormcoil Serpent and the shield phase haven't had a full fight test.
+  - The Obsidian Colossus shield phase hasn't had a full fight test.
   - Multiplayer was only verified with one client.
   - Hall of Titans trophy statues were not built; first clears grant a title instead.
 - **Verified:** `rojo build`, `selene` (0 errors; 32 warnings, down from 34), `stylua --check`, and the Studio play-tests above with no new console errors.

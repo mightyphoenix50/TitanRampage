@@ -30,6 +30,17 @@ local TitanRegistry = require(ReplicatedStorage:WaitForChild("Shared"):WaitForCh
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService") :: ModuleScript)
 local ProgressionService = require(script.Parent:WaitForChild("ProgressionService") :: ModuleScript)
 local CityService = require(script.Parent:WaitForChild("CityService") :: ModuleScript)
+local MonsterService = nil
+
+-- MonsterService requires BossService indirectly (via DestructionService), so resolve it lazily
+local function getMonsterService()
+    if not MonsterService then
+        pcall(function()
+            MonsterService = require(script.Parent:WaitForChild("MonsterService") :: ModuleScript)
+        end)
+    end
+    return MonsterService
+end
 
 -- Remotes live in the place file; create them if this place predates Milestone 15
 local function getRemote(name: string): RemoteEvent
@@ -601,10 +612,16 @@ function BossService.StartFight(challenger: Player, bossId: string): (boolean, s
     end
 
     local partySize = 0
+    local monsters = getMonsterService()
     for p in pairs(party) do
         partySize += 1
         local humanoid = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then humanoid.Health = humanoid.MaxHealth end
+        if humanoid then
+            -- Recompute max health from current upgrades before the first hit lands
+            local titanDef = TitanRegistry.Get(tostring(p.Character:GetAttribute("TitanId") or "Ravager"))
+            if monsters and titanDef then humanoid.MaxHealth = monsters.GetTitanMaxHealth(p, titanDef) end
+            humanoid.Health = humanoid.MaxHealth
+        end
     end
     local maxHealth = math.floor(def.BaseHealth * (1 + def.HealthPerExtraPlayer * (partySize - 1)))
 
