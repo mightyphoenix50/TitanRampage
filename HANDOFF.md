@@ -85,7 +85,13 @@
 
 ## 4. Immediate Next Steps / Roadmap
 
-### Next: Milestone 15 — Boss Fights, Titan Power & Training, Cash-Only Economy
+### Open follow-ups from Milestone 15
+- **Import the boss and bag meshes:** FBX files in `C:\Tools\TitanRampage-BlenderMCP\tests\Milestone15\` (CinderWarden, StormcoilSerpent, ObsidianColossus, PunchingBag). Import with Studio's 3D Importer, then turn each into a `ReplicatedStorage.Assets.Bosses.<BossId>` template (colour the Body/Armor/Glow parts, set the PrimaryPart). `BossService` uses a part-built stand-in until then.
+- **Boss audio:** roars, telegraph warning tones, victory sting, punching-bag thuds and chain rattles (licensed ProSoundEffects only).
+- **Untested in a full fight:** Stormcoil Serpent lanes and the Obsidian Colossus shield phase; a two-client test of the shared rewards and the boss party.
+- **Hall of Titans trophies** for first clears (titles only for now).
+
+### Done: Milestone 15 — Boss Fights, Titan Power & Training, Cash-Only Economy
 Destroying cities currently has no goal beyond upgrades. This milestone adds one: bosses in the Colosseum that only a titan built up by destroying cities can beat. It also adds hub **Titan Punching Bags** for light training power, tuned so city destruction always wins, and drops Destruction Points so cash is the only currency.
 
 Findings behind the plan (2026-11-04):

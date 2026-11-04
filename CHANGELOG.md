@@ -893,3 +893,62 @@ All prompt executions, milestones, and architectural updates for the **Titan Ram
   - The listening pass needs a human ear.
 - **Verified:** `rojo build`, `selene` (0 errors, warning count unchanged at 34), `stylua --check`; play-test above with no console errors or warnings.
 - **Status:** Complete; the Studio changes need **File → Save to Roblox**.
+
+---
+
+### [2026-11-04 08:20 UTC] — Milestone 15: Boss Fights, Titan Power & Training, Cash-Only Economy
+- **Goal:** Give city destruction a goal: bosses in the Colosseum that only titans built up by destroying cities can beat. Add punching bags for light training that never beats destruction, drop Destruction Points, and make cities work for groups.
+- **Actions Executed:**
+  - **0. Cash-only economy:**
+    - `PlayerDataService` schema 4 → 5. Leftover `DestructionPoints` convert to cash 1:1, and `TotalPointsEarned` is dropped. The profile gains `TrainingPower`, `BossClears` and `Titles`. Load-failure locking is unchanged.
+    - Points are gone from upgrades (`PointCost`), rewards, the HUD and completion screens. City completion cash absorbs the old points (SmallTown $1,500, Metrovale $3,750). `ProgressionService.AddRewards` is now `(player, cash, xp)`.
+  - **0b. Multiplayer cities:**
+    - **Shared building rewards:** `DestructionService` keeps a per-building damage ledger. On collapse, cash and XP are split by damage share among everyone with at least 10%, each with their own combo, and each gets their own cash drops.
+    - **Simultaneous cities:** `CityService` was rewritten around per-city state (buildings, run, participants), registered once at startup. A portal trip moves only that player, so SmallTown and Metrovale run at the same time.
+    - **Completion rewards** go to the run's participants plus anyone standing in the city.
+    - **Instant rebuild** (gamepass) is refused while other players are mid-run in that city.
+    - Verified: destroyed a SmallTown building, travelled to Metrovale mid-run (previously blocked), and SmallTown kept its state.
+  - **1. Titan Power:**
+    - `TitanRegistry.CalculatePower`: titan base (Ravager 100, Brontara 140) + 12 per upgrade level + 8 per level above 1 + Training Power.
+    - Computed on the server and replicated as the `TitanPower` / `TrainingPower` attributes; the HUD shows "⚡ Power" where Points used to be, and upgrade buttons show "+12⚡".
+    - Each Training Power point adds +0.25% ability damage, applied once in `DestructionService.DamageBuilding`.
+  - **2. Titan health:** max HP is base × (1 + 5% per upgrade level) and updates on purchase. Bosses are the only damage source: at 0 HP a titan is knocked out to the hub (healed, no cash loss), never killed.
+  - **3–4. Bosses** (`BossConfig` [NEW], `BossService` [NEW], `BossHUD` [NEW], remotes `BossRequest` / `BossFeedback`):
+    - One fight per server in the Colosseum. Players inside the 140-stud ring join the party, and boss HP is +60% per extra player.
+    - Telegraphed attacks: Slam, Circle, Cone, Lanes, Donut, and Shield (stomps only). Phases at 66% / 33% speed attacks up. Fights end on enrage (180–210 s) or when every titan is knocked out or leaves.
+    - Bosses take damage through the existing ability code (tagged `BossTarget` and included in `GetBuildingsInRadius`), so the reach checks still apply.
+    - Cinder Warden: Power 300 + 1 SmallTown clear, 25k HP, $5,000 first clear / $1,250 repeat, unlocks Brontara.
+    - Stormcoil Serpent: Power 420 + 1 Metrovale clear, 60k HP, $12,000 / $3,000.
+    - Obsidian Colossus: Power 560 + 5 total clears, 140k HP, $25,000 / $6,000.
+    - Repeat rewards have a 10-minute per-player cooldown, and first clears grant a title.
+    - Every party member with at least 5% of the damage gets their own full reward (not divided).
+    - Play-tested the Cinder Warden solo at Power 352 through the real remotes: 54 s, three phases, 13 telegraphs, 9 hits taken, $5,000 first-clear reward. Also checked the Obsidian Colossus slam telegraph and the HUD bars.
+  - **5. Proving Grounds:**
+    - New **Boss Gate** (Studio, south wall of the arena) whose F prompt opens a board. Each boss shows its requirements ticked or crossed, its reward or cooldown, and a Challenge button.
+    - The Bastion dummy runs a 20-second **readiness DPS test**, compared with each boss's recommended DPS.
+    - Practice monoliths now break with debris and rebuild after 10 s.
+    - The **Altar of Ascension** prompt, which did nothing, now opens the upgrade panel.
+    - The dummy and monoliths are parked in ServerStorage during a fight.
+  - **6. Titan Punching Bags** (`TrainingConfig` [NEW], `TrainingService` [NEW], `TrainingController` [NEW], remote `TrainingFeedback`):
+    - Three bags on the west plaza (Studio `KaijuHub.TrainingGrounds`): Basic, Reinforced (250 Power) and Magma (400 Power), with the requirement counting Power from upgrades only.
+    - Gains are at most one grant a second, with diminishing returns toward a cap of 40 + 15 per city clear (max 160). Fatigue (×0.25) kicks in after 60 s on one bag without other hits. No cash or XP.
+    - Client: the bag swings on its chain, "+TP" numbers float up, and a meter shows progress toward the cap.
+    - Play-test: 40 s on the Basic bag gave 24 grants, and the locked Magma bag was refused.
+  - **7. Models (Blender 5.2, headless):** `C:\Tools\TitanRampage-BlenderMCP\tests\Milestone15\build_bosses.py` builds the three bosses and the punching bag as low-poly role-split meshes (Body / Armor / Glow; 160–1,600 tris each). FBX and `.blend` files are written next to it. Until they are imported, `BossService` uses a part-built stand-in.
+  - **8. Balance check** (Studio simulation over 10 minutes, conservative for destruction):
+    - Fresh profile: destruction +188 Power vs Basic bag +8.9 TP (21×).
+    - Early-mid: 16×.
+    - Mid (Metrovale): +84 vs +10.6 (8×).
+    - Late: +40 vs +12 (3.3×).
+    - With no clears, the bag cap (40) can't reach any boss requirement.
+    - The first pass failed mid and late game and showed the Colossus unreachable (850 Power vs a 436 upgrade ceiling). Bag rates were halved and the boss requirements cut to 300 / 420 / 560.
+  - **Tooling:** `default.project.json` lists each MainUI script by name (now noted in `CLAUDE.md`). `BossHUD` was missing until it was added there.
+  - **QA:** `BossRequest("DevPrepare", bossId)` grants the upgrades, level and clears a boss needs, **Studio only** (`RunService:IsStudio()`).
+- **Not done / follow-ups:**
+  - Boss and bag meshes need importing through Studio's 3D Importer (scripts can't upload meshes) and wiring as `ReplicatedStorage.Assets.Bosses` templates.
+  - Boss audio (roars, telegraph tones, victory sting, bag thuds) still uses existing sounds.
+  - The Stormcoil Serpent and the shield phase haven't had a full fight test.
+  - Multiplayer was only verified with one client.
+  - Hall of Titans trophy statues were not built; first clears grant a title instead.
+- **Verified:** `rojo build`, `selene` (0 errors; 32 warnings, down from 34), `stylua --check`, and the Studio play-tests above with no new console errors.
+- **Status:** Code complete on `feat/milestone-15`. The Studio changes (Boss Gate, punching bags, remotes) need **File → Save to Roblox**.

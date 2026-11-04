@@ -26,6 +26,7 @@ local ConfigFolder = ReplicatedStorage:WaitForChild("Config")
 local RemotesFolder = ReplicatedStorage:WaitForChild("Remotes")
 
 local BossConfig = require(ConfigFolder:WaitForChild("BossConfig") :: ModuleScript)
+local TitanRegistry = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TitanRegistry") :: ModuleScript)
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService") :: ModuleScript)
 local ProgressionService = require(script.Parent:WaitForChild("ProgressionService") :: ModuleScript)
 local CityService = require(script.Parent:WaitForChild("CityService") :: ModuleScript)
@@ -716,6 +717,16 @@ function BossService.Init()
                 for catId in pairs(profile.Upgrades) do
                     profile.Upgrades[catId] = math.max(profile.Upgrades[catId], 4)
                 end
+                -- Raise upgrades, then level, until the boss's Power requirement is met
+                local function power()
+                    return TitanRegistry.CalculatePower(profile.SelectedTitan, profile.Upgrades, profile.Level, profile.TrainingPower)
+                end
+                for catId in pairs(profile.Upgrades) do
+                    if power() < def.RequiredPower then profile.Upgrades[catId] = 5 end
+                end
+                while power() < def.RequiredPower do
+                    profile.Level += 1
+                end
                 for cityId, needed in pairs(def.RequiredCityClears) do
                     if profile.Cities[cityId] then profile.Cities[cityId].Clears = math.max(profile.Cities[cityId].Clears, needed) end
                 end
@@ -723,13 +734,12 @@ function BossService.Init()
                     profile.Cities.SmallTown.Clears = math.max(profile.Cities.SmallTown.Clears, def.RequiredTotalClears)
                 end
             end)
-            ProgressionService.RefreshTitanPower(player)
+            ProgressionService.SyncToClient(player)
             sendBoard(player)
         elseif action == "Challenge" then
             if type(bossId) ~= "string" or not BossConfig.Get(bossId) then return end
             local ok, message = BossService.StartFight(player, bossId)
             if not ok then BossFeedbackRemote:FireClient(player, "ChallengeRejected", { Reason = message }) end
-            sendBoard(player)
         end
     end)
 
