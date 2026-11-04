@@ -12,6 +12,7 @@
     - Full city rebuild engine (CityService.ResetCity) restoring all original building instances without duplication.
 --]]
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -694,11 +695,38 @@ function CityService.GetBuildingsInRadius(origin: Vector3, radius: number): { { 
         end
     end
 
+    -- Include active bosses (BossService tags them), measured to their body's edge
+    for _, boss in ipairs(CollectionService:GetTagged("BossTarget")) do
+        if boss:IsA("Model") and boss.PrimaryPart then
+            local part = boss.PrimaryPart
+            local hitRadius = tonumber(boss:GetAttribute("HitRadius")) or 10
+            local dist = math.max(0, Vector3.new(part.Position.X - origin.X, 0, part.Position.Z - origin.Z).Magnitude - hitRadius)
+            if dist <= radius then
+                local bossEntry: BuildingEntry = {
+                    Model = boss,
+                    CityId = "KaijuHub",
+                    Id = boss.Name,
+                    Name = tostring(boss:GetAttribute("BuildingName") or boss.Name),
+                    Type = "Boss",
+                    MaxHealth = 1,
+                    CurrentHealth = 1,
+                    Reward = 0,
+                    Tier = 1,
+                    Position = part.Position,
+                    PrimaryPart = part,
+                    IsDestroyed = false,
+                    VisualBackup = nil :: any,
+                }
+                table.insert(results, { Building = boss, Entry = bossEntry, Distance = dist })
+            end
+        end
+    end
+
     -- Include KaijuHub training pillars if within radius
     local hub = Workspace:FindFirstChild("KaijuHub")
     if hub then
         for _, child in ipairs(hub:GetDescendants()) do
-            if child:GetAttribute("IsTrainingDummy") == true then
+            if child:GetAttribute("IsTrainingDummy") == true and child:GetAttribute("IsDestroyed") ~= true then
                 local part = if child:IsA("BasePart") then child else child.PrimaryPart or child:FindFirstChildWhichIsA("BasePart")
                 if part then
                     local distSq = (part.Position.X - origin.X) ^ 2 + (part.Position.Z - origin.Z) ^ 2
@@ -1224,10 +1252,10 @@ function CityService.ApplyDamage(buildingModel: Model, damage: number, attacker:
         local curHp = tonumber(buildingModel:GetAttribute("CurrentHealth")) or maxHp
         local actualDamage = math.min(curHp, math.max(1, damage))
         local newHp = curHp - actualDamage
-        if newHp <= 1000 then
-            newHp = maxHp -- Instantly refresh practice pillar health
+        if buildingModel.Name == "Bastion_Titan_Dummy" and newHp <= 1000 then
+            newHp = maxHp -- The Bastion never breaks: it hosts the readiness DPS test
         end
-        buildingModel:SetAttribute("CurrentHealth", newHp)
+        buildingModel:SetAttribute("CurrentHealth", math.max(0, newHp))
         return true, actualDamage
     end
 

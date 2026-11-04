@@ -521,6 +521,16 @@ TitanSelectRequestRemote:FireServer("RequestSync")
 ProgressionUpdateRemote.OnClientEvent:Connect(function(data: any)
     if not data then return end
 
+    -- Altar of Ascension prompt: open the upgrade panel (its prompt used to do nothing)
+    if data == "OpenAscensionAltar" then
+        UpgradePanel.Visible = true
+        AudioController.PlayUI("PanelToggle")
+        ProgressionUpdateRemote:FireServer("RequestSync")
+        updateUpgradeMatrixView()
+        return
+    end
+    if type(data) ~= "table" then return end
+
     updateHUD(data)
 
     if data.LeveledUp == true and data.Level then

@@ -310,6 +310,16 @@ end
     Instantly updates active character properties through TitanRegistry calculation.
 ]=]
 function MonsterService.OnUpgradePurchased(player: Player, upgradeId: string, newLevel: number, newValue: number)
+    -- Every upgrade level raises titan max health by 5%; keep the current health ratio
+    local upgradedCharacter = player.Character
+    local upgradedHumanoid = upgradedCharacter and upgradedCharacter:FindFirstChildOfClass("Humanoid")
+    local upgradedDef = TitanRegistry.Get(activeTitans[player.UserId] or "Ravager")
+    if upgradedHumanoid and upgradedDef then
+        local ratio = upgradedHumanoid.Health / math.max(upgradedHumanoid.MaxHealth, 1)
+        upgradedHumanoid.MaxHealth = MonsterService.GetTitanMaxHealth(player, upgradedDef)
+        upgradedHumanoid.Health = upgradedHumanoid.MaxHealth * ratio
+    end
+
     if upgradeId == "WalkSpeed" then
         local character = player.Character
         if character then
@@ -329,6 +339,20 @@ function MonsterService.OnUpgradePurchased(player: Player, upgradeId: string, ne
             end
         end
     end
+end
+
+--[=[
+    Titan max health: base health +5% per upgrade level bought. Only boss fights ever damage titans.
+]=]
+function MonsterService.GetTitanMaxHealth(player: Player, titanDef: any): number
+    local profile = PlayerDataService.GetProfile(player)
+    local upgradeLevels = 0
+    if profile then
+        for _, lvl in pairs(profile.Upgrades) do
+            upgradeLevels += math.max(0, lvl - 1)
+        end
+    end
+    return math.floor(titanDef.BaseHealth * (1 + 0.05 * upgradeLevels))
 end
 
 --[=[
@@ -352,8 +376,8 @@ function MonsterService.SetupTitanCharacter(player: Player, character: Model)
     local upgradeSpeed = ProgressionService.GetUpgradeValue(player, "WalkSpeed")
     local finalSpeed = TitanRegistry.CalculateWalkSpeed(titanId, upgradeSpeed)
 
-    humanoid.MaxHealth = titanDef.BaseHealth
-    humanoid.Health = titanDef.BaseHealth
+    humanoid.MaxHealth = MonsterService.GetTitanMaxHealth(player, titanDef)
+    humanoid.Health = humanoid.MaxHealth
     humanoid.WalkSpeed = finalSpeed
     humanoid.JumpPower = titanDef.JumpPower
     humanoid.HipHeight = titanDef.HipHeight

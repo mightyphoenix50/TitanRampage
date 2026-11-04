@@ -28,6 +28,16 @@ local ProgressionService = require(script.Parent:WaitForChild("ProgressionServic
 local CityService = require(script.Parent:WaitForChild("CityService") :: ModuleScript)
 local HubService = nil
 local DropService = nil
+local BossService = nil
+
+local function getBossService()
+    if not BossService then
+        pcall(function()
+            BossService = require(script.Parent:WaitForChild("BossService") :: ModuleScript)
+        end)
+    end
+    return BossService
+end
 
 local function getHubService()
     if not HubService then
@@ -464,6 +474,26 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
     -- Training Power bonus (server-set attribute, see ProgressionService.RefreshTitanPower)
     if player then damage = DestructionService.ApplyTrainingBonus(player, damage) end
 
+    -- Bosses take ability damage through BossService (party, shield and phase rules live there)
+    if building:GetAttribute("IsBoss") == true then
+        local bosses = getBossService()
+        if not player or not bosses then return false, 0 end
+        local hit, applied = bosses.DamageBoss(player, building, damage, source)
+        if hit then
+            DestructionFeedbackRemote:FireAllClients("BuildingDamaged", {
+                Building = building,
+                Damage = applied,
+                CurrentHealth = building:GetAttribute("CurrentHealth"),
+                MaxHealth = building:GetAttribute("MaxHealth"),
+                Position = building:GetPivot().Position,
+                Source = source,
+                Combo = DestructionService.GetPlayerCombo(player),
+                IsBoss = true,
+            })
+        end
+        return hit, applied
+    end
+
     -- Apply damage single-sourced through CityService
     local success, actualDamage = CityService.ApplyDamage(building, damage, player)
     if not success then return false, 0 end
@@ -478,6 +508,31 @@ function DestructionService.DamageBuilding(building: Model, damage: number, play
         local hub = getHubService()
         if hub and type(hub.RecordDummyDamage) == "function" then
             hub.RecordDummyDamage(building, actualDamage, newHp, maxHp, playerCombo)
+        end
+        if player and building.Name == "Bastion_Titan_Dummy" then
+            local bosses = getBossService()
+            if bosses then bosses.RecordReadinessDamage(player, actualDamage) end
+        end
+
+        -- Practice monoliths break with a debris burst and rebuild themselves 10 seconds later
+        if newHp <= 0 and building:IsA("BasePart") then
+            local pillar = building :: any
+            local authoredTransparency = pillar.Transparency
+            building:SetAttribute("IsDestroyed", true)
+            pillar.Transparency = 1
+            pillar.CanCollide = false
+            DestructionFeedbackRemote:FireAllClients("BuildingDestroyed", {
+                Building = building,
+                Position = pillar.Position,
+                Rewards = { Cash = 0, XP = 0, Combo = playerCombo },
+            })
+            task.delay(10, function()
+                if not building.Parent then return end
+                pillar.Transparency = authoredTransparency
+                pillar.CanCollide = true
+                building:SetAttribute("CurrentHealth", maxHp)
+                building:SetAttribute("IsDestroyed", false)
+            end)
         end
 
         DestructionFeedbackRemote:FireAllClients("BuildingDamaged", {
